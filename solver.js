@@ -45,27 +45,49 @@ function tryGenerate(data) {
   let teacherBusy = {};
   let classBusy = {};
 
-  function isFree(lesson, day, hour) {
+ function isFree(lesson, day, hour) {
 
-    const tKey = lesson.teacher + "_" + day + "_" + hour;
+  const tKey = lesson.teacher + "_" + day + "_" + hour;
 
-    const teacher = data.teachers.find(t => t.id === lesson.teacher);
-    if (!teacher || !teacher.availability) return false;
+  const teacher = data.teachers.find(t => t.id === lesson.teacher);
+  if (!teacher || !teacher.availability) return false;
 
-    const slot = day + "_" + hour;
+  const slot = day + "_" + hour;
 
-    if (!teacher.availability.includes(slot)) return false;
+  if (!teacher.availability.includes(slot)) return false;
 
-    if (teacherBusy[tKey]) return false;
+  if (teacherBusy[tKey]) return false;
 
-    // 🔥 sprawdzamy WSZYSTKIE klasy
-    for (let cls of lesson.classes) {
-      const cKey = cls + "_" + day + "_" + hour;
-      if (classBusy[cKey]) return false;
+  // 🔥 sprawdzamy klasy
+  for (let cls of lesson.classes) {
+
+    const cKey = cls + "_" + day + "_" + hour;
+    if (classBusy[cKey]) return false;
+
+    // 🧠 BLOKADA OKIENEK
+    // sprawdzamy czy nie tworzymy dziury
+
+    let hasLater = false;
+    let hasEarlier = false;
+
+    for (let h = hour + 1; h <= 8; h++) {
+      if (schedule[cls] && schedule[cls][day] && schedule[cls][day][h]) {
+        hasLater = true;
+      }
     }
 
-    return true;
+    for (let h = 1; h < hour; h++) {
+      if (schedule[cls] && schedule[cls][day] && schedule[cls][day][h]) {
+        hasEarlier = true;
+      }
+    }
+
+    // jeśli są lekcje po i przed → nie wolno robić dziury
+    if (hasLater && !hasEarlier) return false;
   }
+
+  return true;
+}
 
   function occupy(lesson, day, hour) {
 
