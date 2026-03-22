@@ -249,7 +249,7 @@ async function generateSchedule(data) {
   return gaps;
 }
 
-export async function generateSchedule(data) {
+async function generateSchedule(data) {
 
   let best = null;
 
