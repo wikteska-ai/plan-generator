@@ -67,23 +67,7 @@ function tryGenerate(data) {
     // 🧠 BLOKADA OKIENEK
     // sprawdzamy czy nie tworzymy dziury
 
-    let hasLater = false;
-    let hasEarlier = false;
-
-    for (let h = hour + 1; h <= 8; h++) {
-      if (schedule[cls] && schedule[cls][day] && schedule[cls][day][h]) {
-        hasLater = true;
-      }
-    }
-
-    for (let h = 1; h < hour; h++) {
-      if (schedule[cls] && schedule[cls][day] && schedule[cls][day][h]) {
-        hasEarlier = true;
-      }
-    }
-
-    // jeśli są lekcje po i przed → nie wolno robić dziury
-    if (hasLater && !hasEarlier) return false;
+  
   }
 
   return true;
@@ -243,28 +227,63 @@ for (let day in schedule) {
 // 🎯 główna funkcja
 export async function generateSchedule(data) {
 
+ function countGaps(schedule) {
+
+  let gaps = 0;
+
+  for (let cls in schedule) {
+    for (let day in schedule[cls]) {
+
+      let started = false;
+
+      for (let h = 1; h <= 8; h++) {
+
+        if (schedule[cls][day][h]) {
+          started = true;
+        } else {
+          if (started) gaps++;
+        }
+      }
+    }
+  }
+
+  return gaps;
+}
+
+export async function generateSchedule(data) {
+
   let best = null;
 
-for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 50; i++) {
+
     const attempt = tryGenerate(data);
 
-    if (!best || attempt.notPlaced < best.notPlaced) {
-      best = attempt;
+    const gaps = countGaps(attempt.schedule);
+
+    const score = attempt.notPlaced * 100 + gaps;
+
+    if (!best || score < best.score) {
+      best = {
+        ...attempt,
+        score
+      };
     }
 
-    if (best.notPlaced === 0) break;
+    if (best.notPlaced === 0 && gaps === 0) break;
   }
 
   if (best.notPlaced > 0) {
     return {
       status: "PARTIAL",
       message: `Nie ułożono ${best.notPlaced} lekcji`,
+      gaps: countGaps(best.schedule),
       schedule: best.schedule
     };
   }
 
   return {
     status: "OK",
+    gaps: countGaps(best.schedule),
     schedule: best.schedule
   };
 }
