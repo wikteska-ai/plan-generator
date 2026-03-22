@@ -90,8 +90,11 @@ function tryGenerate(data) {
 
   let notPlaced = 0;
 
-  for (let lesson of shuffle(lessons)) {
+lessons.sort((a, b) => {
+  return b.classes.length - a.classes.length;
+});
 
+for (let lesson of lessons) {
     let placed = false;
 
     for (let day of shuffle(days)) {
@@ -123,8 +126,7 @@ export async function generateSchedule(data) {
 
   let best = null;
 
-  for (let i = 0; i < 20; i++) {
-
+for (let i = 0; i < 50; i++) {
     const attempt = tryGenerate(data);
 
     if (!best || attempt.notPlaced < best.notPlaced) {
