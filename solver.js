@@ -79,6 +79,55 @@ function unoccupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
   }
 }
 
+// 💀 HARD SWAP (klucz!)
+function tryHardSwap(lesson, schedule, lessons, teacherBusy, classBusy, data) {
+
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const hours = [1,2,3,4,5,6,7,8];
+
+  for (let cls of Object.keys(schedule)) {
+    for (let day of Object.keys(schedule[cls])) {
+      for (let hour of Object.keys(schedule[cls][day])) {
+
+        const existing = schedule[cls][day][hour];
+
+        const existingLesson = lessons.find(l =>
+          l.teacher === existing.teacher &&
+          l.subject === existing.subject &&
+          l.classes.includes(cls)
+        );
+
+        if (!existingLesson) continue;
+
+        // usuń starą
+        unoccupy(existingLesson, day, hour, schedule, teacherBusy, classBusy);
+
+        // spróbuj wstawić nową
+        if (getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) < 9999) {
+
+          occupy(lesson, day, hour, schedule, teacherBusy, classBusy);
+
+          // spróbuj przywrócić starą gdzie indziej
+          for (let d of days) {
+            for (let h of hours) {
+
+              if (getPenalty(existingLesson, d, h, schedule, teacherBusy, classBusy, data) < 9999) {
+                occupy(existingLesson, d, h, schedule, teacherBusy, classBusy);
+                return true;
+              }
+            }
+          }
+        }
+
+        // rollback
+        occupy(existingLesson, day, hour, schedule, teacherBusy, classBusy);
+      }
+    }
+  }
+
+  return false;
+}
+
 // 🧠 znajdź okienka
 function findGaps(schedule) {
 
@@ -120,7 +169,6 @@ function tryFixGaps(schedule, lessons, teacherBusy, classBusy, data) {
 
       if (p < 9999) {
 
-        // znajdź gdzie ta lekcja jest teraz
         for (let c of lesson.classes) {
           for (let d in schedule[c] || {}) {
             for (let h in schedule[c][d] || {}) {
@@ -222,11 +270,17 @@ function tryGenerate(data) {
     if (bestSlot && bestPenalty < 9999) {
       occupy(lesson, bestSlot.day, bestSlot.hour, schedule, teacherBusy, classBusy);
     } else {
-      notPlaced.push(lesson);
+
+      // 💀 kluczowy moment: próbuj swap zamiast poddawać się
+      const fixed = tryHardSwap(lesson, schedule, lessons, teacherBusy, classBusy, data);
+
+      if (!fixed) {
+        notPlaced.push(lesson);
+      }
     }
   }
 
-  // 🔥 FAZA NAPRAWCZA
+  // 🔧 napraw okienka
   for (let i = 0; i < 50; i++) {
     const improved = tryFixGaps(schedule, lessons, teacherBusy, classBusy, data);
     if (!improved) break;
