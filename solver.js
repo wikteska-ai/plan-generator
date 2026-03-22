@@ -1,4 +1,4 @@
-const TIME_LIMIT = 20000; // 25s na próbę
+const TIME_LIMIT = 30000; // 25s na próbę
 
 function getAllLessons(data) {
 
@@ -187,6 +187,7 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data, st
       }
     }
   }
+  possibleSlots.sort(() => Math.random() - 0.5);
 
   for (let { day, hour } of possibleSlots) {
 
@@ -208,7 +209,7 @@ async function generateSchedule(data) {
   let lessons = getAllLessons(data);
   lessons = sortLessons(data, lessons);
 
-  for (let attempt = 0; attempt < 100; attempt++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
 
     let schedule = {};
     let teacherBusy = {};
