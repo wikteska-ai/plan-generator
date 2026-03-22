@@ -30,8 +30,9 @@ function isFree(lesson, day, hour) {
   const cKey = lesson.class + "_" + day + "_" + hour;
 
   // 🔍 znajdź nauczyciela
-  const teacher = data.teachers.find(t => t.id === lesson.teacher);
+const teacher = data.teachers.find(t => t.id === lesson.teacher);
 
+if (!teacher) return false;
   const slot = day + "_" + hour;
 
   return (
