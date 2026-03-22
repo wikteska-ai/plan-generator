@@ -8,7 +8,7 @@ function tryGenerate(data) {
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
 
-  // 🧠 GRUPOWANIE LEKCJI (KLUCZ!)
+  // 🧠 GRUPOWANIE LEKCJI
   let grouped = {};
 
   data.lessons.forEach((l) => {
@@ -45,33 +45,25 @@ function tryGenerate(data) {
   let teacherBusy = {};
   let classBusy = {};
 
- function isFree(lesson, day, hour) {
+  function isFree(lesson, day, hour) {
 
-  const tKey = lesson.teacher + "_" + day + "_" + hour;
+    const tKey = lesson.teacher + "_" + day + "_" + hour;
 
-  const teacher = data.teachers.find(t => t.id === lesson.teacher);
-  if (!teacher || !teacher.availability) return false;
+    const teacher = data.teachers.find(t => t.id === lesson.teacher);
+    if (!teacher || !teacher.availability) return false;
 
-  const slot = day + "_" + hour;
+    const slot = day + "_" + hour;
 
-  if (!teacher.availability.includes(slot)) return false;
+    if (!teacher.availability.includes(slot)) return false;
+    if (teacherBusy[tKey]) return false;
 
-  if (teacherBusy[tKey]) return false;
+    for (let cls of lesson.classes) {
+      const cKey = cls + "_" + day + "_" + hour;
+      if (classBusy[cKey]) return false;
+    }
 
-  // 🔥 sprawdzamy klasy
-  for (let cls of lesson.classes) {
-
-    const cKey = cls + "_" + day + "_" + hour;
-    if (classBusy[cKey]) return false;
-
-    // 🧠 BLOKADA OKIENEK
-    // sprawdzamy czy nie tworzymy dziury
-
-  
+    return true;
   }
-
-  return true;
-}
 
   function occupy(lesson, day, hour) {
 
@@ -96,26 +88,28 @@ function tryGenerate(data) {
 
   let notPlaced = 0;
 
-lessons.sort((a, b) => {
+  // 🔥 sortowanie (trudni nauczyciele najpierw)
+  lessons.sort((a, b) => {
 
-  const teacherA = data.teachers.find(t => t.id === a.teacher);
-  const teacherB = data.teachers.find(t => t.id === b.teacher);
+    const teacherA = data.teachers.find(t => t.id === a.teacher);
+    const teacherB = data.teachers.find(t => t.id === b.teacher);
 
-  const availA = teacherA ? teacherA.availability.length : 999;
-  const availB = teacherB ? teacherB.availability.length : 999;
+    const availA = teacherA ? teacherA.availability.length : 999;
+    const availB = teacherB ? teacherB.availability.length : 999;
 
-  return availA - availB;
-});
-lessons = shuffle(lessons);
+    return availA - availB;
+  });
 
-for (let lesson of lessons) {
+  lessons = shuffle(lessons);
+
+  for (let lesson of lessons) {
+
     let placed = false;
 
- const shuffledDays = shuffle(days);
-const shuffledHours = shuffle(hours);
+    const shuffledDays = shuffle(days);
 
-for (let day of shuffledDays) {
-  for (let hour of shuffledHours) {
+    for (let day of shuffledDays) {
+      for (let hour of hours) {
 
         if (isFree(lesson, day, hour)) {
           occupy(lesson, day, hour);
@@ -131,100 +125,46 @@ for (let day of shuffledDays) {
       notPlaced++;
     }
   }
-for (let lesson of lessons) {
 
-  // sprawdzamy czy lekcja już jest w planie
-  let found = false;
+  // 🔥 druga próba + swap
+  for (let lesson of lessons) {
 
-  for (let cls of lesson.classes) {
-    if (schedule[cls]) {
-      for (let day in schedule[cls]) {
-        for (let hour in schedule[cls][day]) {
-          const entry = schedule[cls][day][hour];
-          if (entry.teacher === lesson.teacher && entry.subject === lesson.subject) {
-            found = true;
-          }
-        }
-      }
-    }
-  }
+    let found = false;
 
-  if (found) continue;
-
-  // 🔥 druga próba — już bez shuffle
-  for (let day of ["Mon","Tue","Wed","Thu","Fri"]) {
-    for (let hour of [1,2,3,4,5,6,7,8]) {
-
-      if (isFree(lesson, day, hour)) {
-        occupy(lesson, day, hour);
-        notPlaced--;
-        break;
-      }
-    }
-  }
-// 🔥 próba zamiany (swap)
-for (let day in schedule) {
-  for (let d of ["Mon","Tue","Wed","Thu","Fri"]) {
-    for (let h of [1,2,3,4,5,6,7,8]) {
-
-      for (let cls of lesson.classes) {
-
-        if (!schedule[cls] || !schedule[cls][d] || !schedule[cls][d][h]) continue;
-
-        const existing = schedule[cls][d][h];
-
-        // spróbuj wyjąć istniejącą lekcję
-        delete schedule[cls][d][h];
-
-        classBusy[cls + "_" + d + "_" + h] = false;
-
-        if (isFree(lesson, d, h)) {
-
-          // wstaw nową
-          occupy(lesson, d, h);
-
-          // spróbuj wstawić starą gdzie indziej
-          let moved = false;
-
-          for (let d2 of ["Mon","Tue","Wed","Thu","Fri"]) {
-            for (let h2 of [1,2,3,4,5,6,7,8]) {
-
-              const fakeLesson = {
-                classes: [cls],
-                subject: existing.subject,
-                teacher: existing.teacher
-              };
-
-              if (isFree(fakeLesson, d2, h2)) {
-                occupy(fakeLesson, d2, h2);
-                moved = true;
-                break;
-              }
+    for (let cls of lesson.classes) {
+      if (schedule[cls]) {
+        for (let day in schedule[cls]) {
+          for (let hour in schedule[cls][day]) {
+            const entry = schedule[cls][day][hour];
+            if (entry.teacher === lesson.teacher && entry.subject === lesson.subject) {
+              found = true;
             }
-            if (moved) break;
-          }
-
-          if (moved) {
-            notPlaced--;
-            break;
           }
         }
+      }
+    }
 
-        // cofamy jeśli się nie udało
-        schedule[cls][d][h] = existing;
-        classBusy[cls + "_" + d + "_" + h] = true;
+    if (found) continue;
+
+    for (let day of days) {
+      for (let hour of hours) {
+
+        if (isFree(lesson, day, hour)) {
+          occupy(lesson, day, hour);
+          notPlaced--;
+          break;
+        }
       }
     }
   }
-}
-}
+
   return {
     schedule,
     notPlaced
   };
 }
 
-// 🎯 główna funkcja
+// 🧠 liczenie okienek
 function countGaps(schedule) {
 
   let gaps = 0;
@@ -248,6 +188,7 @@ function countGaps(schedule) {
   return gaps;
 }
 
+// 🎯 główna funkcja
 async function generateSchedule(data) {
 
   let best = null;
@@ -285,4 +226,5 @@ async function generateSchedule(data) {
     schedule: best.schedule
   };
 }
+
 module.exports = { generateSchedule };
