@@ -227,4 +227,4 @@ async function generateSchedule(data) {
   };
 }
 
-module.exports = { generateSchedule };
+export { generateSchedule };
