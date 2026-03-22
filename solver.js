@@ -123,12 +123,12 @@ function isDayContinuous(daySchedule) {
 }
 
 // 💀 BACKTRACKING
-function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
+function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
 
-  if (index === lessons.length) {
+  if (lessons.length === 0) {
 
     if (!noEmptyDays(schedule)) return false;
 
@@ -140,6 +140,53 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, d
 
     return true;
   }
+
+  // 🔥 wybierz NAJTRUDNIEJSZĄ lekcję (dynamicznie)
+  let bestLesson = null;
+  let bestOptions = 9999;
+
+  for (let lesson of lessons) {
+
+    let options = 0;
+
+    for (let day of days) {
+      for (let hour of hours) {
+        if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
+          options++;
+        }
+      }
+    }
+
+    if (options === 0) return false;
+
+    if (options < bestOptions) {
+      bestOptions = options;
+      bestLesson = lesson;
+    }
+  }
+
+  // usuń ją z listy
+  const remaining = lessons.filter(l => l !== bestLesson);
+
+  // 🔥 próbuj tylko sensowne sloty
+  for (let day of days) {
+    for (let hour of hours) {
+
+      if (canPlace(bestLesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
+
+        place(bestLesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
+
+        if (solve(remaining, schedule, teacherBusy, classBusy, teacherCount, data)) {
+          return true;
+        }
+
+        remove(bestLesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
+      }
+    }
+  }
+
+  return false;
+}
 
   const lesson = lessons[index];
 
@@ -187,8 +234,7 @@ async function generateSchedule(data) {
   let classBusy = {};
   let teacherCount = {};
 
-  const success = solve(0, lessons, schedule, teacherBusy, classBusy, teacherCount, data);
-
+const success = solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data);
   if (!success) {
     return {
       status: "FAIL",
