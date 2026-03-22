@@ -91,8 +91,16 @@ function tryGenerate(data) {
   let notPlaced = 0;
 
 lessons.sort((a, b) => {
-  return b.classes.length - a.classes.length;
+
+  const teacherA = data.teachers.find(t => t.id === a.teacher);
+  const teacherB = data.teachers.find(t => t.id === b.teacher);
+
+  const availA = teacherA ? teacherA.availability.length : 999;
+  const availB = teacherB ? teacherB.availability.length : 999;
+
+  return availA - availB;
 });
+lessons = shuffle(lessons);
 
 for (let lesson of lessons) {
     let placed = false;
