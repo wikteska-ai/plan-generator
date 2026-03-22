@@ -97,8 +97,11 @@ lessons.sort((a, b) => {
 for (let lesson of lessons) {
     let placed = false;
 
-    for (let day of shuffle(days)) {
-      for (let hour of shuffle(hours)) {
+ const shuffledDays = shuffle(days);
+const shuffledHours = shuffle(hours);
+
+for (let day of shuffledDays) {
+  for (let hour of shuffledHours) {
 
         if (isFree(lesson, day, hour)) {
           occupy(lesson, day, hour);
@@ -126,7 +129,7 @@ export async function generateSchedule(data) {
 
   let best = null;
 
-for (let i = 0; i < 50; i++) {
+for (let i = 0; i < 80; i++) {
     const attempt = tryGenerate(data);
 
     if (!best || attempt.notPlaced < best.notPlaced) {
