@@ -34,12 +34,16 @@ function getAllLessons(data) {
   return lessons;
 }
 
-function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
+// 🧠 sprawdzanie
+function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
   if (!teacher || !teacher.availability.includes(day + "_" + hour)) return false;
 
   if (teacherBusy[lesson.teacher + "_" + day + "_" + hour]) return false;
+
+  // 🔥 max godzin nauczyciela
+  if ((teacherCount[lesson.teacher] || 0) >= teacher.maxHours) return false;
 
   for (let cls of lesson.classes) {
 
@@ -47,18 +51,19 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // 🔥 tylko twarde ograniczenia
-
-    // limit dzienny
+    // limit dzienny klasy
     const MAX = 7;
     if (daySchedule && Object.keys(daySchedule).length >= MAX) return false;
   }
 
   return true;
 }
-function place(lesson, day, hour, schedule, teacherBusy, classBusy) {
+
+// 📌 place
+function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
+  teacherCount[lesson.teacher] = (teacherCount[lesson.teacher] || 0) + 1;
 
   for (let cls of lesson.classes) {
 
@@ -75,9 +80,11 @@ function place(lesson, day, hour, schedule, teacherBusy, classBusy) {
   }
 }
 
-function remove(lesson, day, hour, schedule, teacherBusy, classBusy) {
+// ❌ remove
+function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
 
   delete teacherBusy[lesson.teacher + "_" + day + "_" + hour];
+  teacherCount[lesson.teacher]--;
 
   for (let cls of lesson.classes) {
     delete classBusy[cls + "_" + day + "_" + hour];
@@ -101,7 +108,7 @@ function noEmptyDays(schedule) {
   return true;
 }
 
-// 🔥 ciągłość dnia
+// 🔥 brak okienek
 function isDayContinuous(daySchedule) {
 
   if (!daySchedule) return true;
@@ -116,7 +123,7 @@ function isDayContinuous(daySchedule) {
 }
 
 // 💀 BACKTRACKING
-function solve(index, lessons, schedule, teacherBusy, classBusy, data) {
+function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -139,15 +146,15 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, data) {
   for (let day of days) {
     for (let hour of hours) {
 
-      if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data)) {
+      if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
 
-        place(lesson, day, hour, schedule, teacherBusy, classBusy);
+        place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
 
-        if (solve(index + 1, lessons, schedule, teacherBusy, classBusy, data)) {
+        if (solve(index + 1, lessons, schedule, teacherBusy, classBusy, teacherCount, data)) {
           return true;
         }
 
-        remove(lesson, day, hour, schedule, teacherBusy, classBusy);
+        remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
       }
     }
   }
@@ -160,7 +167,7 @@ async function generateSchedule(data) {
 
   const lessons = getAllLessons(data);
 
-  // 🔥 trudne najpierw
+  // 🔥 KLUCZOWE SORTOWANIE (naprawione)
   lessons.sort((a, b) => {
 
     const ta = data.teachers.find(t => t.id === a.teacher);
@@ -169,14 +176,18 @@ async function generateSchedule(data) {
     const availA = ta?.availability.length || 999;
     const availB = tb?.availability.length || 999;
 
-    return (availA + a.classes.length * 10) - (availB + b.classes.length * 10);
+    const scoreA = availA / (a.classes.length || 1);
+    const scoreB = availB / (b.classes.length || 1);
+
+    return scoreA - scoreB;
   });
 
   let schedule = {};
   let teacherBusy = {};
   let classBusy = {};
+  let teacherCount = {};
 
-  const success = solve(0, lessons, schedule, teacherBusy, classBusy, data);
+  const success = solve(0, lessons, schedule, teacherBusy, classBusy, teacherCount, data);
 
   if (!success) {
     return {
