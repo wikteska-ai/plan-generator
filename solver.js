@@ -1,3 +1,5 @@
+const TIME_LIMIT = 25000; // 25s na próbę
+
 function getAllLessons(data) {
 
   let grouped = {};
@@ -34,6 +36,21 @@ function getAllLessons(data) {
   return lessons;
 }
 
+// 🔥 trudne najpierw
+function sortLessons(data, lessons) {
+  return lessons.sort((a, b) => {
+
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
+
+    const availA = ta?.availability.length || 999;
+    const availB = tb?.availability.length || 999;
+
+    return availA - availB;
+  });
+}
+
+// 🧠 sprawdzanie
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -114,11 +131,13 @@ function isDayContinuous(daySchedule) {
   return true;
 }
 
-// 💀 SMART SOLVER
-function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 💀 SMART SOLVER + timeout
+function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
+
+  if (Date.now() - startTime > TIME_LIMIT) return false;
 
   if (lessons.length === 0) {
 
@@ -133,7 +152,7 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
     return true;
   }
 
-  // 🔥 wybór najtrudniejszej lekcji
+  // 🔥 MRV - najtrudniejsza lekcja
   let bestLesson = null;
   let bestOptions = 9999;
 
@@ -159,7 +178,6 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const remaining = lessons.filter(l => l !== bestLesson);
 
-  // 🔥 sort slotów (lepsza wydajność)
   let possibleSlots = [];
 
   for (let day of days) {
@@ -174,7 +192,7 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
     place(bestLesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
 
-    if (solve(remaining, schedule, teacherBusy, classBusy, teacherCount, data)) {
+    if (solve(remaining, schedule, teacherBusy, classBusy, teacherCount, data, startTime)) {
       return true;
     }
 
@@ -187,39 +205,33 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 // 🎯 MAIN
 async function generateSchedule(data) {
 
-  const lessons = getAllLessons(data);
+  let lessons = getAllLessons(data);
+  lessons = sortLessons(data, lessons);
 
-  // 🔥 wstępne sortowanie
-  lessons.sort((a, b) => {
+  for (let attempt = 0; attempt < 5; attempt++) {
 
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
+    let schedule = {};
+    let teacherBusy = {};
+    let classBusy = {};
+    let teacherCount = {};
 
-    const availA = ta?.availability.length || 999;
-    const availB = tb?.availability.length || 999;
+    const startTime = Date.now();
 
-    return (availA / a.classes.length) - (availB / b.classes.length);
-  });
+    const success = solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime);
 
-  let schedule = {};
-  let teacherBusy = {};
-  let classBusy = {};
-  let teacherCount = {};
-
-  const success = solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data);
-
-  if (!success) {
-    return {
-      status: "FAIL",
-      message: "Brak rozwiązania dla danych ograniczeń"
-    };
+    if (success) {
+      return {
+        status: "OK",
+        notPlaced: 0,
+        gaps: 0,
+        schedule
+      };
+    }
   }
 
   return {
-    status: "OK",
-    notPlaced: 0,
-    gaps: 0,
-    schedule
+    status: "FAIL",
+    message: "Nie znaleziono w czasie limitu"
   };
 }
 
