@@ -125,7 +125,38 @@ for (let day of shuffledDays) {
       notPlaced++;
     }
   }
+for (let lesson of lessons) {
 
+  // sprawdzamy czy lekcja już jest w planie
+  let found = false;
+
+  for (let cls of lesson.classes) {
+    if (schedule[cls]) {
+      for (let day in schedule[cls]) {
+        for (let hour in schedule[cls][day]) {
+          const entry = schedule[cls][day][hour];
+          if (entry.teacher === lesson.teacher && entry.subject === lesson.subject) {
+            found = true;
+          }
+        }
+      }
+    }
+  }
+
+  if (found) continue;
+
+  // 🔥 druga próba — już bez shuffle
+  for (let day of ["Mon","Tue","Wed","Thu","Fri"]) {
+    for (let hour of [1,2,3,4,5,6,7,8]) {
+
+      if (isFree(lesson, day, hour)) {
+        occupy(lesson, day, hour);
+        notPlaced--;
+        break;
+      }
+    }
+  }
+}
   return {
     schedule,
     notPlaced
