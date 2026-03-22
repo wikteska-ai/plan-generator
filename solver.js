@@ -22,17 +22,31 @@ function getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
     // ❌ start dnia po 2 lekcji
     if (!daySchedule && hour > 2) penalty += 50;
 
-    // ❌ okienko
-    if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
-      penalty += 20;
-    }
+// ❌ okienko = DUŻA kara
+if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
+  penalty += 100;
+}
 
-    // ❌ duża dziura (jeszcze gorzej)
-    if (hour > 2 && daySchedule && !daySchedule[hour - 1] && !daySchedule[hour - 2]) {
-      penalty += 40;
-    }
+// ❌ duża dziura
+if (hour > 2 && daySchedule && !daySchedule[hour - 1] && !daySchedule[hour - 2]) {
+  penalty += 200;
+}
+  const MAX_LESSONS_PER_DAY = 6;
+
+if (daySchedule) {
+  const count = Object.keys(daySchedule).length;
+
+  if (count >= MAX_LESSONS_PER_DAY) {
+    penalty += 150;
+  }
+}
+    // ✅ bonus za ciągłość
+if (hour > 1 && daySchedule && daySchedule[hour - 1]) {
+  penalty -= 10;
+}
 
   }
+  
 
   return penalty;
 }
@@ -129,8 +143,10 @@ function tryGenerate(data) {
     let bestSlot = null;
     let bestPenalty = 9999;
 
-    const shuffledDays = shuffle(days);
-    const shuffledHours = shuffle(hours);
+   const shuffledDays = shuffle(days);
+
+// godziny lekko uporządkowane
+const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
 
     for (let day of shuffledDays) {
       for (let hour of shuffledHours) {
@@ -250,13 +266,13 @@ async function generateSchedule(data) {
 
   let best = null;
 
-  for (let i = 0; i < 80; i++) {
+ for (let i = 0; i < 200; i++) {
 
     const attempt = tryGenerate(data);
 
     const gaps = countGaps(attempt.schedule);
-    const score = attempt.notPlaced * 100 + gaps;
-
+const score = attempt.notPlaced * 1000 + gaps;
+   
     if (!best || score < best.score) {
       best = {
         ...attempt,
