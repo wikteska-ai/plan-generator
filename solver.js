@@ -70,7 +70,8 @@ for (let cls of lesson.classes) {
     return false;
   }
 }
-
+    return true;
+  }
   function occupy(lesson, day, hour) {
 
     const tKey = lesson.teacher + "_" + day + "_" + hour;
