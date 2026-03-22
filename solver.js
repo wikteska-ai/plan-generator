@@ -47,18 +47,23 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // ❗ NIE blokujemy już startu dnia
+    // 🔥 ogranicz tylko ekstremalne głupoty
 
-    // ❗ NIE blokujemy chwilowych okienek
+    // ❌ nie zaczynaj od 5-8
+    if (!daySchedule && hour > 4) return false;
 
-    // tylko limit dzienny
+    // ❌ duża dziura (ale mała może być)
+    if (hour > 2 && daySchedule && !daySchedule[hour - 1] && !daySchedule[hour - 2]) {
+      return false;
+    }
+
+    // ❌ limit dzienny
     const MAX = 7;
     if (daySchedule && Object.keys(daySchedule).length >= MAX) return false;
   }
 
   return true;
 }
-
 function place(lesson, day, hour, schedule, teacherBusy, classBusy) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
@@ -122,8 +127,13 @@ function isDayContinuous(daySchedule) {
 function solve(index, lessons, schedule, teacherBusy, classBusy, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
+const hours = [1,2,3,4,5,6,7,8]; // zostaje
 
+// ALE iteracja:
+const sortedHours = daySchedule
+  ? [Math.max(...Object.keys(daySchedule).map(Number)) + 1, ...hours]
+  : [1,2,3,4];
+  
   if (index === lessons.length) {
 
     // finalne sprawdzenia
@@ -141,7 +151,9 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, data) {
   const lesson = lessons[index];
 
   for (let day of days) {
-    for (let hour of hours) {
+    const priorityHours = [1,2,3,4,5,6,7,8];
+
+for (let hour of priorityHours){
 
       if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data)) {
 
@@ -165,12 +177,17 @@ async function generateSchedule(data) {
   const lessons = getAllLessons(data);
 
   // 🔥 trudne najpierw (mega ważne)
-  lessons.sort((a, b) => {
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
+lessons.sort((a, b) => {
 
-    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
-  });
+  const ta = data.teachers.find(t => t.id === a.teacher);
+  const tb = data.teachers.find(t => t.id === b.teacher);
+
+  const availA = ta?.availability.length || 999;
+  const availB = tb?.availability.length || 999;
+
+  // 🔥 + liczba klas (grupy trudniejsze)
+  return (availA + a.classes.length * 10) - (availB + b.classes.length * 10);
+});
 
   let schedule = {};
   let teacherBusy = {};
