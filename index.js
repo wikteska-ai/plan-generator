@@ -1,40 +1,69 @@
-import express from 'express';
-import cors from 'cors';
-import { generateSchedule } from './solver.js';
+import express from "express";
+import bodyParser from "body-parser";
+import { generateSchedule } from "./solver.js";
 
 const app = express();
+app.use(bodyParser.json());
 
-app.use(cors());
-app.use(express.json());
+const jobs = {};
 
-app.post('/generate', async (req, res) => {
-  try {
+// 🎯 START GENEROWANIA
+app.post("/generate", (req, res) => {
 
-    console.log("📥 BODY:", req.body);
+  const jobId = Date.now().toString();
 
-    if (!req.body || !req.body.lessons) {
-      return res.status(400).json({
-        error: "Brak lessons w JSON",
-        received: req.body
-      });
+  jobs[jobId] = {
+    status: "processing",
+    createdAt: Date.now()
+  };
+
+  // 🔥 odpalamy w tle
+  setTimeout(async () => {
+
+    try {
+      const result = await generateSchedule(req.body);
+
+      jobs[jobId] = {
+        status: "done",
+        result,
+        finishedAt: Date.now()
+      };
+
+    } catch (e) {
+      jobs[jobId] = {
+        status: "error",
+        error: e.message
+      };
     }
 
-    const result = await generateSchedule(req.body);
+  }, 0);
 
-    res.json(result);
+  res.json({ jobId });
+});
 
-  } catch (e) {
-    console.error("❌ ERROR:", e);
-    res.status(500).json({ error: e.message });
+// 📡 SPRAWDZANIE STATUSU
+app.get("/status/:id", (req, res) => {
+
+  const job = jobs[req.params.id];
+
+  if (!job) {
+    return res.json({ status: "not_found" });
   }
+
+  res.json(job);
 });
 
-app.get('/', (req, res) => {
-  res.send('API działa 🚀');
-});
+// 🧹 (opcjonalne) czyszczenie starych jobów
+setInterval(() => {
+  const now = Date.now();
 
-const PORT = process.env.PORT || 3000;
+  for (let id in jobs) {
+    if (now - jobs[id].createdAt > 1000 * 60 * 10) {
+      delete jobs[id]; // usuń po 10 min
+    }
+  }
+}, 60000);
 
-app.listen(PORT, () => {
-  console.log(`Server działa na porcie ${PORT}`);
+app.listen(3000, () => {
+  console.log("🚀 Server działa na porcie 3000");
 });
