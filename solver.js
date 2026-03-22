@@ -156,6 +156,61 @@ for (let lesson of lessons) {
       }
     }
   }
+// 🔥 próba zamiany (swap)
+for (let day in schedule) {
+  for (let d of ["Mon","Tue","Wed","Thu","Fri"]) {
+    for (let h of [1,2,3,4,5,6,7,8]) {
+
+      for (let cls of lesson.classes) {
+
+        if (!schedule[cls] || !schedule[cls][d] || !schedule[cls][d][h]) continue;
+
+        const existing = schedule[cls][d][h];
+
+        // spróbuj wyjąć istniejącą lekcję
+        delete schedule[cls][d][h];
+
+        classBusy[cls + "_" + d + "_" + h] = false;
+
+        if (isFree(lesson, d, h)) {
+
+          // wstaw nową
+          occupy(lesson, d, h);
+
+          // spróbuj wstawić starą gdzie indziej
+          let moved = false;
+
+          for (let d2 of ["Mon","Tue","Wed","Thu","Fri"]) {
+            for (let h2 of [1,2,3,4,5,6,7,8]) {
+
+              const fakeLesson = {
+                classes: [cls],
+                subject: existing.subject,
+                teacher: existing.teacher
+              };
+
+              if (isFree(fakeLesson, d2, h2)) {
+                occupy(fakeLesson, d2, h2);
+                moved = true;
+                break;
+              }
+            }
+            if (moved) break;
+          }
+
+          if (moved) {
+            notPlaced--;
+            break;
+          }
+        }
+
+        // cofamy jeśli się nie udało
+        schedule[cls][d][h] = existing;
+        classBusy[cls + "_" + d + "_" + h] = true;
+      }
+    }
+  }
+}
 }
   return {
     schedule,
