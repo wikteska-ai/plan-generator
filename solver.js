@@ -47,13 +47,11 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // 🔥 start tylko 1 lub 2
-    if (!daySchedule && hour > 2) return false;
+    // ❗ NIE blokujemy już startu dnia
 
-    // 🔥 brak okienek
-    if (hour > 1 && daySchedule && !daySchedule[hour - 1]) return false;
+    // ❗ NIE blokujemy chwilowych okienek
 
-    // 🔥 max lekcji dziennie
+    // tylko limit dzienny
     const MAX = 7;
     if (daySchedule && Object.keys(daySchedule).length >= MAX) return false;
   }
