@@ -19,12 +19,25 @@ function getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // ❌ start dnia po 2 lekcji
-    if (!daySchedule && hour > 2) penalty += 50;
+    // ❌ start dnia od 1 lekcji
+if (!daySchedule && hour !== 1) {
+  return 9999;
+}
 
 // ❌ okienko = DUŻA kara
 if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
-  penalty += 100;
+  return 9999; // 🚫 całkowity zakaz
+}
+    const daySchedule = schedule[cls]?.[day];
+
+if (daySchedule) {
+  const hoursUsed = Object.keys(daySchedule).map(Number);
+  const maxHour = Math.max(...hoursUsed);
+
+  // ❌ nie pozwalaj przeskakiwać dalej
+  if (hour > maxHour + 1) {
+    return 9999;
+  }
 }
 
 // ❌ duża dziura
@@ -123,14 +136,20 @@ function tryGenerate(data) {
   });
 
   // 🔥 sort + shuffle
-  lessons.sort((a, b) => {
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
-    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
-  });
+lessons.sort((a, b) => {
 
-  lessons = shuffle(lessons);
+  const ta = data.teachers.find(t => t.id === a.teacher);
+  const tb = data.teachers.find(t => t.id === b.teacher);
 
+  const availA = ta?.availability.length || 999;
+  const availB = tb?.availability.length || 999;
+
+  // 🔥 najtrudniejsze NAJPIERW
+  return availA - availB;
+
+});
+
+lessons = lessons.slice(0, 10).concat(shuffle(lessons.slice(10)));
   let schedule = {};
   let teacherBusy = {};
   let classBusy = {};
@@ -149,7 +168,7 @@ function tryGenerate(data) {
 const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
 
     for (let day of shuffledDays) {
-      for (let hour of shuffledHours) {
+      for (let hour of hours) {
 
         const p = getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data);
 
