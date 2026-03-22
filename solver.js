@@ -19,40 +19,40 @@ function getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // ❌ start tylko od 1
+    // 🔥 start dnia - preferuj 1, ale nie blokuj
     if (!daySchedule && hour !== 1) {
-      return 9999;
+      penalty += 50;
     }
 
-    // ❌ brak ciągłości (okienko)
+    // 🔥 okienko - bardzo drogie, ale możliwe
     if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
-      return 9999;
+      penalty += 200;
     }
 
-    // ❌ przeskoki
+    // 🔥 przeskok - kara zamiast zakazu
     if (daySchedule) {
       const hoursUsed = Object.keys(daySchedule).map(Number);
       const maxHour = Math.max(...hoursUsed);
 
       if (hour > maxHour + 1) {
-        return 9999;
+        penalty += 150;
       }
     }
 
-    // ❌ limit dzienny
-    const MAX_LESSONS_PER_DAY = 6;
+    // 🔥 limit dzienny
+    const MAX_LESSONS_PER_DAY = 7;
 
     if (daySchedule) {
       const count = Object.keys(daySchedule).length;
 
       if (count >= MAX_LESSONS_PER_DAY) {
-        penalty += 150;
+        penalty += 200;
       }
     }
 
     // ✅ bonus za ciągłość
     if (hour > 1 && daySchedule && daySchedule[hour - 1]) {
-      penalty -= 10;
+      penalty -= 20;
     }
 
   }
@@ -151,8 +151,7 @@ function tryGenerate(data) {
     let bestPenalty = 9999;
 
     const shuffledDays = shuffle(days);
-    const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
-
+const shuffledHours = shuffle(hours);
     for (let day of shuffledDays) {
       for (let hour of shuffledHours) {
 
