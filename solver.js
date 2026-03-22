@@ -19,48 +19,35 @@ function getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // 🔥 start dnia - preferuj 1, ale nie blokuj
-    if (!daySchedule && hour !== 1) {
-      penalty += 50;
-    }
+    if (!daySchedule && hour !== 1) penalty += 50;
 
-    // 🔥 okienko - bardzo drogie, ale możliwe
     if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
       penalty += 200;
     }
 
-    // 🔥 przeskok - kara zamiast zakazu
     if (daySchedule) {
       const hoursUsed = Object.keys(daySchedule).map(Number);
       const maxHour = Math.max(...hoursUsed);
 
-      if (hour > maxHour + 1) {
-        penalty += 150;
-      }
+      if (hour > maxHour + 1) penalty += 150;
     }
 
-    // 🔥 limit dzienny
     const MAX_LESSONS_PER_DAY = 7;
 
     if (daySchedule) {
       const count = Object.keys(daySchedule).length;
-
-      if (count >= MAX_LESSONS_PER_DAY) {
-        penalty += 200;
-      }
+      if (count >= MAX_LESSONS_PER_DAY) penalty += 200;
     }
 
-    // ✅ bonus za ciągłość
     if (hour > 1 && daySchedule && daySchedule[hour - 1]) {
       penalty -= 20;
     }
-
   }
 
   return penalty;
 }
 
-// 📌 zajmowanie slotu
+// 📌 zajmowanie
 function occupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
@@ -90,6 +77,74 @@ function unoccupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
     delete classBusy[cls + "_" + day + "_" + hour];
     delete schedule[cls][day][hour];
   }
+}
+
+// 🧠 znajdź okienka
+function findGaps(schedule) {
+
+  let gaps = [];
+
+  for (let cls in schedule) {
+    for (let day in schedule[cls]) {
+
+      let started = false;
+
+      for (let h = 1; h <= 8; h++) {
+
+        if (schedule[cls][day][h]) {
+          started = true;
+        } else if (started) {
+          gaps.push({ cls, day, hour: h });
+        }
+      }
+    }
+  }
+
+  return gaps;
+}
+
+// 🔧 napraw okienka
+function tryFixGaps(schedule, lessons, teacherBusy, classBusy, data) {
+
+  const gaps = findGaps(schedule);
+
+  for (let gap of gaps) {
+
+    const { cls, day, hour } = gap;
+
+    for (let lesson of lessons) {
+
+      if (!lesson.classes.includes(cls)) continue;
+
+      const p = getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data);
+
+      if (p < 9999) {
+
+        // znajdź gdzie ta lekcja jest teraz
+        for (let c of lesson.classes) {
+          for (let d in schedule[c] || {}) {
+            for (let h in schedule[c][d] || {}) {
+
+              const entry = schedule[c][d][h];
+
+              if (
+                entry.teacher === lesson.teacher &&
+                entry.subject === lesson.subject
+              ) {
+
+                unoccupy(lesson, d, h, schedule, teacherBusy, classBusy);
+                occupy(lesson, day, hour, schedule, teacherBusy, classBusy);
+
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 // 🔁 próba
@@ -129,7 +184,6 @@ function tryGenerate(data) {
     }
   });
 
-  // 🔥 trudni nauczyciele najpierw
   lessons.sort((a, b) => {
     const ta = data.teachers.find(t => t.id === a.teacher);
     const tb = data.teachers.find(t => t.id === b.teacher);
@@ -151,7 +205,8 @@ function tryGenerate(data) {
     let bestPenalty = 9999;
 
     const shuffledDays = shuffle(days);
-const shuffledHours = shuffle(hours);
+    const shuffledHours = shuffle(hours);
+
     for (let day of shuffledDays) {
       for (let hour of shuffledHours) {
 
@@ -169,6 +224,12 @@ const shuffledHours = shuffle(hours);
     } else {
       notPlaced.push(lesson);
     }
+  }
+
+  // 🔥 FAZA NAPRAWCZA
+  for (let i = 0; i < 50; i++) {
+    const improved = tryFixGaps(schedule, lessons, teacherBusy, classBusy, data);
+    if (!improved) break;
   }
 
   return {
