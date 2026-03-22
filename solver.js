@@ -19,47 +19,43 @@ function getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // ❌ start dnia od 1 lekcji
-if (!daySchedule && hour !== 1) {
-  return 9999;
-}
+    // ❌ start tylko od 1
+    if (!daySchedule && hour !== 1) {
+      return 9999;
+    }
 
-// ❌ okienko = DUŻA kara
-if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
-  return 9999; // 🚫 całkowity zakaz
-}
-    const daySchedule = schedule[cls]?.[day];
+    // ❌ brak ciągłości (okienko)
+    if (hour > 1 && daySchedule && !daySchedule[hour - 1]) {
+      return 9999;
+    }
 
-if (daySchedule) {
-  const hoursUsed = Object.keys(daySchedule).map(Number);
-  const maxHour = Math.max(...hoursUsed);
+    // ❌ przeskoki
+    if (daySchedule) {
+      const hoursUsed = Object.keys(daySchedule).map(Number);
+      const maxHour = Math.max(...hoursUsed);
 
-  // ❌ nie pozwalaj przeskakiwać dalej
-  if (hour > maxHour + 1) {
-    return 9999;
-  }
-}
+      if (hour > maxHour + 1) {
+        return 9999;
+      }
+    }
 
-// ❌ duża dziura
-if (hour > 2 && daySchedule && !daySchedule[hour - 1] && !daySchedule[hour - 2]) {
-  penalty += 200;
-}
-  const MAX_LESSONS_PER_DAY = 6;
+    // ❌ limit dzienny
+    const MAX_LESSONS_PER_DAY = 6;
 
-if (daySchedule) {
-  const count = Object.keys(daySchedule).length;
+    if (daySchedule) {
+      const count = Object.keys(daySchedule).length;
 
-  if (count >= MAX_LESSONS_PER_DAY) {
-    penalty += 150;
-  }
-}
+      if (count >= MAX_LESSONS_PER_DAY) {
+        penalty += 150;
+      }
+    }
+
     // ✅ bonus za ciągłość
-if (hour > 1 && daySchedule && daySchedule[hour - 1]) {
-  penalty -= 10;
-}
+    if (hour > 1 && daySchedule && daySchedule[hour - 1]) {
+      penalty -= 10;
+    }
 
   }
-  
 
   return penalty;
 }
@@ -85,7 +81,7 @@ function occupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
   }
 }
 
-// ❌ usuwanie (do swapów)
+// ❌ usuwanie
 function unoccupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
 
   delete teacherBusy[lesson.teacher + "_" + day + "_" + hour];
@@ -96,13 +92,12 @@ function unoccupy(lesson, day, hour, schedule, teacherBusy, classBusy) {
   }
 }
 
-// 🔁 jedna próba
+// 🔁 próba
 function tryGenerate(data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
 
-  // 🧠 grupowanie
   let grouped = {};
 
   data.lessons.forEach(l => {
@@ -121,7 +116,6 @@ function tryGenerate(data) {
     grouped[key].classes.push(l.class);
   });
 
-  // 📦 rozwinięcie
   let lessons = [];
 
   Object.values(grouped).forEach((g, index) => {
@@ -135,40 +129,32 @@ function tryGenerate(data) {
     }
   });
 
-  // 🔥 sort + shuffle
-lessons.sort((a, b) => {
+  // 🔥 trudni nauczyciele najpierw
+  lessons.sort((a, b) => {
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
 
-  const ta = data.teachers.find(t => t.id === a.teacher);
-  const tb = data.teachers.find(t => t.id === b.teacher);
+    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
+  });
 
-  const availA = ta?.availability.length || 999;
-  const availB = tb?.availability.length || 999;
+  lessons = lessons.slice(0, 10).concat(shuffle(lessons.slice(10)));
 
-  // 🔥 najtrudniejsze NAJPIERW
-  return availA - availB;
-
-});
-
-lessons = lessons.slice(0, 10).concat(shuffle(lessons.slice(10)));
   let schedule = {};
   let teacherBusy = {};
   let classBusy = {};
 
   let notPlaced = [];
 
-  // 🎯 główne układanie
   for (let lesson of lessons) {
 
     let bestSlot = null;
     let bestPenalty = 9999;
 
-   const shuffledDays = shuffle(days);
-
-// godziny lekko uporządkowane
-const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
+    const shuffledDays = shuffle(days);
+    const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
 
     for (let day of shuffledDays) {
-      for (let hour of hours) {
+      for (let hour of shuffledHours) {
 
         const p = getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data);
 
@@ -186,77 +172,13 @@ const shuffledHours = shuffle([1,2,3]).concat(shuffle([4,5,6,7,8]));
     }
   }
 
-  // 🔥 próba naprawy (swap)
-  for (let lesson of [...notPlaced]) {
-
-    let fixed = false;
-
-    for (let cls of Object.keys(schedule)) {
-      for (let day of Object.keys(schedule[cls])) {
-        for (let hour of Object.keys(schedule[cls][day])) {
-
-          const existing = schedule[cls][day][hour];
-
-          // znajdź lekcję odpowiadającą temu wpisowi
-          const existingLesson = lessons.find(l =>
-            l.teacher === existing.teacher &&
-            l.subject === existing.subject &&
-            l.classes.includes(cls)
-          );
-
-          if (!existingLesson) continue;
-
-          // usuń starą
-          unoccupy(existingLesson, day, hour, schedule, teacherBusy, classBusy);
-
-          // spróbuj wstawić nową
-          const p = getPenalty(lesson, day, hour, schedule, teacherBusy, classBusy, data);
-
-          if (p < 9999) {
-
-            occupy(lesson, day, hour, schedule, teacherBusy, classBusy);
-
-            // spróbuj gdzieś wcisnąć starą
-            let rePlaced = false;
-
-            for (let d of days) {
-              for (let h of hours) {
-
-                if (getPenalty(existingLesson, d, h, schedule, teacherBusy, classBusy, data) < 9999) {
-                  occupy(existingLesson, d, h, schedule, teacherBusy, classBusy);
-                  rePlaced = true;
-                  break;
-                }
-              }
-              if (rePlaced) break;
-            }
-
-            if (rePlaced) {
-              fixed = true;
-              break;
-            }
-          }
-
-          // rollback
-          occupy(existingLesson, day, hour, schedule, teacherBusy, classBusy);
-        }
-        if (fixed) break;
-      }
-      if (fixed) break;
-    }
-
-    if (fixed) {
-      notPlaced = notPlaced.filter(l => l !== lesson);
-    }
-  }
-
   return {
     schedule,
     notPlaced: notPlaced.length
   };
 }
 
-// 🧠 liczenie okienek
+// 🧠 okienka
 function countGaps(schedule) {
 
   let gaps = 0;
@@ -267,7 +189,6 @@ function countGaps(schedule) {
       let started = false;
 
       for (let h = 1; h <= 8; h++) {
-
         if (schedule[cls][day][h]) {
           started = true;
         } else {
@@ -280,18 +201,18 @@ function countGaps(schedule) {
   return gaps;
 }
 
-// 🎯 główna funkcja
+// 🎯 main
 async function generateSchedule(data) {
 
   let best = null;
 
- for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 200; i++) {
 
     const attempt = tryGenerate(data);
 
     const gaps = countGaps(attempt.schedule);
-const score = attempt.notPlaced * 1000 + gaps;
-   
+    const score = attempt.notPlaced * 1000 + gaps;
+
     if (!best || score < best.score) {
       best = {
         ...attempt,
