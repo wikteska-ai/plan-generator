@@ -1,9 +1,12 @@
-export async function generateSchedule(data) {
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+
+function tryGenerate(data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
 
-  // 📦 rozbij lekcje na pojedyncze godziny
   let lessons = [];
 
   data.lessons.forEach((l, index) => {
@@ -17,30 +20,25 @@ export async function generateSchedule(data) {
     }
   });
 
-  // 🎯 plan wynikowy
   let schedule = {};
-
-  // pomocnicze
   let teacherBusy = {};
   let classBusy = {};
 
-function isFree(lesson, day, hour) {
+  function isFree(lesson, day, hour) {
+    const tKey = lesson.teacher + "_" + day + "_" + hour;
+    const cKey = lesson.class + "_" + day + "_" + hour;
 
-  const tKey = lesson.teacher + "_" + day + "_" + hour;
-  const cKey = lesson.class + "_" + day + "_" + hour;
+    const teacher = data.teachers.find(t => t.id === lesson.teacher);
+    if (!teacher || !teacher.availability) return false;
 
-  // 🔍 znajdź nauczyciela
-const teacher = data.teachers.find(t => t.id === lesson.teacher);
+    const slot = day + "_" + hour;
 
-if (!teacher) return false;
-  const slot = day + "_" + hour;
-
-  return (
-    !teacherBusy[tKey] &&
-    !classBusy[cKey] &&
-    teacher.availability.includes(slot)
-  );
-}
+    return (
+      !teacherBusy[tKey] &&
+      !classBusy[cKey] &&
+      teacher.availability.includes(slot)
+    );
+  }
 
   function occupy(lesson, day, hour) {
     const tKey = lesson.teacher + "_" + day + "_" + hour;
@@ -58,13 +56,14 @@ if (!teacher) return false;
     };
   }
 
-  // 🔁 prosty algorytm
-  for (let lesson of lessons) {
+  let notPlaced = 0;
+
+  for (let lesson of shuffle(lessons)) {
 
     let placed = false;
 
-    for (let day of days) {
-      for (let hour of hours) {
+    for (let day of shuffle(days)) {
+      for (let hour of shuffle(hours)) {
 
         if (isFree(lesson, day, hour)) {
           occupy(lesson, day, hour);
@@ -77,15 +76,41 @@ if (!teacher) return false;
     }
 
     if (!placed) {
-      return {
-        status: "ERROR",
-        message: "Nie udało się ułożyć planu 😢"
-      };
+      notPlaced++;
     }
   }
 
   return {
+    schedule,
+    notPlaced
+  };
+}
+
+export async function generateSchedule(data) {
+
+  let best = null;
+
+  for (let i = 0; i < 50; i++) {
+
+    const attempt = tryGenerate(data);
+
+    if (!best || attempt.notPlaced < best.notPlaced) {
+      best = attempt;
+    }
+
+    if (best.notPlaced === 0) break;
+  }
+
+  if (best.notPlaced > 0) {
+    return {
+      status: "PARTIAL",
+      message: `Nie ułożono ${best.notPlaced} lekcji`,
+      schedule: best.schedule
+    };
+  }
+
+  return {
     status: "OK",
-    schedule: schedule
+    schedule: best.schedule
   };
 }
