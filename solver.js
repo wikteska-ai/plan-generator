@@ -47,22 +47,15 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, data) {
 
     const daySchedule = schedule[cls]?.[day];
 
-    // ❌ nie zaczynaj ekstremalnie późno
-    if (!daySchedule && hour > 4) return false;
+    // 🔥 tylko twarde ograniczenia
 
-    // ❌ duża dziura
-    if (hour > 2 && daySchedule && !daySchedule[hour - 1] && !daySchedule[hour - 2]) {
-      return false;
-    }
-
-    // ❌ limit dzienny
+    // limit dzienny
     const MAX = 7;
     if (daySchedule && Object.keys(daySchedule).length >= MAX) return false;
   }
 
   return true;
 }
-
 function place(lesson, day, hour, schedule, teacherBusy, classBusy) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
