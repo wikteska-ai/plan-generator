@@ -24,12 +24,22 @@ export async function generateSchedule(data) {
   let teacherBusy = {};
   let classBusy = {};
 
-  function isFree(lesson, day, hour) {
-    const tKey = lesson.teacher + "_" + day + "_" + hour;
-    const cKey = lesson.class + "_" + day + "_" + hour;
+function isFree(lesson, day, hour) {
 
-    return !teacherBusy[tKey] && !classBusy[cKey];
-  }
+  const tKey = lesson.teacher + "_" + day + "_" + hour;
+  const cKey = lesson.class + "_" + day + "_" + hour;
+
+  // 🔍 znajdź nauczyciela
+  const teacher = data.teachers.find(t => t.id === lesson.teacher);
+
+  const slot = day + "_" + hour;
+
+  return (
+    !teacherBusy[tKey] &&
+    !classBusy[cKey] &&
+    teacher.availability.includes(slot)
+  );
+}
 
   function occupy(lesson, day, hour) {
     const tKey = lesson.teacher + "_" + day + "_" + hour;
