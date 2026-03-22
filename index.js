@@ -9,9 +9,22 @@ app.use(express.json());
 
 app.post('/generate', async (req, res) => {
   try {
+
+    console.log("📥 BODY:", req.body);
+
+    if (!req.body || !req.body.lessons) {
+      return res.status(400).json({
+        error: "Brak lessons w JSON",
+        received: req.body
+      });
+    }
+
     const result = await generateSchedule(req.body);
+
     res.json(result);
+
   } catch (e) {
+    console.error("❌ ERROR:", e);
     res.status(500).json({ error: e.message });
   }
 });
