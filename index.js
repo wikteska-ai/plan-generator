@@ -1,10 +1,17 @@
 import express from "express";
 import bodyParser from "body-parser";
+import cors from "cors";
 import { generateSchedule } from "./solver.js";
 
 const app = express();
+
+// 🔥 CORS (naprawia "Failed to fetch")
+app.use(cors());
+
+// JSON
 app.use(bodyParser.json());
 
+// 🔥 pamięć jobów
 const jobs = {};
 
 // 🎯 START GENEROWANIA
@@ -17,9 +24,8 @@ app.post("/generate", (req, res) => {
     createdAt: Date.now()
   };
 
-  // 🔥 odpalamy w tle
+  // 🔥 uruchom w tle
   setTimeout(async () => {
-
     try {
       const result = await generateSchedule(req.body);
 
@@ -29,19 +35,22 @@ app.post("/generate", (req, res) => {
         finishedAt: Date.now()
       };
 
+      console.log("✅ DONE:", jobId);
+
     } catch (e) {
+      console.error("❌ ERROR:", e);
+
       jobs[jobId] = {
         status: "error",
         error: e.message
       };
     }
-
   }, 0);
 
   res.json({ jobId });
 });
 
-// 📡 SPRAWDZANIE STATUSU
+// 📡 STATUS
 app.get("/status/:id", (req, res) => {
 
   const job = jobs[req.params.id];
@@ -53,17 +62,20 @@ app.get("/status/:id", (req, res) => {
   res.json(job);
 });
 
-// 🧹 (opcjonalne) czyszczenie starych jobów
+// 🧹 czyszczenie starych jobów (co 1 min)
 setInterval(() => {
   const now = Date.now();
 
   for (let id in jobs) {
     if (now - jobs[id].createdAt > 1000 * 60 * 10) {
-      delete jobs[id]; // usuń po 10 min
+      delete jobs[id];
     }
   }
 }, 60000);
 
-app.listen(3000, () => {
-  console.log("🚀 Server działa na porcie 3000");
+// 🔥 PORT (WAŻNE NA RENDER)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("🚀 Server działa na porcie " + PORT);
 });
