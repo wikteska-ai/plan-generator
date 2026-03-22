@@ -225,8 +225,7 @@ for (let day in schedule) {
 }
 
 // 🎯 główna funkcja
-async function generateSchedule(data) {
- function countGaps(schedule) {
+function countGaps(schedule) {
 
   let gaps = 0;
 
@@ -285,5 +284,5 @@ async function generateSchedule(data) {
     gaps: countGaps(best.schedule),
     schedule: best.schedule
   };
-module.exports = { generateSchedule };
 }
+module.exports = { generateSchedule };
