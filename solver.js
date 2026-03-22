@@ -61,9 +61,15 @@ function tryGenerate(data) {
       const cKey = cls + "_" + day + "_" + hour;
       if (classBusy[cKey]) return false;
     }
+    // 🧠 preferuj ciągłość dnia
+for (let cls of lesson.classes) {
 
-    return true;
+  if (!schedule[cls] || !schedule[cls][day]) continue;
+
+  if (hour > 1 && !schedule[cls][day][hour - 1]) {
+    return false;
   }
+}
 
   function occupy(lesson, day, hour) {
 
@@ -100,8 +106,7 @@ function tryGenerate(data) {
     return availA - availB;
   });
 
-  lessons = shuffle(lessons);
-
+// lessons = shuffle(lessons);
   for (let lesson of lessons) {
 
     let placed = false;
