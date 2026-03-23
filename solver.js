@@ -7,12 +7,10 @@ const HOURS = [1,2,3,4,5,6,7,8];
 
 // ===== PROGRESS =====
 function saveProgress(p) {
-  try {
-    fs.writeFileSync("progress.json", JSON.stringify(p));
-  } catch {}
+  try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
 }
 
-// ===== LEKCJE (GRUPY + BLOKI) =====
+// ===== LEKCJE =====
 function getLessons(data) {
 
   let grouped = {};
@@ -42,7 +40,7 @@ function getLessons(data) {
   let out = [];
 
   Object.values(grouped).forEach((g, i) => {
-    for (let h = 0; h < g.hours; h += g.block) {
+    for (let h = 0; h < g.hours; h++) {
       out.push({
         id: i + "_" + h,
         ...g
@@ -50,11 +48,10 @@ function getLessons(data) {
     }
   });
 
-  // 🔥 SORTOWANIE (kluczowe)
+  // 🔥 SORTOWANIE
   out.sort((a,b) => {
     if (a.group && !b.group) return -1;
     if (!a.group && b.group) return 1;
-    if (a.block !== b.block) return b.block - a.block;
     return b.classes.length - a.classes.length;
   });
 
@@ -71,21 +68,6 @@ function classesFree(classes, d, h, cBusy) {
   return classes.every(c => !cBusy[c+"_"+d+"_"+h]);
 }
 
-function canPlace(l, d, h, tBusy, cBusy, data) {
-
-  if (!teacherOk(l.teacher,d,h,tBusy,data)) return false;
-  if (!classesFree(l.classes,d,h,cBusy)) return false;
-
-  if (l.block === 2) {
-    const h2 = h+1;
-    if (!HOURS.includes(h2)) return false;
-    if (!teacherOk(l.teacher,d,h2,tBusy,data)) return false;
-    if (!classesFree(l.classes,d,h2,cBusy)) return false;
-  }
-
-  return true;
-}
-
 // ===== PLACE =====
 function place(l, d, h, s, tBusy, cBusy) {
 
@@ -99,13 +81,9 @@ function place(l, d, h, s, tBusy, cBusy) {
 
     s[c][d][h] = l;
   }
-
-  if (l.block === 2) {
-    place(l, d, h+1, s, tBusy, cBusy);
-  }
 }
 
-// ===== CONSTRUCT =====
+// ===== CONSTRUCT (NAPRAWIONE 🔥) =====
 function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
@@ -118,7 +96,8 @@ function construct(lessons, data) {
     for (let d of DAYS) {
       for (let h of HOURS) {
 
-        if (!canPlace(l,d,h,tBusy,cBusy,data)) continue;
+        if (!teacherOk(l.teacher,d,h,tBusy,data)) continue;
+        if (!classesFree(l.classes,d,h,cBusy)) continue;
 
         let score = 0;
 
@@ -138,7 +117,25 @@ function construct(lessons, data) {
       }
     }
 
-    if (best) place(l, best.d, best.h, s, tBusy, cBusy);
+    // ✅ NORMAL placement
+    if (best) {
+      place(l, best.d, best.h, s, tBusy, cBusy);
+    } else {
+
+      // 🔥 FALLBACK (NAJWAŻNIEJSZY FIX)
+      outer:
+      for (let d of DAYS) {
+        for (let h of HOURS) {
+
+          if (teacherOk(l.teacher,d,h,tBusy,data) &&
+              classesFree(l.classes,d,h,cBusy)) {
+
+            place(l, d, h, s, tBusy, cBusy);
+            break outer;
+          }
+        }
+      }
+    }
   }
 
   return s;
