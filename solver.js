@@ -1,97 +1,128 @@
+// 🔥 PRODUCTION TIMETABLE ENGINE (DROP-IN REPLACEMENT)
+// kompatybilny z Twoim API: generateSchedule(data)
+
 import fs from "fs";
 
-const TIME_LIMIT = 120000;
-
+const TIME_LIMIT = 240000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
 // ===== PROGRESS =====
 function saveProgress(p) {
-  try {
-    fs.writeFileSync("progress.json", JSON.stringify(p));
-  } catch (e) {}
+  try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
 }
 
-// ===== LEKCJE =====
+// ===== LESSON BUILD (GRUPY + BLOKI) =====
 function getLessons(data) {
+  let grouped = {};
 
-  const out = [];
+  data.lessons.forEach(l => {
+    const key = l.group
+      ? "G_" + l.group
+      : l.subject === "edu.wczesno."
+        ? `${l.class}_${l.subject}_${l.teacher}`
+        : `${l.class}_${l.subject}`;
 
-  data.lessons.forEach((l, i) => {
-
-    for (let h = 0; h < (l.hours || 0); h++) {
-
-      out.push({
-        id: i + "_" + h,
+    if (!grouped[key]) {
+      grouped[key] = {
         subject: l.subject,
         teacher: l.teacher,
-        classes: l.group ? [] : [l.class], // grupy uproszczone żeby nie crashowało
-      });
+        classes: [],
+        hours: l.hours,
+        group: l.group,
+        block: l.subject === "wych.fizy." ? 2 : 1
+      };
     }
+
+    grouped[key].classes.push(l.class);
+  });
+
+  let out = [];
+
+  Object.values(grouped).forEach((g, i) => {
+    for (let h = 0; h < g.hours; h += g.block) {
+      out.push({ id: i + "_" + h, ...g });
+    }
+  });
+
+  // 🔥 SORTOWANIE (kluczowe)
+  out.sort((a,b) => {
+    if (a.group && !b.group) return -1;
+    if (!a.group && b.group) return 1;
+    if (a.block !== b.block) return b.block - a.block;
+    return b.classes.length - a.classes.length;
   });
 
   return out;
 }
 
-// ===== CHECK =====
-function canPlace(l, d, h, s, tBusy, cBusy, data) {
+// ===== CHECKS =====
+function teacherOk(tid, d, h, tBusy, data) {
+  const t = data.teachers.find(x => x.id === tid);
+  return t && t.availability.includes(d+"_"+h) && !tBusy[tid+"_"+d+"_"+h];
+}
 
-  const teacher = data.teachers.find(x => x.id === l.teacher);
-  if (!teacher) return false;
+function classesFree(classes, d, h, cBusy) {
+  return classes.every(c => !cBusy[c+"_"+d+"_"+h]);
+}
 
-  if (!teacher.availability.includes(d + "_" + h)) return false;
+function canPlace(l, d, h, tBusy, cBusy, data) {
+  if (!teacherOk(l.teacher,d,h,tBusy,data)) return false;
+  if (!classesFree(l.classes,d,h,cBusy)) return false;
 
-  if (tBusy[l.teacher + "_" + d + "_" + h]) return false;
-
-  for (let c of l.classes) {
-    if (cBusy[c + "_" + d + "_" + h]) return false;
+  if (l.block === 2) {
+    const h2 = h+1;
+    if (!HOURS.includes(h2)) return false;
+    if (!teacherOk(l.teacher,d,h2,tBusy,data)) return false;
+    if (!classesFree(l.classes,d,h2,cBusy)) return false;
   }
 
   return true;
 }
 
-// ===== PLACE =====
 function place(l, d, h, s, tBusy, cBusy) {
-
-  tBusy[l.teacher + "_" + d + "_" + h] = true;
+  tBusy[l.teacher+"_"+d+"_"+h] = true;
 
   for (let c of l.classes) {
-
-    cBusy[c + "_" + d + "_" + h] = true;
+    cBusy[c+"_"+d+"_"+h] = true;
 
     if (!s[c]) s[c] = {};
     if (!s[c][d]) s[c][d] = {};
 
     s[c][d][h] = l;
   }
+
+  if (l.block === 2) place(l, d, h+1, s, tBusy, cBusy);
 }
 
-// ===== KONSTRUKCJA =====
+// ===== CONSTRUCT (SMART) =====
 function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let l of lessons.sort(() => Math.random() - 0.5)) {
+  for (let l of lessons) {
 
     let best = null;
-    let bestScore = -999;
+    let bestScore = -9999;
 
     for (let d of DAYS) {
       for (let h of HOURS) {
 
-        if (!canPlace(l, d, h, s, tBusy, cBusy, data)) continue;
+        if (!canPlace(l,d,h,tBusy,cBusy,data)) continue;
 
         let score = 0;
 
-        // 🔥 poranek
-        if (h === 1) score += 10;
-        if (h === 2) score += 7;
-        if (h === 3) score += 5;
+        // środek dnia lepszy
+        if (h >= 2 && h <= 6) score += 3;
 
-        if (h >= 7) score -= 5;
+        // rozkład
+        for (let c of l.classes) {
+          const day = s[c]?.[d] || {};
+          score -= Object.keys(day).length;
+        }
 
-        const day = s[l.classes[0]]?.[d] || {};
-        score -= Object.keys(day).length;
+        // bonus za grupy
+        if (l.group) score += 5;
 
         if (score > bestScore) {
           bestScore = score;
@@ -106,7 +137,7 @@ function construct(lessons, data) {
   return s;
 }
 
-// ===== SCORE =====
+// ===== SCORE (ULEPSZONY) =====
 function score(s) {
 
   let penalty = 0;
@@ -118,45 +149,30 @@ function score(s) {
       const day = s[cls]?.[d] || {};
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      if (hours.length === 0) penalty += 50;
-      if (hours.length < 4) penalty += 20;
+      if (hours.length === 0) penalty += 80;
+      if (hours.length < 4) penalty += 30;
+      if (hours.length > 7) penalty += 30;
 
+      // okienka
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) penalty += 40;
       }
 
-      if (hours.length > 0 && Math.min(...hours) > 2) penalty += 30;
+      // powtarzalność
+      for (let i = 2; i < hours.length; i++) {
+        const l1 = day[hours[i]]?.subject;
+        const l2 = day[hours[i-1]]?.subject;
+        const l3 = day[hours[i-2]]?.subject;
+
+        if (l1 === l2 && l2 === l3) penalty += 25;
+      }
     }
   }
 
   return -penalty;
 }
 
-// ===== MOVE =====
-function move(s) {
-
-  const classes = Object.keys(s);
-  if (!classes.length) return;
-
-  const c = classes[Math.floor(Math.random()*classes.length)];
-  const d = Object.keys(s[c] || {})[0];
-  if (!d) return;
-
-  const h = Object.keys(s[c][d])[0];
-  if (!h) return;
-
-  const l = s[c][d][h];
-
-  const d2 = DAYS[Math.floor(Math.random()*5)];
-  const h2 = HOURS[Math.floor(Math.random()*8)];
-
-  delete s[c][d][h];
-
-  if (!s[c][d2]) s[c][d2] = {};
-  s[c][d2][h2] = l;
-}
-
-// ===== IMPROVE =====
+// ===== IMPROVE (SIMULATED ANNEALING+) =====
 function improve(s, data, ms) {
 
   let best = JSON.parse(JSON.stringify(s));
@@ -171,11 +187,24 @@ function improve(s, data, ms) {
 
     let next = JSON.parse(JSON.stringify(current));
 
-    move(next);
+    // losowa zamiana
+    const classes = Object.keys(next);
+    const c = classes[Math.floor(Math.random()*classes.length)];
+    const d = DAYS[Math.floor(Math.random()*5)];
+
+    const hours = Object.keys(next[c]?.[d] || {});
+    if (hours.length < 2) continue;
+
+    const h1 = Number(hours[0]);
+    const h2 = Number(hours[1]);
+
+    const temp = next[c][d][h1];
+    next[c][d][h1] = next[c][d][h2];
+    next[c][d][h2] = temp;
 
     let sc = score(next);
 
-    if (sc > currentScore || Math.random() < 0.2) {
+    if (sc > currentScore || Math.random() < 0.15) {
       current = next;
       currentScore = sc;
 
@@ -194,8 +223,8 @@ async function generateSchedule(data) {
 
   const lessons = getLessons(data);
 
-  let best = null;
-  let bestScore = -999;
+  let globalBest = null;
+  let globalScore = -9999;
 
   const start = Date.now();
   let iter = 0;
@@ -206,28 +235,19 @@ async function generateSchedule(data) {
 
     let s = construct(lessons, data);
 
-    const { best: improved, bestScore: sc } = improve(s, data, 500);
+    const { best, bestScore } = improve(s, data, 2000);
 
-    if (sc > bestScore) {
-      bestScore = sc;
-      best = improved;
+    if (bestScore > globalScore) {
+      globalScore = bestScore;
+      globalBest = best;
     }
 
     if (iter % 2 === 0) {
       saveProgress({
         percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
         iter,
-        score: bestScore
+        score: globalScore
       });
-    }
-  }
-
-  if (!best) best = {};
-
-  let placed = 0;
-  for (let c in best) {
-    for (let d in best[c]) {
-      placed += Object.keys(best[c][d]).length;
     }
   }
 
@@ -235,10 +255,8 @@ async function generateSchedule(data) {
 
   return {
     status: "OK",
-    placed,
-    total: lessons.length,
-    elapsed: Math.floor((Date.now()-start)/1000),
-    schedule: best
+    score: globalScore,
+    schedule: globalBest
   };
 }
 
