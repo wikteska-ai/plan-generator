@@ -1,37 +1,6 @@
-const TIME_LIMIT = 30000;
+const TIME_LIMIT = 20000;
 
-// 🧠 PODZIAŁ NA HARD / EASY
-function splitHardEasy(data, lessons) {
-
-  const hard = [];
-  const easy = [];
-
-  for (let lesson of lessons) {
-
-    const teacher = data.teachers.find(t => t.id === lesson.teacher);
-    const avail = teacher?.availability.length || 999;
-
-    // 🔥 HARD:
-    // - mała dostępność
-    // - grupy (więcej klas naraz)
-    if (avail <= 10 || lesson.classes.length > 1) {
-      hard.push(lesson);
-    } else {
-      easy.push(lesson);
-    }
-  }
-
-  // 🔥 sortujemy HARD jeszcze raz (najtrudniejsze najpierw)
-  hard.sort((a, b) => {
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
-
-    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
-  });
-
-  return { hard, easy };
-}
-
+// 📦 LEKCJE
 function getAllLessons(data) {
 
   let grouped = {};
@@ -68,7 +37,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 sprawdzanie
+// 🧠 sprawdzanie (bez zmian)
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -90,6 +59,7 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCo
   return true;
 }
 
+// 📌 place
 function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
@@ -110,17 +80,62 @@ function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount
   }
 }
 
-function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
+// 🧠 GREEDY (szybkie układanie)
+function greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
-  delete teacherBusy[lesson.teacher + "_" + day + "_" + hour];
-  teacherCount[lesson.teacher]--;
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const hours = [1,2,3,4,5,6,7,8];
 
-  for (let cls of lesson.classes) {
-    delete classBusy[cls + "_" + day + "_" + hour];
-    delete schedule[cls][day][hour];
+  let notPlaced = [];
+
+  for (let lesson of lessons) {
+
+    let placed = false;
+
+    for (let day of days) {
+      for (let hour of hours) {
+
+        if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
+          place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      notPlaced.push(lesson);
+    }
   }
+
+  return notPlaced;
 }
 
+// 🔧 REPAIR (naprawa brakujących)
+function repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data) {
+
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const hours = [1,2,3,4,5,6,7,8];
+
+  for (let lesson of [...notPlaced]) {
+
+    for (let day of days) {
+      for (let hour of hours) {
+
+        if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
+          place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
+          notPlaced = notPlaced.filter(l => l !== lesson);
+          break;
+        }
+      }
+    }
+  }
+
+  return notPlaced;
+}
+
+// 🧠 sprawdzenia końcowe
 function noEmptyDays(schedule) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
@@ -149,54 +164,19 @@ function isDayContinuous(daySchedule) {
   return true;
 }
 
-// 💀 SOLVER
-function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime) {
-
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
-
-  if (Date.now() - startTime > TIME_LIMIT) return false;
-
-  if (lessons.length === 0) return true;
-
-  const lesson = lessons[0];
-  const remaining = lessons.slice(1);
-
-  let possibleSlots = [];
-
-  for (let day of days) {
-    for (let hour of hours) {
-      if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
-        possibleSlots.push({ day, hour });
-      }
-    }
-  }
-
-  possibleSlots.sort(() => Math.random() - 0.5);
-
-  for (let { day, hour } of possibleSlots) {
-      if (Date.now() - startTime > TIME_LIMIT) return false;
-
-    place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
-
-    if (solve(remaining, schedule, teacherBusy, classBusy, teacherCount, data, startTime)) {
-      return true;
-    }
-
-    remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
-  }
-
-  return false;
-}
-
 // 🎯 MAIN
 async function generateSchedule(data) {
 
   let lessons = getAllLessons(data);
 
-  const { hard, easy } = splitHardEasy(data, lessons);
+  // 🔥 trudni najpierw
+  lessons.sort((a, b) => {
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
+    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
+  });
 
-  for (let attempt = 0; attempt < 70; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
 
     console.log("🔥 Próba:", attempt);
 
@@ -205,28 +185,29 @@ async function generateSchedule(data) {
     let classBusy = {};
     let teacherCount = {};
 
-    const startTime = Date.now();
+    // 🔥 etap 1 — szybkie ułożenie
+    let notPlaced = greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data);
 
-    // 🔥 ETAP 1 — HARD
-    const successHard = solve(hard, schedule, teacherBusy, classBusy, teacherCount, data, startTime);
-    console.log("⏱️ KONIEC PRÓBY hard:", attempt);
+    // 🔧 etap 2 — naprawa
+    notPlaced = repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data);
 
-    if (!successHard) continue;
+    console.log("❗ nieułożone:", notPlaced.length);
 
-    // 🔥 ETAP 2 — EASY
-    const successEasy = solve(easy, schedule, teacherBusy, classBusy, teacherCount, data, startTime);
-    console.log("⏱️ KONIEC easy:", attempt);
+    // 🎯 jeśli wszystko weszło
+    if (notPlaced.length === 0) {
 
-    if (successEasy) {
-
-      // 🔥 finalna walidacja
       if (!noEmptyDays(schedule)) continue;
 
+      let ok = true;
       for (let cls in schedule) {
         for (let day in schedule[cls]) {
-          if (!isDayContinuous(schedule[cls][day])) continue;
+          if (!isDayContinuous(schedule[cls][day])) ok = false;
         }
       }
+
+      if (!ok) continue;
+
+      console.log("✅ PLAN GOTOWY");
 
       return {
         status: "OK",
@@ -236,6 +217,8 @@ async function generateSchedule(data) {
       };
     }
   }
+
+  console.log("❌ FAIL");
 
   return {
     status: "FAIL",
