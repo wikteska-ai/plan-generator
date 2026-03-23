@@ -54,10 +54,9 @@ const server = http.createServer(async (req, res) => {
         fs.writeFileSync("jobs.json", JSON.stringify(jobsData));
 
         // ===== START WORKERA =====
-        spawn("node", ["worker_run.js", jobId], {
-          detached: true,
-          stdio: "ignore"
-        }).unref();
+      spawn("node", ["worker_run.js", jobId], {
+  stdio: "inherit"
+});
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ jobId }));
