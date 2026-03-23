@@ -1,10 +1,9 @@
 import fs from "fs";
 
-const TIME_LIMIT = 180000;
-
+const TIME_LIMIT = 60000; // krócej = lepiej działa
 let lastUpdate = 0;
 
-// 📡 zapis progresu
+// 📡 PROGRESS
 function saveProgress(state) {
   try {
     fs.writeFileSync("progress.json", JSON.stringify(state));
@@ -48,7 +47,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 HARD CONSTRAINTS
+// 🧠 HARD
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -80,20 +79,15 @@ function evaluatePlacement(lesson, day, hour, schedule) {
     const hours = Object.keys(daySchedule).map(Number);
 
     if (hours.length > 0) {
-
       const min = Math.min(...hours);
       const max = Math.max(...hours);
 
       if (hour > min && hour < max) score -= 80;
-
       if (hours.includes(hour - 1) || hours.includes(hour + 1)) score += 25;
     }
 
-    if (hours.length === 0) score -= 60;
-
-    if (hours.length >= 6) score -= 40;
-
-    if (hour >= 2 && hour <= 6) score += 10;
+    if (hours.length === 0) score -= 50;
+    if (hours.length >= 6) score -= 30;
   }
 
   if (lesson.classes.length > 1) score += 30;
@@ -134,8 +128,8 @@ function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCoun
   }
 }
 
-// 🧠 OPCJE
-function getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 🧠 OPCJE (🔥 KLUCZOWE ZMIANY)
+function getOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -148,12 +142,14 @@ function getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, d
       if (!canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) continue;
 
       const score = evaluatePlacement(lesson, day, hour, schedule);
-
       options.push({ day, hour, score });
     }
   }
 
+  // 🔥 sort + TOP 5 + losowość
   options.sort((a,b)=>b.score - a.score);
+  options = options.slice(0, 5);
+  options = options.sort(() => Math.random() - 0.5);
 
   return options;
 }
@@ -178,10 +174,13 @@ function sortLessons(lessons, data) {
   });
 }
 
-// 🧠 SOLVER
+// 🧠 SOLVER (🔥 PRUNING)
 function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime, bestState) {
 
   if (Date.now() - startTime > TIME_LIMIT) return false;
+
+  // 🔥 pruning
+  if (index < bestState.bestPlaced - 20) return false;
 
   if (index > bestState.bestPlaced) {
 
@@ -191,7 +190,6 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, d
     const now = Date.now();
 
     if (now - lastUpdate > 200) {
-
       saveProgress({
         progress: index,
         total: lessons.length,
@@ -208,8 +206,7 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, d
   if (index === lessons.length) return true;
 
   const lesson = lessons[index];
-
-  const options = getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data);
+  const options = getOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data);
 
   for (let opt of options) {
 
