@@ -265,8 +265,6 @@ lessons = lessons.sort(() => Math.random() - 0.5);
 
     if (notPlaced.length === 0) {
 
-      if (!noEmptyDays(schedule)) continue;
-
       let ok = true;
       for (let cls in schedule) {
         for (let day in schedule[cls]) {
