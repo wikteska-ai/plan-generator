@@ -171,7 +171,9 @@ function score(s) {
 
       // 🔥 START DNIA
       const first = Math.min(...hours);
-      if (first === 2) penalty += 40;
+      // 🔥 premiuj 1 godzinę
+if (first === 1) penalty -= 30;
+      if (first === 2) penalty += 50;
       if (first >= 3) penalty += 150;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
