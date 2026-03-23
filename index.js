@@ -1,3 +1,4 @@
+import fs from "fs";
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -31,7 +32,7 @@ app.post("/generate", (req, res) => {
       console.log("🎉 KONIEC GENEROWANIA");
 
 jobs[jobId] = {
-  status: result.status === "OK" ? "done" : "fail",
+status: "done",
   result,
   finishedAt: Date.now()
 };
@@ -60,7 +61,21 @@ app.get("/status/:id", (req, res) => {
     return res.json({ status: "not_found" });
   }
 
-  res.json(job);
+  // 🔥 Wczytaj progress
+  let progress = null;
+
+  try {
+    const file = fs.readFileSync("progress.json", "utf-8");
+    progress = JSON.parse(file);
+  } catch (e) {
+    // jeszcze nie ma pliku
+  }
+console.log("📡 progress:", progress?.percent);
+  // 🔥 dodaj progress do odpowiedzi
+  res.json({
+    ...job,
+    progress
+  });
 });
 
 // 🧹 czyszczenie starych jobów (co 1 min)
