@@ -1,11 +1,10 @@
 import http from "http";
-import { generateSchedule } from "./solver.js";
 import fs from "fs";
+import { spawn } from "child_process";
 
 const PORT = process.env.PORT || 3000;
 
-let jobs = {}; // pamięć jobów
-
+// ===== ID =====
 function randomId() {
   return Math.random().toString(36).substr(2, 9);
 }
@@ -33,52 +32,38 @@ const server = http.createServer(async (req, res) => {
       body += chunk.toString();
     });
 
-    req.on("end", async () => {
+    req.on("end", () => {
       try {
         const data = JSON.parse(body);
-
         const jobId = randomId();
 
         console.log(`🚀 START JOB ${jobId}`);
 
-        jobs[jobId] = {
+        // ===== wczytaj joby =====
+        let jobsData = {};
+        try {
+          jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+        } catch {}
+
+        // ===== zapisz job =====
+        jobsData[jobId] = {
           status: "processing",
-          progress: { percent: 0, bestPlaced: 0, total: 0, elapsed: 0 }
+          data
         };
 
-        // 🔥 ASYNC JOB
-        (async () => {
-          const start = Date.now();
+        fs.writeFileSync("jobs.json", JSON.stringify(jobsData));
 
-          try {
-
-            const result = await generateSchedule(data);
-
-            jobs[jobId] = {
-              status: "done",
-              result,
-              progress: {
-                percent: 100,
-                bestPlaced: result.placed || 0,
-                total: result.total || 0,
-                elapsed: Math.floor((Date.now() - start) / 1000)
-              }
-            };
-
-            console.log(`✅ DONE JOB ${jobId}`);
-
-          } catch (e) {
-            console.error(`❌ JOB ERROR ${jobId}`, e);
-
-            jobs[jobId] = { status: "fail" };
-          }
-
-        })();
+        // ===== START WORKERA =====
+        spawn("node", ["worker_run.js", jobId], {
+          detached: true,
+          stdio: "ignore"
+        }).unref();
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ jobId }));
 
       } catch (err) {
+        console.error("❌ ERROR /generate", err);
         res.writeHead(500);
         res.end(JSON.stringify({ status: "error" }));
       }
@@ -92,14 +77,20 @@ const server = http.createServer(async (req, res) => {
 
     const jobId = req.url.split("/")[2];
 
-    if (!jobs[jobId]) {
+    let jobsData = {};
+
+    try {
+      jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+    } catch {}
+
+    if (!jobsData[jobId]) {
       res.writeHead(200);
       res.end(JSON.stringify({ status: "not_found" }));
       return;
     }
 
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(jobs[jobId]));
+    res.end(JSON.stringify(jobsData[jobId]));
     return;
   }
 
