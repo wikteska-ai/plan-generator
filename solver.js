@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 120000;
+const TIME_LIMIT = 240000;
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
@@ -153,27 +153,50 @@ function score(s) {
       const day = s[cls]?.[d] || {};
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      if (hours.length === 0) penalty += 80;
-      if (hours.length < 4) penalty += 30;
-      if (hours.length > 7) penalty += 30;
+      // ❌ brak lekcji
+      if (hours.length === 0) penalty += 100;
 
+      // ❌ za mało / za dużo
+      if (hours.length < 4) penalty += 40;
+      if (hours.length > 7) penalty += 40;
+
+      // ❌ okienka (MEGA ważne)
       for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) penalty += 40;
+        if (hours[i] !== hours[i-1] + 1) penalty += 60;
       }
 
+      // ❌ 3x ten sam przedmiot
       for (let i = 2; i < hours.length; i++) {
         const l1 = day[hours[i]]?.subject;
         const l2 = day[hours[i-1]]?.subject;
         const l3 = day[hours[i-2]]?.subject;
 
-        if (l1 === l2 && l2 === l3) penalty += 25;
+        if (l1 === l2 && l2 === l3) penalty += 50;
       }
+
+      // ❌ WF nie w bloku
+      for (let h of hours) {
+        const cur = day[h]?.subject;
+        const next = day[h+1]?.subject;
+
+        if (cur === "wych.fizy." && next !== "wych.fizy.") {
+          penalty += 40;
+        }
+      }
+
+      // ❌ ciężkie dni (dużo trudnych przedmiotów)
+      let hard = 0;
+      hours.forEach(h => {
+        const sub = day[h]?.subject;
+        if (["matematyka","fizyka","chemia"].includes(sub)) hard++;
+      });
+      if (hard >= 4) penalty += 30;
+
     }
   }
 
   return -penalty;
 }
-
 // ===== IMPROVE =====
 function improve(s, data, ms) {
 
@@ -230,28 +253,27 @@ async function generateSchedule(data) {
   const start = Date.now();
   let iter = 0;
 
-  while (Date.now() - start < TIME_LIMIT) {
+  const RUNS = 5;
 
-    iter++;
+for (let i = 0; i < RUNS; i++) {
 
-    let s = construct(lessons, data);
+  console.log(`🔁 Próba ${i+1}/${RUNS}`);
 
-    const { best, bestScore } = improve(s, data, 2000);
+  let s = construct(lessons, data);
 
-    if (bestScore > globalScore) {
-      globalScore = bestScore;
-      globalBest = best;
-    }
+  const { best, bestScore } = improve(s, data, 5000);
 
-    if (iter % 2 === 0) {
-      saveProgress({
-        percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
-        iter,
-        score: globalScore
-      });
-    }
+  if (bestScore > globalScore) {
+    globalScore = bestScore;
+    globalBest = best;
   }
 
+  saveProgress({
+    percent: Math.floor((i / RUNS) * 100),
+    iter: i+1,
+    score: globalScore
+  });
+}
   saveProgress({ percent: 100 });
 
   return {
