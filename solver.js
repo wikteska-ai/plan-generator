@@ -165,7 +165,7 @@ function score(s) {
       // 🔥 OKIENKA = NAJGORSZE
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
-          penalty += 200;
+          penalty += 600;
         }
       }
 
@@ -235,7 +235,7 @@ function improve(s, data, ms) {
 
 let next = JSON.parse(JSON.stringify(current));
     // 🔥 REPAIR MOVE (usuwa konkretne okienka)
-if (Math.random() < 0.4) {
+if (Math.random() < 0.6) {
 
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
