@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 120000;
+const TIME_LIMIT = 180000;
 
 // 📡 PROGRESS
 let lastUpdate = 0;
@@ -237,6 +237,7 @@ async function generateSchedule(data) {
   };
 
   console.log("🚀 START");
+  
 
   const startTime = Date.now();
 
@@ -258,6 +259,9 @@ async function generateSchedule(data) {
   );
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const percent = Math.floor(
+  (status.result.placed / status.progress.total) * 100
+);
 
   if (success) {
 
@@ -290,7 +294,8 @@ async function generateSchedule(data) {
   console.log("⚠️ BEST FOUND");
 
   return {
-    status: "PARTIAL",
+    status: "done"
+partial: true
     placed: bestState.bestPlaced,
     schedule: bestState.snapshot
   };
