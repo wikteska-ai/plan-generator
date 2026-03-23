@@ -3,20 +3,25 @@ import fs from "fs";
 const TIME_LIMIT = 30000;
 let lastUpdate = 0;
 
-// 📡 progress
 function saveProgress(state) {
   try {
     fs.writeFileSync("progress.json", JSON.stringify(state));
   } catch {}
 }
 
-// 📦 lekcje
+// 📦 LEKCJE (FIX EDU 🔥)
 function getAllLessons(data) {
 
   let grouped = {};
 
   data.lessons.forEach(l => {
-    const key = l.group ? l.group : "SINGLE_" + l.class + "_" + l.subject;
+
+    const key =
+      l.group
+        ? l.group
+        : l.subject === "edu.wczesno."
+          ? "SINGLE_" + l.class + "_" + l.subject + "_" + l.teacher
+          : "SINGLE_" + l.class + "_" + l.subject;
 
     if (!grouped[key]) {
       grouped[key] = {
@@ -46,7 +51,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 sprawdzanie
+// 🧠 SPRAWDZANIE (ANTY OKIENKA + BALANS 🔥)
 function canPlace(l, d, h, s, tBusy, cBusy, tCount, data) {
 
   const t = data.teachers.find(x => x.id === l.teacher);
@@ -57,10 +62,26 @@ function canPlace(l, d, h, s, tBusy, cBusy, tCount, data) {
   if ((tCount[l.teacher] || 0) >= t.maxHours) return false;
 
   for (let cls of l.classes) {
+
     if (cBusy[cls + "_" + d + "_" + h]) return false;
 
-    const day = s[cls]?.[d];
-    if (day && Object.keys(day).length >= 7) return false;
+    const daySchedule = s[cls]?.[d];
+
+    // ❌ anty okienka
+    if (daySchedule) {
+
+      const hours = Object.keys(daySchedule).map(Number);
+
+      if (hours.length > 0) {
+        const min = Math.min(...hours);
+        const max = Math.max(...hours);
+
+        if (h > min && h < max) return false;
+      }
+
+      // ❌ max dzien
+      if (hours.length >= 6) return false;
+    }
   }
 
   return true;
@@ -108,10 +129,10 @@ function remove(l, d, h, s, tBusy, cBusy, tCount, used) {
   }
 }
 
-// 🎯 greedy
+// 🎯 GREEDY
 function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
 
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const days = ["Mon","Tue","Wed","Thu","Fri"].sort(() => Math.random() - 0.5);
   const hours = [1,2,3,4,5,6,7,8];
 
   let notPlaced = [];
@@ -140,7 +161,7 @@ function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
   return notPlaced;
 }
 
-// 🔄 swap
+// 🔄 SWAP
 function trySwap(notPlaced, s, tBusy, cBusy, tCount, used, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
@@ -204,7 +225,6 @@ async function generateSchedule(data) {
   });
 
   const groups = lessons.filter(l => l.classes.length > 1);
-
   const early = lessons.filter(l => l.classes.some(c => c <= 4));
 
   const rest = lessons.filter(l =>
