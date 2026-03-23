@@ -1,4 +1,15 @@
-const TIME_LIMIT = 40000;
+import fs from "fs";
+
+const TIME_LIMIT = 120000;
+
+// 📡 PROGRESS
+let lastUpdate = 0;
+
+function saveProgress(state) {
+  try {
+    fs.writeFileSync("progress.json", JSON.stringify(state, null, 2));
+  } catch (e) {}
+}
 
 // 📦 LEKCJE
 function getAllLessons(data) {
@@ -37,7 +48,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 HARD CHECK
+// 🧠 HARD CONSTRAINTS
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -52,14 +63,13 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCo
     if (classBusy[cls + "_" + day + "_" + hour]) return false;
 
     const daySchedule = schedule[cls]?.[day];
-
     if (daySchedule && Object.keys(daySchedule).length >= 7) return false;
   }
 
   return true;
 }
 
-// 🎯 SCORING (KLUCZ)
+// 🎯 SCORING
 function evaluatePlacement(lesson, day, hour, schedule) {
 
   let score = 0;
@@ -74,22 +84,19 @@ function evaluatePlacement(lesson, day, hour, schedule) {
       const min = Math.min(...hours);
       const max = Math.max(...hours);
 
-      // ❌ dziura
-      if (hour > min && hour < max) score -= 50;
+      if (hour > min && hour < max) score -= 80; // dziura
 
-      // ✅ ciągłość
-      if (hours.includes(hour - 1) || hours.includes(hour + 1)) score += 15;
+      if (hours.includes(hour - 1) || hours.includes(hour + 1)) score += 25;
     }
 
-    // ❌ wolny dzień
-    if (hours.length === 0) score -= 25;
+    if (hours.length === 0) score -= 60; // pusty dzień
 
-    // ❌ za dużo lekcji
-    if (hours.length >= 6) score -= 20;
+    if (hours.length >= 6) score -= 40;
 
-    // ✅ preferuj środek dnia
-    if (hour >= 2 && hour <= 6) score += 5;
+    if (hour >= 2 && hour <= 6) score += 10;
   }
+
+  if (lesson.classes.length > 1) score += 30; // grupy
 
   return score;
 }
@@ -127,8 +134,8 @@ function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCoun
   }
 }
 
-// 🧠 GENERATE OPTIONS (BEST-FIRST)
-function getBestOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 🧠 OPCJE
+function getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -146,27 +153,63 @@ function getBestOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, 
     }
   }
 
-  // 🔥 najlepsze najpierw
   options.sort((a,b)=>b.score - a.score);
 
   return options;
 }
 
-// 🔥 BACKTRACKING SOLVER
+// 🔥 SORT (najtrudniejsze pierwsze)
+function sortLessons(lessons, data) {
+
+  return lessons.sort((a, b) => {
+
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
+
+    const scoreA =
+      (a.classes.length * 100) +
+      (200 - (ta?.availability.length || 200));
+
+    const scoreB =
+      (b.classes.length * 100) +
+      (200 - (tb?.availability.length || 200));
+
+    return scoreB - scoreA;
+  });
+}
+
+// 🧠 SOLVER
 function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime, bestState) {
 
   if (Date.now() - startTime > TIME_LIMIT) return false;
 
   if (index > bestState.bestPlaced) {
+
     bestState.bestPlaced = index;
     bestState.snapshot = JSON.parse(JSON.stringify(schedule));
+
+    const now = Date.now();
+
+    if (now - lastUpdate > 200) {
+
+      saveProgress({
+        progress: index,
+        total: lessons.length,
+        percent: Math.floor((index / lessons.length) * 100),
+        bestPlaced: bestState.bestPlaced,
+        elapsed: Math.floor((now - startTime) / 1000),
+        status: "working"
+      });
+
+      lastUpdate = now;
+    }
   }
 
   if (index === lessons.length) return true;
 
   const lesson = lessons[index];
 
-  const options = getBestOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data);
+  const options = getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data);
 
   for (let opt of options) {
 
@@ -182,26 +225,6 @@ function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, d
   return false;
 }
 
-// 🧠 SORT LEKCJI (NAJTRUDNIEJSZE PIERWSZE)
-function sortLessons(lessons, data) {
-
-  return lessons.sort((a, b) => {
-
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
-
-    const scoreA =
-      (a.classes.length * 20) +
-      (100 - (ta?.availability.length || 100));
-
-    const scoreB =
-      (b.classes.length * 20) +
-      (100 - (tb?.availability.length || 100));
-
-    return scoreB - scoreA;
-  });
-}
-
 // 🎯 MAIN
 async function generateSchedule(data) {
 
@@ -213,42 +236,58 @@ async function generateSchedule(data) {
     snapshot: null
   };
 
-  for (let attempt = 0; attempt < 5; attempt++) {
+  console.log("🚀 START");
 
-    console.log("🔥 Próba:", attempt);
+  const startTime = Date.now();
 
-    lessons = lessons.sort(() => Math.random() - 0.5);
+  let schedule = {};
+  let teacherBusy = {};
+  let classBusy = {};
+  let teacherCount = {};
 
-    let schedule = {};
-    let teacherBusy = {};
-    let classBusy = {};
-    let teacherCount = {};
+  const success = solve(
+    0,
+    lessons,
+    schedule,
+    teacherBusy,
+    classBusy,
+    teacherCount,
+    data,
+    startTime,
+    bestState
+  );
 
-    const startTime = Date.now();
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
-    const success = solve(
-      0,
-      lessons,
-      schedule,
-      teacherBusy,
-      classBusy,
-      teacherCount,
-      data,
-      startTime,
-      bestState
-    );
+  if (success) {
 
-    if (success) {
-      console.log("✅ IDEALNY PLAN");
-      return {
-        status: "OK",
-        notPlaced: 0,
-        schedule
-      };
-    }
+    saveProgress({
+      progress: lessons.length,
+      total: lessons.length,
+      percent: 100,
+      bestPlaced: lessons.length,
+      elapsed,
+      status: "done"
+    });
+
+    console.log("🏆 IDEALNY PLAN");
+
+    return {
+      status: "OK",
+      schedule
+    };
   }
 
-  console.log("⚠️ NIE IDEALNY, ALE NAJLEPSZY ZNALEZIONY");
+  saveProgress({
+    progress: bestState.bestPlaced,
+    total: lessons.length,
+    percent: Math.floor((bestState.bestPlaced / lessons.length) * 100),
+    bestPlaced: bestState.bestPlaced,
+    elapsed,
+    status: "partial"
+  });
+
+  console.log("⚠️ BEST FOUND");
 
   return {
     status: "PARTIAL",
