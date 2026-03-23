@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 270000;
+const TIME_LIMIT = 400000;
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
@@ -494,7 +494,7 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 10000);
+  const { best, bestScore } = improve(s, data, 14000);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
