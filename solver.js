@@ -1,201 +1,289 @@
 import fs from "fs";
 
-const TIME_LIMIT = 280000; // 3 min
+const TIME_LIMIT = 300000; // możesz dać 300000 (5 min)
 
 function saveProgress(p) {
-  try {
-    fs.writeFileSync("progress.json", JSON.stringify(p));
-  } catch {}
+  try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
 }
 
-// 📦 lekcje
+// ====== DATA ======
+
 function getLessons(data) {
+  // grupy + rozbicie na pojedyncze godziny
+  const grouped = {};
+  data.lessons.forEach(l => {
+    const key = l.group
+      ? "G_" + l.group
+      : l.subject === "edu.wczesno."
+        ? `S_${l.class}_${l.subject}_${l.teacher}`
+        : `S_${l.class}_${l.subject}`;
 
-  let out = [];
-
-  data.lessons.forEach((l, i) => {
-
-    for (let h = 0; h < l.hours; h++) {
-      out.push({
-        id: i + "_" + h,
-        ...l
-      });
+    if (!grouped[key]) {
+      grouped[key] = {
+        subject: l.subject,
+        teacher: l.teacher,
+        classes: [],
+        hours: l.hours
+      };
     }
-
+    grouped[key].classes.push(l.class);
   });
 
+  const out = [];
+  let idx = 0;
+  Object.values(grouped).forEach(g => {
+    for (let i = 0; i < g.hours; i++) {
+      out.push({
+        id: idx++,
+        subject: g.subject,
+        teacher: g.teacher,
+        classes: g.classes.slice()
+      });
+    }
+  });
   return out;
 }
 
-// 🧠 sortowanie (NAJWAŻNIEJSZE)
-function sortLessons(lessons, data) {
+const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+const HOURS = [1,2,3,4,5,6,7,8];
 
-  return lessons.sort((a, b) => {
+// ====== HELPERS ======
 
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
-
-    const diffA = ta.availability.length;
-    const diffB = tb.availability.length;
-
-    // 🔥 najpierw trudni nauczyciele
-    if (diffA !== diffB) return diffA - diffB;
-
-    // 🔥 potem grupy
-    if ((a.group ? 1 : 0) !== (b.group ? 1 : 0)) {
-      return (b.group ? 1 : 0) - (a.group ? 1 : 0);
-    }
-
-    // 🔥 potem klasy 1–3
-    if ((a.class <= 3) !== (b.class <= 3)) {
-      return (a.class <= 3 ? -1 : 1);
-    }
-
-    return 0;
-  });
+function teacherOk(tid, d, h, tBusy, data) {
+  const t = data.teachers.find(x => x.id === tid);
+  return t && t.availability.includes(d+"_"+h) && !tBusy[tid+"_"+d+"_"+h];
 }
 
-// 🧠 sprawdzanie
-function canPlace(l, d, h, s, tBusy, cBusy, data) {
-
-  const t = data.teachers.find(x => x.id === l.teacher);
-
-  if (!t.availability.includes(d + "_" + h)) return false;
-  if (tBusy[l.teacher + "_" + d + "_" + h]) return false;
-  if (cBusy[l.class + "_" + d + "_" + h]) return false;
-
-  // klasy 1–3
-  const day = s[l.class]?.[d] || {};
-  const hours = Object.keys(day).map(Number);
-
-  if (l.class <= 3) {
-
-    if (hours.length === 0 && h > 2) return false;
-
-    if (hours.length > 0) {
-      const min = Math.min(...hours);
-      const max = Math.max(...hours);
-
-      if (h !== min - 1 && h !== max + 1) return false;
-    }
+function classesFree(classes, d, h, cBusy) {
+  for (let c of classes) {
+    if (cBusy[c+"_"+d+"_"+h]) return false;
   }
-
   return true;
 }
 
-// 📌 place
 function place(l, d, h, s, tBusy, cBusy) {
-
-  if (!s[l.class]) s[l.class] = {};
-  if (!s[l.class][d]) s[l.class][d] = {};
-
-  s[l.class][d][h] = l;
-
-  tBusy[l.teacher + "_" + d + "_" + h] = true;
-  cBusy[l.class + "_" + d + "_" + h] = true;
-}
-
-// ❌ remove
-function remove(l, d, h, s, tBusy, cBusy) {
-
-  delete s[l.class][d][h];
-  delete tBusy[l.teacher + "_" + d + "_" + h];
-  delete cBusy[l.class + "_" + d + "_" + h];
-}
-
-// 🔥 BACKTRACKING (SERCE)
-function solve(lessons, index, s, tBusy, cBusy, data, start) {
-
-  if (Date.now() - start > TIME_LIMIT) return false;
-
-  if (index === lessons.length) return true;
-
-  const l = lessons[index];
-
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
-
-  for (let d of days) {
-    for (let h of hours) {
-
-      if (!canPlace(l, d, h, s, tBusy, cBusy, data)) continue;
-
-      place(l, d, h, s, tBusy, cBusy);
-
-      if (solve(lessons, index + 1, s, tBusy, cBusy, data, start)) {
-        return true;
-      }
-
-      remove(l, d, h, s, tBusy, cBusy);
-    }
+  tBusy[l.teacher+"_"+d+"_"+h] = true;
+  for (let c of l.classes) {
+    cBusy[c+"_"+d+"_"+h] = true;
+    if (!s[c]) s[c] = {};
+    if (!s[c][d]) s[c][d] = {};
+    s[c][d][h] = l;
   }
-
-  return false;
 }
 
-// 🧠 naprawa
-function improve(s) {
+function remove(l, d, h, s, tBusy, cBusy) {
+  delete tBusy[l.teacher+"_"+d+"_"+h];
+  for (let c of l.classes) {
+    delete cBusy[c+"_"+d+"_"+h];
+    if (s[c] && s[c][d]) delete s[c][d][h];
+  }
+}
 
-  for (let cls in s) {
-    for (let d in s[cls]) {
+// ====== CONSTRUCTION ======
+// najpierw coś ułóż (nie idealnie)
+function construct(lessons, data) {
+  const s = {}, tBusy = {}, cBusy = {};
+  // trudni nauczyciele najpierw
+  const sorted = lessons.slice().sort((a,b)=>{
+    const ta = data.teachers.find(x=>x.id===a.teacher);
+    const tb = data.teachers.find(x=>x.id===b.teacher);
+    return (ta?.availability.length||999) - (tb?.availability.length||999);
+  });
 
-      let hours = Object.keys(s[cls][d]).map(Number).sort((a,b)=>a-b);
+  for (let l of sorted) {
+    let best = null, bestScore = -1e9;
 
-      for (let i = 1; i < hours.length; i++) {
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+        if (!teacherOk(l.teacher,d,h,tBusy,data)) continue;
+        if (!classesFree(l.classes,d,h,cBusy)) continue;
 
-        if (hours[i] !== hours[i-1] + 1) {
+        // prosta preferencja: środek dnia + rozkład dni
+        let sc = 0;
+        if (h>=2 && h<=6) sc += 2;
 
-          const lesson = s[cls][d][hours[i]];
-          delete s[cls][d][hours[i]];
-          s[cls][d][hours[i-1]+1] = lesson;
+        for (let c of l.classes) {
+          const day = s[c]?.[d] || {};
+          sc -= Object.keys(day).length; // balans
+        }
+
+        if (sc > bestScore) {
+          bestScore = sc;
+          best = {d,h};
         }
       }
     }
+
+    if (best) place(l, best.d, best.h, s, tBusy, cBusy);
+    // jeśli nie – pomijamy (naprawimy później)
   }
+
+  return { s, tBusy, cBusy };
 }
 
-// 🧠 MAIN
-async function generateSchedule(data) {
+// ====== SCORING ======
 
-  let lessons = getLessons(data);
-  lessons = sortLessons(lessons, data);
+function score(s) {
+  let penalty = 0;
 
-  let s = {};
-  let tBusy = {};
-  let cBusy = {};
-
-  const start = Date.now();
-
-  const ok = solve(lessons, 0, s, tBusy, cBusy, data, start);
-
-  if (!ok) {
-    return {
-      status: "FAIL",
-      message: "Nie udało się ułożyć planu w czasie"
-    };
-  }
-
-  // 🔥 popraw jakość
-  for (let i = 0; i < 200; i++) {
-    improve(s);
-  }
-
-  // 📊 licz
-  let placed = 0;
   for (let cls in s) {
-    for (let d in s[cls]) {
-      placed += Object.keys(s[cls][d]).length;
+    for (let d of DAYS) {
+      const day = s[cls]?.[d] || {};
+      const hs = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hs.length === 0) penalty += 60;        // pusty dzień
+      if (hs.length < 4) penalty += 25;          // za mało
+      if (hs.length > 7) penalty += 15;          // za dużo
+
+      for (let i=1;i<hs.length;i++){
+        if (hs[i] !== hs[i-1]+1) penalty += 20;  // okienka
+      }
+
+      // klasy 1–3: start 1–2
+      if (Number(cls) <= 3 && hs.length>0) {
+        if (Math.min(...hs) > 2) penalty += 25;
+      }
     }
   }
 
-  saveProgress({ percent: 100 });
+  return -penalty;
+}
+
+// ====== LOCAL MOVES ======
+
+function randomMove(s, data) {
+  const classes = Object.keys(s);
+  if (!classes.length) return;
+
+  const c = classes[Math.floor(Math.random()*classes.length)];
+  const d = Object.keys(s[c]||{})[Math.floor(Math.random()*Object.keys(s[c]||{}).length)];
+  if (!d) return;
+
+  const h = Object.keys(s[c][d])[Math.floor(Math.random()*Object.keys(s[c][d]).length)];
+  if (!h) return;
+
+  const l = s[c][d][h];
+
+  // spróbuj przenieść gdzie indziej
+  for (let i=0;i<10;i++){
+    const d2 = DAYS[Math.floor(Math.random()*5)];
+    const h2 = HOURS[Math.floor(Math.random()*8)];
+
+    // sprawdź na świeżo (bez starych zajętości tej lekcji)
+    const tBusy = {}, cBusy = {};
+    for (let cls in s) {
+      for (let dd in s[cls]) {
+        for (let hh in s[cls][dd]) {
+          const ll = s[cls][dd][hh];
+          if (ll.id === l.id) continue;
+          tBusy[ll.teacher+"_"+dd+"_"+hh] = true;
+          for (let cc of ll.classes) cBusy[cc+"_"+dd+"_"+hh] = true;
+        }
+      }
+    }
+
+    if (teacherOk(l.teacher,d2,h2,tBusy,data) &&
+        classesFree(l.classes,d2,h2,cBusy)) {
+
+      // usuń stare
+      for (let cc of l.classes) delete s[cc][d][h];
+
+      // wstaw nowe
+      for (let cc of l.classes) {
+        if (!s[cc][d2]) s[cc][d2] = {};
+        s[cc][d2][h2] = l;
+      }
+      return;
+    }
+  }
+}
+
+// ====== ANNEALING (naprawa do skutku) ======
+
+function improve(s, data, durationMs) {
+  let best = JSON.parse(JSON.stringify(s));
+  let bestScore = score(best);
+
+  let cur = JSON.parse(JSON.stringify(s));
+  let curScore = bestScore;
+
+  const start = Date.now();
+
+  while (Date.now()-start < durationMs) {
+
+    const next = JSON.parse(JSON.stringify(cur));
+    randomMove(next, data);
+
+    const sc = score(next);
+
+    // temperatura maleje
+    const t = 1 - (Date.now()-start)/durationMs;
+
+    if (sc > curScore || Math.random() < Math.exp((sc-curScore)/(10*(t+0.01)))) {
+      cur = next;
+      curScore = sc;
+
+      if (sc > bestScore) {
+        best = JSON.parse(JSON.stringify(next));
+        bestScore = sc;
+      }
+    }
+  }
+
+  return { best, bestScore };
+}
+
+// ====== MAIN ======
+
+async function generateSchedule(data) {
+
+  const lessons = getLessons(data);
+
+  let globalBest = null;
+  let globalScore = -1e9;
+
+  const start = Date.now();
+  let iter = 0;
+
+  while (Date.now()-start < TIME_LIMIT) {
+
+    // 1) konstrukcja
+    let { s } = construct(lessons, data);
+
+    // 2) poprawa (annealing)
+    const { best, bestScore } = improve(s, data, 2000);
+
+    if (bestScore > globalScore) {
+      globalBest = best;
+      globalScore = bestScore;
+    }
+
+    iter++;
+
+    if (iter % 2 === 0) {
+      saveProgress({
+        percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
+        score: globalScore,
+        iter
+      });
+    }
+  }
+
+  if (!globalBest) globalBest = {};
+
+  let placed = 0;
+  for (let c in globalBest) {
+    for (let d in globalBest[c]) {
+      placed += Object.keys(globalBest[c][d]).length;
+    }
+  }
 
   return {
     status: "OK",
     placed,
     total: lessons.length,
     elapsed: Math.floor((Date.now()-start)/1000),
-    schedule: s
+    schedule: globalBest
   };
 }
 
