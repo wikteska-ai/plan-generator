@@ -30,11 +30,11 @@ app.post("/generate", (req, res) => {
       const result = await generateSchedule(req.body);
       console.log("🎉 KONIEC GENEROWANIA");
 
-      jobs[jobId] = {
-        status: "done",
-        result,
-        finishedAt: Date.now()
-      };
+jobs[jobId] = {
+  status: result.status === "OK" ? "done" : "fail",
+  result,
+  finishedAt: Date.now()
+};
 
       console.log("✅ DONE:", jobId);
 
