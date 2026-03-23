@@ -46,7 +46,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 HARD CHECK
+// 🧠 sprawdzanie
 function canPlace(l, d, h, s, tBusy, cBusy, tCount, data) {
 
   const t = data.teachers.find(x => x.id === l.teacher);
@@ -67,7 +67,11 @@ function canPlace(l, d, h, s, tBusy, cBusy, tCount, data) {
 }
 
 // 📌 PLACE
-function place(l, d, h, s, tBusy, cBusy, tCount) {
+function place(l, d, h, s, tBusy, cBusy, tCount, used) {
+
+  if (used.has(l.id)) return false;
+
+  used.add(l.id);
 
   tBusy[l.teacher + "_" + d + "_" + h] = true;
   tCount[l.teacher] = (tCount[l.teacher] || 0) + 1;
@@ -82,13 +86,18 @@ function place(l, d, h, s, tBusy, cBusy, tCount) {
     s[cls][d][h] = {
       subject: l.subject,
       teacher: l.teacher,
-      group: l.classes.length > 1
+      group: l.classes.length > 1,
+      id: l.id
     };
   }
+
+  return true;
 }
 
 // ❌ REMOVE
-function remove(l, d, h, s, tBusy, cBusy, tCount) {
+function remove(l, d, h, s, tBusy, cBusy, tCount, used) {
+
+  used.delete(l.id);
 
   delete tBusy[l.teacher + "_" + d + "_" + h];
   tCount[l.teacher]--;
@@ -99,8 +108,8 @@ function remove(l, d, h, s, tBusy, cBusy, tCount) {
   }
 }
 
-// 🎯 greedy fill
-function greedyFill(lessons, s, tBusy, cBusy, tCount, data) {
+// 🎯 greedy
+function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -109,13 +118,15 @@ function greedyFill(lessons, s, tBusy, cBusy, tCount, data) {
 
   for (let l of lessons) {
 
+    if (used.has(l.id)) continue;
+
     let placed = false;
 
     for (let d of days) {
       for (let h of hours) {
 
         if (canPlace(l, d, h, s, tBusy, cBusy, tCount, data)) {
-          place(l, d, h, s, tBusy, cBusy, tCount);
+          place(l, d, h, s, tBusy, cBusy, tCount, used);
           placed = true;
           break;
         }
@@ -130,7 +141,7 @@ function greedyFill(lessons, s, tBusy, cBusy, tCount, data) {
 }
 
 // 🔄 swap
-function trySwap(notPlaced, s, tBusy, cBusy, tCount, data) {
+function trySwap(notPlaced, s, tBusy, cBusy, tCount, used, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -148,30 +159,30 @@ function trySwap(notPlaced, s, tBusy, cBusy, tCount, data) {
           const existing = sc[d][h];
 
           const fake = {
+            id: existing.id,
             classes: [cls],
             teacher: existing.teacher,
             subject: existing.subject
           };
 
-          remove(fake, d, +h, s, tBusy, cBusy, tCount);
+          remove(fake, d, +h, s, tBusy, cBusy, tCount, used);
 
           if (canPlace(l, d, +h, s, tBusy, cBusy, tCount, data)) {
 
-            place(l, d, +h, s, tBusy, cBusy, tCount);
+            place(l, d, +h, s, tBusy, cBusy, tCount, used);
 
             for (let dd of days) {
               for (let hh of hours) {
 
                 if (canPlace(fake, dd, hh, s, tBusy, cBusy, tCount, data)) {
-
-                  place(fake, dd, hh, s, tBusy, cBusy, tCount);
+                  place(fake, dd, hh, s, tBusy, cBusy, tCount, used);
                   return [];
                 }
               }
             }
           }
 
-          place(fake, d, +h, s, tBusy, cBusy, tCount);
+          place(fake, d, +h, s, tBusy, cBusy, tCount, used);
         }
       }
     }
@@ -184,8 +195,6 @@ function trySwap(notPlaced, s, tBusy, cBusy, tCount, data) {
 async function generateSchedule(data) {
 
   let lessons = getAllLessons(data);
-
-  // 🔥 ETAPY
 
   const teachers = data.teachers;
 
@@ -217,14 +226,15 @@ async function generateSchedule(data) {
     let tBusy = {};
     let cBusy = {};
     let tCount = {};
+    let used = new Set();
 
-    const shuffled = ordered.sort(() => Math.random() - 0.5);
+    const shuffled = [...ordered].sort(() => Math.random() - 0.5);
 
-    let notPlaced = greedyFill(shuffled, s, tBusy, cBusy, tCount, data);
+    let notPlaced = greedyFill(shuffled, s, tBusy, cBusy, tCount, used, data);
 
-    notPlaced = trySwap(notPlaced, s, tBusy, cBusy, tCount, data);
+    notPlaced = trySwap(notPlaced, s, tBusy, cBusy, tCount, used, data);
 
-    const placed = ordered.length - notPlaced.length;
+    const placed = used.size;
 
     if (placed > bestScore) {
       bestScore = placed;
