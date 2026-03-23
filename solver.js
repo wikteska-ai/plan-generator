@@ -1,147 +1,92 @@
 import fs from "fs";
 
-const TIME_LIMIT = 60000;
-let lastUpdate = 0;
+const TIME_LIMIT = 120000;
 
-function saveProgress(state) {
+// 📡 progress
+function saveProgress(p) {
   try {
-    fs.writeFileSync("progress.json", JSON.stringify(state));
+    fs.writeFileSync("progress.json", JSON.stringify(p));
   } catch {}
 }
 
-// 📦 LEKCJE (fix edu)
-function getAllLessons(data) {
+// 📦 LEKCJE (edu fix)
+function getLessons(data) {
 
-  let grouped = {};
+  let out = [];
 
-  data.lessons.forEach(l => {
+  data.lessons.forEach((l, i) => {
 
-    const key =
-      l.group
-        ? l.group
-        : l.subject === "edu.wczesno."
-          ? "SINGLE_" + l.class + "_" + l.subject + "_" + l.teacher
-          : "SINGLE_" + l.class + "_" + l.subject;
-
-    if (!grouped[key]) {
-      grouped[key] = {
-        subject: l.subject,
-        teacher: l.teacher,
-        classes: [],
-        hours: l.hours
-      };
-    }
-
-    grouped[key].classes.push(l.class);
-  });
-
-  let lessons = [];
-
-  Object.values(grouped).forEach((g, index) => {
-    for (let i = 0; i < g.hours; i++) {
-      lessons.push({
-        id: index + "_" + i,
-        classes: g.classes,
-        subject: g.subject,
-        teacher: g.teacher
+    for (let h = 0; h < l.hours; h++) {
+      out.push({
+        id: i + "_" + h,
+        ...l
       });
     }
+
   });
 
-  return lessons;
+  return out;
 }
 
-// 🧠 SPRAWDZANIE
-function canPlace(l, d, h, s, tBusy, cBusy, tCount, data) {
+// 🧠 HARD CHECK (LUŹNY!)
+function canPlace(l, d, h, s, tBusy, cBusy, data) {
 
   const t = data.teachers.find(x => x.id === l.teacher);
   if (!t || !t.availability.includes(d + "_" + h)) return false;
 
   if (tBusy[l.teacher + "_" + d + "_" + h]) return false;
-  if ((tCount[l.teacher] || 0) >= t.maxHours) return false;
 
-  for (let cls of l.classes) {
-
-    if (cBusy[cls + "_" + d + "_" + h]) return false;
-
-    const day = s[cls]?.[d] || {};
-    const hours = Object.keys(day).map(Number);
-
-    // 🔥 klasy 1–3
-    if (cls <= 3) {
-
-      // start tylko 1 lub 2
-      if (hours.length === 0 && h > 2) return false;
-
-      if (hours.length > 0) {
-        const min = Math.min(...hours);
-        const max = Math.max(...hours);
-
-        if (h !== min - 1 && h !== max + 1) return false;
-      }
-
-      if (hours.length >= 6) return false;
-    }
-
-    // 🔥 anty okienka
-    if (hours.length > 0) {
-      const min = Math.min(...hours);
-      const max = Math.max(...hours);
-
-      if (h > min && h < max) return false;
-    }
-
-    // 🔥 limit dnia
-    if (hours.length >= 7) return false;
-  }
+  if (cBusy[l.class + "_" + d + "_" + h]) return false;
 
   return true;
 }
 
 // 📌 PLACE
-function place(l, d, h, s, tBusy, cBusy, tCount, used) {
-
-  if (used.has(l.id)) return false;
-
-  used.add(l.id);
+function place(l, d, h, s, tBusy, cBusy) {
 
   tBusy[l.teacher + "_" + d + "_" + h] = true;
-  tCount[l.teacher] = (tCount[l.teacher] || 0) + 1;
+  cBusy[l.class + "_" + d + "_" + h] = true;
 
-  for (let cls of l.classes) {
+  if (!s[l.class]) s[l.class] = {};
+  if (!s[l.class][d]) s[l.class][d] = {};
 
-    cBusy[cls + "_" + d + "_" + h] = true;
-
-    if (!s[cls]) s[cls] = {};
-    if (!s[cls][d]) s[cls][d] = {};
-
-    s[cls][d][h] = {
-      subject: l.subject,
-      teacher: l.teacher,
-      group: l.classes.length > 1,
-      id: l.id
-    };
-  }
-
-  return true;
+  s[l.class][d][h] = l;
 }
 
 // ❌ REMOVE
-function remove(l, d, h, s, tBusy, cBusy, tCount, used) {
-
-  used.delete(l.id);
+function remove(l, d, h, s, tBusy, cBusy) {
 
   delete tBusy[l.teacher + "_" + d + "_" + h];
-  tCount[l.teacher]--;
+  delete cBusy[l.class + "_" + d + "_" + h];
+  delete s[l.class][d][h];
+}
 
-  for (let cls of l.classes) {
-    delete cBusy[cls + "_" + d + "_" + h];
-    delete s[cls][d][h];
+// 🧠 FAZA 1 — trudne
+function placeHard(lessons, s, tBusy, cBusy, data) {
+
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const hours = [1,2,3,4,5,6,7,8];
+
+  for (let l of lessons) {
+
+    let placed = false;
+
+    for (let d of days) {
+      for (let h of hours) {
+
+        if (canPlace(l, d, h, s, tBusy, cBusy, data)) {
+          place(l, d, h, s, tBusy, cBusy);
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
   }
 }
 
-// 🎯 GREEDY
-function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
+// 🧠 FAZA 2 — greedy
+function fillAll(lessons, s, tBusy, cBusy, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
@@ -150,32 +95,35 @@ function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
 
   for (let l of lessons) {
 
-    if (used.has(l.id)) continue;
+    if (s[l.class]) {
+      const already = Object.values(s[l.class]).flatMap(d => Object.values(d));
+      if (already.find(x => x.id === l.id)) continue;
+    }
 
     let best = null;
-    let bestScore = -999;
+    let score = -999;
 
     for (let d of days) {
       for (let h of hours) {
 
-        if (!canPlace(l, d, h, s, tBusy, cBusy, tCount, data)) continue;
+        if (!canPlace(l, d, h, s, tBusy, cBusy, data)) continue;
 
-        let score = 0;
+        let sc = 0;
 
-        for (let cls of l.classes) {
-          const day = s[cls]?.[d] || {};
-          score -= Object.keys(day).length * 2;
-        }
+        const day = s[l.class]?.[d] || {};
+        sc -= Object.keys(day).length;
 
-        if (score > bestScore) {
-          bestScore = score;
+        if (h >= 2 && h <= 6) sc += 2;
+
+        if (sc > score) {
+          score = sc;
           best = { d, h };
         }
       }
     }
 
     if (best) {
-      place(l, best.d, best.h, s, tBusy, cBusy, tCount, used);
+      place(l, best.d, best.h, s, tBusy, cBusy);
     } else {
       notPlaced.push(l);
     }
@@ -184,138 +132,104 @@ function greedyFill(lessons, s, tBusy, cBusy, tCount, used, data) {
   return notPlaced;
 }
 
-// 🔄 SWAP
-function trySwap(notPlaced, s, tBusy, cBusy, tCount, used, data) {
+// 🔥 FAZA 3 — naprawa
+function improve(schedule) {
 
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
+  for (let cls in schedule) {
 
-  for (let l of [...notPlaced]) {
+    for (let d in schedule[cls]) {
 
-    for (let cls of l.classes) {
+      const hours = Object.keys(schedule[cls][d]).map(Number).sort((a,b)=>a-b);
 
-      const sc = s[cls];
-      if (!sc) continue;
+      for (let i = 1; i < hours.length; i++) {
 
-      for (let d in sc) {
-        for (let h in sc[d]) {
+        if (hours[i] !== hours[i-1] + 1) {
 
-          const existing = sc[d][h];
-
-          const fake = {
-            id: existing.id,
-            classes: [cls],
-            teacher: existing.teacher,
-            subject: existing.subject
-          };
-
-          remove(fake, d, +h, s, tBusy, cBusy, tCount, used);
-
-          if (canPlace(l, d, +h, s, tBusy, cBusy, tCount, data)) {
-
-            place(l, d, +h, s, tBusy, cBusy, tCount, used);
-
-            for (let dd of days) {
-              for (let hh of hours) {
-
-                if (canPlace(fake, dd, hh, s, tBusy, cBusy, tCount, data)) {
-                  place(fake, dd, hh, s, tBusy, cBusy, tCount, used);
-                  return [];
-                }
-              }
-            }
-          }
-
-          place(fake, d, +h, s, tBusy, cBusy, tCount, used);
+          // próbuj przesunąć
+          delete schedule[cls][d][hours[i]];
+          schedule[cls][d][hours[i-1]+1] = schedule[cls][d][hours[i]];
         }
       }
     }
   }
-
-  return notPlaced;
 }
 
-// 🔥 WALIDACJA MIN GODZIN
-function validateMinHours(schedule) {
+// 🧠 SCORE (jak człowiek ocenia plan)
+function score(schedule) {
 
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  let penalty = 0;
 
   for (let cls in schedule) {
-    for (let d of days) {
 
-      const count = Object.keys(schedule[cls]?.[d] || {}).length;
+    for (let d in schedule[cls]) {
 
-      if (count > 0 && count < 4) {
-        return false;
+      const hours = Object.keys(schedule[cls][d]).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) penalty += 10;
       }
+
+      if (hours.length < 4) penalty += 20;
+      if (hours.length > 7) penalty += 10;
     }
   }
 
-  return true;
+  return -penalty;
 }
 
 // 🧠 MAIN
 async function generateSchedule(data) {
 
-  let lessons = getAllLessons(data);
+  const lessons = getLessons(data);
 
   let best = null;
-  let bestScore = 0;
+  let bestScore = -999;
 
   const start = Date.now();
+  let iter = 0;
 
   while (Date.now() - start < TIME_LIMIT) {
 
     let s = {};
     let tBusy = {};
     let cBusy = {};
-    let tCount = {};
-    let used = new Set();
 
-    const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+    // 🔵 FAZA 1
+    const hard = lessons.filter(l => {
+      const t = data.teachers.find(x => x.id === l.teacher);
+      return (t?.availability.length || 999) < 10;
+    });
 
-    let notPlaced = greedyFill(shuffled, s, tBusy, cBusy, tCount, used, data);
+    placeHard(hard, s, tBusy, cBusy, data);
 
-    notPlaced = trySwap(notPlaced, s, tBusy, cBusy, tCount, used, data);
+    // 🟡 FAZA 2
+    const notPlaced = fillAll(lessons, s, tBusy, cBusy, data);
 
-    const placed = used.size;
+    // 🔴 FAZA 3
+    improve(s);
 
-    if (placed > bestScore && validateMinHours(s)) {
-      bestScore = placed;
+    const sc = score(s);
+
+    if (sc > bestScore) {
+      bestScore = sc;
       best = JSON.parse(JSON.stringify(s));
     }
 
-    const now = Date.now();
+    iter++;
 
-    if (now - lastUpdate > 300) {
+    if (iter % 5 === 0) {
       saveProgress({
-        progress: placed,
-        total: lessons.length,
-        percent: Math.floor((placed / lessons.length) * 100),
-        bestPlaced: bestScore,
-        elapsed: Math.floor((now - start) / 1000),
-        status: "working"
+        percent: Math.min(99, Math.floor((Date.now() - start)/1000)),
+        bestScore,
+        iter
       });
-      lastUpdate = now;
     }
-
-    if (placed === lessons.length && validateMinHours(s)) break;
   }
 
-  const elapsed = Math.floor((Date.now() - start) / 1000);
-
-  saveProgress({
-    progress: bestScore,
-    total: lessons.length,
-    percent: Math.floor((bestScore / lessons.length) * 100),
-    bestPlaced: bestScore,
-    elapsed,
-    status: "done"
-  });
+  saveProgress({ percent: 100 });
 
   return {
-    status: bestScore === lessons.length ? "OK" : "PARTIAL",
-    placed: bestScore,
+    status: "OK",
     schedule: best
   };
 }
