@@ -47,7 +47,7 @@ const server = http.createServer(async (req, res) => {
 
         // ===== zapisz job =====
         jobsData[jobId] = {
-          status: "processing",
+          status: "queued",
           data
         };
 
@@ -107,3 +107,27 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`🟢 Server działa na porcie ${PORT}`);
 });
+// 🔥 AUTO-RESUME PO RESTARCIE
+setTimeout(() => {
+
+  let jobsData = {};
+
+  try {
+    jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+  } catch {}
+
+  for (let jobId in jobsData) {
+
+    const job = jobsData[jobId];
+
+    if (job.status === "queued" || job.status === "processing") {
+
+      console.log("🔁 WZNOWIENIE JOB:", jobId);
+
+      spawn("node", ["worker_run.js", jobId], {
+        stdio: "inherit"
+      });
+    }
+  }
+
+}, 2000);
