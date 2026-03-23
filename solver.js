@@ -37,7 +37,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 sprawdzanie
+// 🧠 HARD CHECK
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -59,7 +59,42 @@ function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCo
   return true;
 }
 
-// 📌 place
+// 🎯 SCORING (KLUCZ)
+function evaluatePlacement(lesson, day, hour, schedule) {
+
+  let score = 0;
+
+  for (let cls of lesson.classes) {
+
+    const daySchedule = schedule[cls]?.[day] || {};
+    const hours = Object.keys(daySchedule).map(Number);
+
+    if (hours.length > 0) {
+
+      const min = Math.min(...hours);
+      const max = Math.max(...hours);
+
+      // ❌ dziura
+      if (hour > min && hour < max) score -= 50;
+
+      // ✅ ciągłość
+      if (hours.includes(hour - 1) || hours.includes(hour + 1)) score += 15;
+    }
+
+    // ❌ wolny dzień
+    if (hours.length === 0) score -= 25;
+
+    // ❌ za dużo lekcji
+    if (hours.length >= 6) score -= 20;
+
+    // ✅ preferuj środek dnia
+    if (hour >= 2 && hour <= 6) score += 5;
+  }
+
+  return score;
+}
+
+// 📌 PLACE
 function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
 
   teacherBusy[lesson.teacher + "_" + day + "_" + hour] = true;
@@ -80,7 +115,7 @@ function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount
   }
 }
 
-// ❌ remove
+// ❌ REMOVE
 function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
 
   delete teacherBusy[lesson.teacher + "_" + day + "_" + hour];
@@ -92,203 +127,133 @@ function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCoun
   }
 }
 
-// 🧠 GREEDY
-function greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 🧠 GENERATE OPTIONS (BEST-FIRST)
+function getBestOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
   const hours = [1,2,3,4,5,6,7,8];
 
-  let notPlaced = [];
+  let options = [];
 
-  for (let lesson of lessons) {
+  for (let day of days) {
+    for (let hour of hours) {
 
-    let placed = false;
+      if (!canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) continue;
 
-    for (let day of days) {
-      for (let hour of hours) {
+      const score = evaluatePlacement(lesson, day, hour, schedule);
 
-        if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
-          place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
-          placed = true;
-          break;
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed) {
-      notPlaced.push(lesson);
+      options.push({ day, hour, score });
     }
   }
 
-  return notPlaced;
+  // 🔥 najlepsze najpierw
+  options.sort((a,b)=>b.score - a.score);
+
+  return options;
 }
 
-// 🔧 REPAIR
-function repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 🔥 BACKTRACKING SOLVER
+function solve(index, lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime, bestState) {
 
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
+  if (Date.now() - startTime > TIME_LIMIT) return false;
 
-  for (let lesson of [...notPlaced]) {
-
-    for (let day of days) {
-      for (let hour of hours) {
-
-        if (canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data)) {
-          place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
-          notPlaced = notPlaced.filter(l => l !== lesson);
-          break;
-        }
-      }
-    }
+  if (index > bestState.bestPlaced) {
+    bestState.bestPlaced = index;
+    bestState.snapshot = JSON.parse(JSON.stringify(schedule));
   }
 
-  return notPlaced;
+  if (index === lessons.length) return true;
+
+  const lesson = lessons[index];
+
+  const options = getBestOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, data);
+
+  for (let opt of options) {
+
+    place(lesson, opt.day, opt.hour, schedule, teacherBusy, classBusy, teacherCount);
+
+    if (solve(index + 1, lessons, schedule, teacherBusy, classBusy, teacherCount, data, startTime, bestState)) {
+      return true;
+    }
+
+    remove(lesson, opt.day, opt.hour, schedule, teacherBusy, classBusy, teacherCount);
+  }
+
+  return false;
 }
 
-// 🔥 SWAP (FINAL)
-function trySwap(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data) {
+// 🧠 SORT LEKCJI (NAJTRUDNIEJSZE PIERWSZE)
+function sortLessons(lessons, data) {
 
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-  const hours = [1,2,3,4,5,6,7,8];
+  return lessons.sort((a, b) => {
 
-  for (let lesson of [...notPlaced]) {
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
 
-    for (let cls of lesson.classes) {
+    const scoreA =
+      (a.classes.length * 20) +
+      (100 - (ta?.availability.length || 100));
 
-      const clsSchedule = schedule[cls];
-      if (!clsSchedule) continue;
+    const scoreB =
+      (b.classes.length * 20) +
+      (100 - (tb?.availability.length || 100));
 
-      for (let day in clsSchedule) {
-        for (let hour in clsSchedule[day]) {
-
-          const existing = clsSchedule[day][hour];
-          const h = parseInt(hour);
-
-          // usuń istniejącą lekcję
-          const fakeLesson = {
-            classes: [cls],
-            teacher: existing.teacher,
-            subject: existing.subject
-          };
-
-          remove(fakeLesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
-
-          // spróbuj wstawić brakującą
-          if (canPlace(lesson, day, h, schedule, teacherBusy, classBusy, teacherCount, data)) {
-
-            place(lesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
-
-            // spróbuj gdzieś przenieść starą
-            for (let d of days) {
-              for (let hh of hours) {
-
-                if (canPlace(fakeLesson, d, hh, schedule, teacherBusy, classBusy, teacherCount, data)) {
-
-                  place(fakeLesson, d, hh, schedule, teacherBusy, classBusy, teacherCount);
-
-                  return [];
-                }
-              }
-            }
-          }
-
-          // rollback
-          place(fakeLesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
-        }
-      }
-    }
-  }
-
-  return notPlaced;
-}
-
-// 🧠 WALIDACJA
-function noEmptyDays(schedule) {
-
-  const days = ["Mon","Tue","Wed","Thu","Fri"];
-
-  for (let cls in schedule) {
-    for (let day of days) {
-      if (!schedule[cls][day] || Object.keys(schedule[cls][day]).length === 0) {
-        return false;
-      }
-    }
-  }
-
-  return true;
-}
-
-function isDayContinuous(daySchedule) {
-
-  if (!daySchedule) return true;
-
-  const hours = Object.keys(daySchedule).map(Number).sort((a,b)=>a-b);
-
-  for (let i = 1; i < hours.length; i++) {
-    if (hours[i] !== hours[i-1] + 1) return false;
-  }
-
-  return true;
+    return scoreB - scoreA;
+  });
 }
 
 // 🎯 MAIN
 async function generateSchedule(data) {
 
   let lessons = getAllLessons(data);
+  lessons = sortLessons(lessons, data);
 
-  // 🔥 trudni najpierw
-  lessons.sort((a, b) => {
-    const ta = data.teachers.find(t => t.id === a.teacher);
-    const tb = data.teachers.find(t => t.id === b.teacher);
-    return (ta?.availability.length || 999) - (tb?.availability.length || 999);
-  });
+  let bestState = {
+    bestPlaced: 0,
+    snapshot: null
+  };
 
-  for (let attempt = 0; attempt < 50; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
 
     console.log("🔥 Próba:", attempt);
-// 🔥 LOSOWANIE KOLEJNOŚCI
-lessons = lessons.sort(() => Math.random() - 0.5);
+
+    lessons = lessons.sort(() => Math.random() - 0.5);
+
     let schedule = {};
     let teacherBusy = {};
     let classBusy = {};
     let teacherCount = {};
 
-    let notPlaced = greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data);
+    const startTime = Date.now();
 
-    notPlaced = repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data);
+    const success = solve(
+      0,
+      lessons,
+      schedule,
+      teacherBusy,
+      classBusy,
+      teacherCount,
+      data,
+      startTime,
+      bestState
+    );
 
-    notPlaced = trySwap(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data);
-
-    console.log("❗ nieułożone:", notPlaced.length);
-
-    if (notPlaced.length === 0) {
-
-      let ok = true;
-      for (let cls in schedule) {
-        for (let day in schedule[cls]) {
-        }
-      }
-
-      if (!ok) continue;
-
-      console.log("✅ PLAN GOTOWY");
-
+    if (success) {
+      console.log("✅ IDEALNY PLAN");
       return {
         status: "OK",
         notPlaced: 0,
-        gaps: 0,
         schedule
       };
     }
   }
 
-  console.log("❌ FAIL");
+  console.log("⚠️ NIE IDEALNY, ALE NAJLEPSZY ZNALEZIONY");
 
   return {
-    status: "FAIL",
-    message: "Nie znaleziono w czasie limitu"
+    status: "PARTIAL",
+    placed: bestState.bestPlaced,
+    schedule: bestState.snapshot
   };
 }
 
