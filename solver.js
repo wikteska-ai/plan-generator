@@ -2,12 +2,12 @@ import fs from "fs";
 
 const TIME_LIMIT = 180000;
 
-// 📡 PROGRESS
 let lastUpdate = 0;
 
+// 📡 zapis progresu
 function saveProgress(state) {
   try {
-    fs.writeFileSync("progress.json", JSON.stringify(state, null, 2));
+    fs.writeFileSync("progress.json", JSON.stringify(state));
   } catch (e) {}
 }
 
@@ -84,19 +84,19 @@ function evaluatePlacement(lesson, day, hour, schedule) {
       const min = Math.min(...hours);
       const max = Math.max(...hours);
 
-      if (hour > min && hour < max) score -= 80; // dziura
+      if (hour > min && hour < max) score -= 80;
 
       if (hours.includes(hour - 1) || hours.includes(hour + 1)) score += 25;
     }
 
-    if (hours.length === 0) score -= 60; // pusty dzień
+    if (hours.length === 0) score -= 60;
 
     if (hours.length >= 6) score -= 40;
 
     if (hour >= 2 && hour <= 6) score += 10;
   }
 
-  if (lesson.classes.length > 1) score += 30; // grupy
+  if (lesson.classes.length > 1) score += 30;
 
   return score;
 }
@@ -158,7 +158,7 @@ function getAllOptions(lesson, schedule, teacherBusy, classBusy, teacherCount, d
   return options;
 }
 
-// 🔥 SORT (najtrudniejsze pierwsze)
+// 🔥 SORT
 function sortLessons(lessons, data) {
 
   return lessons.sort((a, b) => {
@@ -236,9 +236,6 @@ async function generateSchedule(data) {
     snapshot: null
   };
 
-  console.log("🚀 START");
-  
-
   const startTime = Date.now();
 
   let schedule = {};
@@ -259,9 +256,6 @@ async function generateSchedule(data) {
   );
 
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const percent = Math.floor(
-  (status.result.placed / status.progress.total) * 100
-);
 
   if (success) {
 
@@ -273,8 +267,6 @@ async function generateSchedule(data) {
       elapsed,
       status: "done"
     });
-
-    console.log("🏆 IDEALNY PLAN");
 
     return {
       status: "OK",
@@ -291,11 +283,8 @@ async function generateSchedule(data) {
     status: "partial"
   });
 
-  console.log("⚠️ BEST FOUND");
-
   return {
-    status: "done"
-partial: true
+    status: "PARTIAL",
     placed: bestState.bestPlaced,
     schedule: bestState.snapshot
   };
