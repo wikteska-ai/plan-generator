@@ -217,7 +217,53 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
+// 🔥 SHIFT DOWN (usuwa okienka)
+if (Math.random() < 0.3) {
 
+  const classes = Object.keys(next);
+  const c = classes[Math.floor(Math.random()*classes.length)];
+
+  const days = Object.keys(next[c] || {});
+  if (!days.length) continue;
+
+  const d = days[Math.floor(Math.random()*days.length)];
+
+  const hours = Object.keys(next[c][d] || {})
+    .map(Number)
+    .sort((a,b)=>a-b);
+
+  if (hours.length < 2) continue;
+
+  // zbieramy lekcje
+  const lessons = hours.map(h => next[c][d][h]);
+
+  // usuwamy stare
+  next[c][d] = {};
+
+  // wstawiamy od 1 w dół
+  let hNew = 1;
+
+  for (let lesson of lessons) {
+
+    // sprawdź konflikt
+    let conflict = false;
+
+    for (let cc of lesson.classes) {
+      if (next[cc]?.[d]?.[hNew]) {
+        conflict = true;
+        break;
+      }
+    }
+
+    if (!conflict) {
+      if (!next[c][d]) next[c][d] = {};
+      next[c][d][hNew] = lesson;
+      hNew++;
+    }
+  }
+
+}
+    
 // 🔥 MOVE + SWAP (bezpieczna wersja)
 if (Math.random() < 0.4) {
 
