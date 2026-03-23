@@ -1,4 +1,4 @@
-const TIME_LIMIT = 20000;
+const TIME_LIMIT = 30000;
 
 // 📦 LEKCJE
 function getAllLessons(data) {
@@ -37,7 +37,7 @@ function getAllLessons(data) {
   return lessons;
 }
 
-// 🧠 sprawdzanie (bez zmian)
+// 🧠 sprawdzanie
 function canPlace(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const teacher = data.teachers.find(t => t.id === lesson.teacher);
@@ -80,7 +80,19 @@ function place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount
   }
 }
 
-// 🧠 GREEDY (szybkie układanie)
+// ❌ remove
+function remove(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount) {
+
+  delete teacherBusy[lesson.teacher + "_" + day + "_" + hour];
+  teacherCount[lesson.teacher]--;
+
+  for (let cls of lesson.classes) {
+    delete classBusy[cls + "_" + day + "_" + hour];
+    delete schedule[cls][day][hour];
+  }
+}
+
+// 🧠 GREEDY
 function greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
@@ -112,7 +124,7 @@ function greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, dat
   return notPlaced;
 }
 
-// 🔧 REPAIR (naprawa brakujących)
+// 🔧 REPAIR
 function repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
@@ -135,7 +147,64 @@ function repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data)
   return notPlaced;
 }
 
-// 🧠 sprawdzenia końcowe
+// 🔥 SWAP (FINAL)
+function trySwap(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data) {
+
+  const days = ["Mon","Tue","Wed","Thu","Fri"];
+  const hours = [1,2,3,4,5,6,7,8];
+
+  for (let lesson of [...notPlaced]) {
+
+    for (let cls of lesson.classes) {
+
+      const clsSchedule = schedule[cls];
+      if (!clsSchedule) continue;
+
+      for (let day in clsSchedule) {
+        for (let hour in clsSchedule[day]) {
+
+          const existing = clsSchedule[day][hour];
+          const h = parseInt(hour);
+
+          // usuń istniejącą lekcję
+          const fakeLesson = {
+            classes: [cls],
+            teacher: existing.teacher,
+            subject: existing.subject
+          };
+
+          remove(fakeLesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
+
+          // spróbuj wstawić brakującą
+          if (canPlace(lesson, day, h, schedule, teacherBusy, classBusy, teacherCount, data)) {
+
+            place(lesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
+
+            // spróbuj gdzieś przenieść starą
+            for (let d of days) {
+              for (let hh of hours) {
+
+                if (canPlace(fakeLesson, d, hh, schedule, teacherBusy, classBusy, teacherCount, data)) {
+
+                  place(fakeLesson, d, hh, schedule, teacherBusy, classBusy, teacherCount);
+
+                  return [];
+                }
+              }
+            }
+          }
+
+          // rollback
+          place(fakeLesson, day, h, schedule, teacherBusy, classBusy, teacherCount);
+        }
+      }
+    }
+  }
+
+  return notPlaced;
+}
+
+// 🧠 WALIDACJA
 function noEmptyDays(schedule) {
 
   const days = ["Mon","Tue","Wed","Thu","Fri"];
@@ -176,7 +245,7 @@ async function generateSchedule(data) {
     return (ta?.availability.length || 999) - (tb?.availability.length || 999);
   });
 
-  for (let attempt = 0; attempt < 30; attempt++) {
+  for (let attempt = 0; attempt < 20; attempt++) {
 
     console.log("🔥 Próba:", attempt);
 
@@ -185,15 +254,14 @@ async function generateSchedule(data) {
     let classBusy = {};
     let teacherCount = {};
 
-    // 🔥 etap 1 — szybkie ułożenie
     let notPlaced = greedyFill(lessons, schedule, teacherBusy, classBusy, teacherCount, data);
 
-    // 🔧 etap 2 — naprawa
     notPlaced = repair(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data);
+
+    notPlaced = trySwap(notPlaced, schedule, teacherBusy, classBusy, teacherCount, data);
 
     console.log("❗ nieułożone:", notPlaced.length);
 
-    // 🎯 jeśli wszystko weszło
     if (notPlaced.length === 0) {
 
       if (!noEmptyDays(schedule)) continue;
