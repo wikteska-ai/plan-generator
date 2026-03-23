@@ -28,6 +28,7 @@ app.post("/generate", (req, res) => {
   setTimeout(async () => {
     try {
       const result = await generateSchedule(req.body);
+      console.log("🎉 KONIEC GENEROWANIA");
 
       jobs[jobId] = {
         status: "done",
