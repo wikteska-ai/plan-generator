@@ -203,6 +203,18 @@ if (hours.length > 0 && Math.min(...hours) >= 3) penalty += 40;
 
   return -penalty;
 }
+// ===== COUNT LESSONS (NOWE) =====
+function countLessons(schedule) {
+  let count = 0;
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      count += Object.keys(schedule[cls][d]).length;
+    }
+  }
+
+  return count;
+}
 // ===== IMPROVE =====
 function improve(s, data, ms) {
 
@@ -319,8 +331,13 @@ if (Math.random() < 0.4) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-    let sc = score(next);
+const before = countLessons(current);
+const after = countLessons(next);
 
+// ❌ jeśli zgubił lekcje → odrzuć ruch
+if (after !== before) continue;
+
+let sc = score(next);
     if (sc > currentScore || Math.random() < 0.15) {
       current = next;
       currentScore = sc;
@@ -352,7 +369,7 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 6000);
+  const { best, bestScore } = improve(s, data, 8000);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
