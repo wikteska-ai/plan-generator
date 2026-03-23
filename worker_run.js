@@ -8,9 +8,9 @@ if (!jobId) {
   process.exit(1);
 }
 
-console.log("🧠 Worker start dla:", jobId);
+console.log("🧠 Worker start:", jobId);
 
-// wczytaj joby
+// ===== Wczytaj joby =====
 let jobs = {};
 try {
   jobs = JSON.parse(fs.readFileSync("jobs.json"));
@@ -26,11 +26,23 @@ if (!job) {
   process.exit(1);
 }
 
+// 🔥 tylko queued
+if (job.status !== "queued") {
+  console.log("⏭️ Pomijam job:", jobId);
+  process.exit(0);
+}
+
+// ===== ustaw processing =====
+jobs[jobId].status = "processing";
+fs.writeFileSync("jobs.json", JSON.stringify(jobs));
+
 (async () => {
   try {
 
     const result = await generateSchedule(job.data);
 
+    // ===== zapis DONE =====
+    jobs = JSON.parse(fs.readFileSync("jobs.json"));
     jobs[jobId] = {
       status: "done",
       result
@@ -44,6 +56,7 @@ if (!job) {
 
     console.error("❌ ERROR JOB", jobId, e);
 
+    jobs = JSON.parse(fs.readFileSync("jobs.json"));
     jobs[jobId] = {
       status: "fail"
     };
