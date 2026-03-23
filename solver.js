@@ -234,6 +234,26 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
+    // 🔥 BIG MOVE (zamiana całych dni)
+if (Math.random() < 0.15) {
+
+  const classes = Object.keys(next);
+  const c1 = classes[Math.floor(Math.random()*classes.length)];
+  const c2 = classes[Math.floor(Math.random()*classes.length)];
+
+  if (c1 === c2) continue;
+
+  const d = DAYS[Math.floor(Math.random()*5)];
+
+  const day1 = next[c1]?.[d];
+  const day2 = next[c2]?.[d];
+
+  if (!day1 || !day2) continue;
+
+  // zamiana
+  next[c1][d] = day2;
+  next[c2][d] = day1;
+}
 // 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
 if (Math.random() < 0.4) {
 
