@@ -234,25 +234,48 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
-    // 🔥 BIG MOVE (zamiana całych dni)
-if (Math.random() < 0.15) {
+// 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
+if (Math.random() < 0.2) {
 
   const classes = Object.keys(next);
-  const c1 = classes[Math.floor(Math.random()*classes.length)];
-  const c2 = classes[Math.floor(Math.random()*classes.length)];
+  const c = classes[Math.floor(Math.random()*classes.length)];
 
-  if (c1 === c2) continue;
+  const d1 = DAYS[Math.floor(Math.random()*5)];
+  const d2 = DAYS[Math.floor(Math.random()*5)];
 
-  const d = DAYS[Math.floor(Math.random()*5)];
+  if (d1 === d2) continue;
 
-  const day1 = next[c1]?.[d];
-  const day2 = next[c2]?.[d];
+  const day1 = next[c]?.[d1];
+  const day2 = next[c]?.[d2];
 
   if (!day1 || !day2) continue;
 
-  // zamiana
-  next[c1][d] = day2;
-  next[c2][d] = day1;
+  let valid = true;
+
+  // sprawdź dzień 1 -> dzień 2
+  for (let h in day1) {
+    const lesson = day1[h];
+
+    if (!teacherOk(lesson.teacher, d2, Number(h), {}, data)) {
+      valid = false;
+      break;
+    }
+  }
+
+  // sprawdź dzień 2 -> dzień 1
+  for (let h in day2) {
+    const lesson = day2[h];
+
+    if (!teacherOk(lesson.teacher, d1, Number(h), {}, data)) {
+      valid = false;
+      break;
+    }
+  }
+
+  if (valid) {
+    next[c][d1] = day2;
+    next[c][d2] = day1;
+  }
 }
 // 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
 if (Math.random() < 0.4) {
