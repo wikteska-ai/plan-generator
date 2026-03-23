@@ -229,8 +229,8 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
-// 🔥 SHIFT DOWN (usuwa okienka)
-if (Math.random() < 0.3) {
+// 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
+if (Math.random() < 0.4) {
 
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
@@ -246,34 +246,37 @@ if (Math.random() < 0.3) {
 
   if (hours.length < 2) continue;
 
-  // zbieramy lekcje
   const lessons = hours.map(h => next[c][d][h]);
 
-  // usuwamy stare
+  // usuń cały dzień
   next[c][d] = {};
 
-  // wstawiamy od 1 w dół
   let hNew = 1;
 
   for (let lesson of lessons) {
 
-    // sprawdź konflikt
-    let conflict = false;
+    // znajdź NAJNIŻSZĄ możliwą godzinę
+    while (hNew <= 8) {
 
-    for (let cc of lesson.classes) {
-      if (next[cc]?.[d]?.[hNew]) {
-        conflict = true;
+      let conflict = false;
+
+      for (let cc of lesson.classes) {
+        if (next[cc]?.[d]?.[hNew]) {
+          conflict = true;
+          break;
+        }
+      }
+
+      if (!conflict) {
+        if (!next[c][d]) next[c][d] = {};
+        next[c][d][hNew] = lesson;
+        hNew++;
         break;
       }
-    }
 
-    if (!conflict) {
-      if (!next[c][d]) next[c][d] = {};
-      next[c][d][hNew] = lesson;
       hNew++;
     }
   }
-
 }
     
 // 🔥 MOVE + SWAP (bezpieczna wersja)
@@ -335,7 +338,7 @@ const before = countLessons(current);
 const after = countLessons(next);
 
 // ❌ jeśli zgubił lekcje → odrzuć ruch
-if (after !== before) continue;
+if (after < before) continue;
 
 let sc = score(next);
     if (sc > currentScore || Math.random() < 0.15) {
@@ -369,7 +372,7 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 8000);
+  const { best, bestScore } = improve(s, data, 10000);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
