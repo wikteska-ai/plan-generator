@@ -1,4 +1,4 @@
-const TIME_LIMIT = 30000;
+const TIME_LIMIT = 40000;
 
 // 📦 LEKCJE
 function getAllLessons(data) {
@@ -245,10 +245,11 @@ async function generateSchedule(data) {
     return (ta?.availability.length || 999) - (tb?.availability.length || 999);
   });
 
-  for (let attempt = 0; attempt < 20; attempt++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
 
     console.log("🔥 Próba:", attempt);
-
+// 🔥 LOSOWANIE KOLEJNOŚCI
+lessons = lessons.sort(() => Math.random() - 0.5);
     let schedule = {};
     let teacherBusy = {};
     let classBusy = {};
