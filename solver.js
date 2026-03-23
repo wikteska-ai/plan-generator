@@ -216,12 +216,12 @@ function improve(s, data, ms) {
 
   while (Date.now() - start < ms) {
 
-  let next = JSON.parse(JSON.stringify(current));
+let next = JSON.parse(JSON.stringify(current));
 
-// 🔥 LOSUJ: MOVE albo SWAP
-if (Math.random() < 0.5) {
+// 🔥 MOVE + SWAP (bezpieczna wersja)
+if (Math.random() < 0.4) {
 
-  // ===== MOVE (PRZENIESIENIE LEKCJI) =====
+  // ===== SAFE MOVE =====
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
 
@@ -236,20 +236,29 @@ if (Math.random() < 0.5) {
   const h = Number(hours[Math.floor(Math.random()*hours.length)]);
   const lesson = next[c][d][h];
 
-  // nowy slot
   const d2 = DAYS[Math.floor(Math.random()*5)];
   const h2 = HOURS[Math.floor(Math.random()*8)];
 
-  // usuń starą lekcję
-  delete next[c][d][h];
+  // 🔒 SPRAWDZENIE KONFLIKTU (WAŻNE!)
+  let conflict = false;
 
-  // dodaj w nowe miejsce
-  if (!next[c][d2]) next[c][d2] = {};
-  next[c][d2][h2] = lesson;
+  for (let cc of lesson.classes) {
+    if (next[cc]?.[d2]?.[h2]) {
+      conflict = true;
+      break;
+    }
+  }
+
+  if (!conflict) {
+    delete next[c][d][h];
+
+    if (!next[c][d2]) next[c][d2] = {};
+    next[c][d2][h2] = lesson;
+  }
 
 } else {
 
-  // ===== SWAP (jak było) =====
+  // ===== SWAP =====
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
   const d = DAYS[Math.floor(Math.random()*5)];
