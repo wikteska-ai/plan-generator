@@ -1,4 +1,4 @@
-const TIME_LIMIT = 50000;
+const TIME_LIMIT = 40000;
 
 // 🧠 PODZIAŁ NA HARD / EASY
 function splitHardEasy(data, lessons) {
@@ -175,6 +175,7 @@ function solve(lessons, schedule, teacherBusy, classBusy, teacherCount, data, st
   possibleSlots.sort(() => Math.random() - 0.5);
 
   for (let { day, hour } of possibleSlots) {
+      if (Date.now() - startTime > TIME_LIMIT) return false;
 
     place(lesson, day, hour, schedule, teacherBusy, classBusy, teacherCount);
 
@@ -208,11 +209,13 @@ async function generateSchedule(data) {
 
     // 🔥 ETAP 1 — HARD
     const successHard = solve(hard, schedule, teacherBusy, classBusy, teacherCount, data, startTime);
+    console.log("⏱️ KONIEC PRÓBY hard:", attempt);
 
     if (!successHard) continue;
 
     // 🔥 ETAP 2 — EASY
     const successEasy = solve(easy, schedule, teacherBusy, classBusy, teacherCount, data, startTime);
+    console.log("⏱️ KONIEC easy:", attempt);
 
     if (successEasy) {
 
