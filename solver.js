@@ -234,6 +234,7 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
+    
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
 if (Math.random() < 0.2) {
 
@@ -399,7 +400,55 @@ let sc = score(next);
       }
     }
   }
+// 🔥 REPAIR MOVE (usuwa konkretne okienka)
+if (Math.random() < 0.4) {
 
+  const classes = Object.keys(next);
+  const c = classes[Math.floor(Math.random()*classes.length)];
+
+  const days = Object.keys(next[c] || {});
+  if (!days.length) continue;
+
+  const d = days[Math.floor(Math.random()*days.length)];
+
+  const hours = Object.keys(next[c][d] || {})
+    .map(Number)
+    .sort((a,b)=>a-b);
+
+  if (hours.length < 3) continue;
+
+  for (let i = 1; i < hours.length - 1; i++) {
+
+    const prev = hours[i-1];
+    const curr = hours[i];
+    const nextH = hours[i+1];
+
+    // wykryj okienko
+    if (curr !== prev + 1) {
+
+      const lesson = next[c][d][curr];
+
+      // spróbuj przesunąć w dół
+      const target = prev + 1;
+
+      let conflict = false;
+
+      for (let cc of lesson.classes) {
+        if (next[cc]?.[d]?.[target]) {
+          conflict = true;
+          break;
+        }
+      }
+
+      if (!conflict) {
+        delete next[c][d][curr];
+        next[c][d][target] = lesson;
+      }
+
+      break;
+    }
+  }
+}
   return { best, bestScore };
 }
 
