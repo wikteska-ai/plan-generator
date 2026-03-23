@@ -439,7 +439,12 @@ const after = countLessons(next);
 if (after < before) continue;
 
 let sc = score(next);
-    if (sc > currentScore || Math.random() < 0.15) {
+   const isGood = currentScore > -2000;
+
+if (
+  sc > currentScore ||
+  (Math.random() < (isGood ? 0.05 : 0.15))
+) {
       current = next;
       currentScore = sc;
 
