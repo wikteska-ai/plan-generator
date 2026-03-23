@@ -222,6 +222,19 @@ function countLessons(schedule) {
 
   return count;
 }
+function getLessonIds(schedule) {
+  const ids = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        ids.push(schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  return ids.sort();
+}
 // ===== IMPROVE =====
 function improve(s, data, ms) {
 
@@ -233,8 +246,7 @@ function improve(s, data, ms) {
 
   const start = Date.now();
 
-  while (Date.now() - start < ms) {
-
+outer: while (Date.now() - start < ms) {
 let next = JSON.parse(JSON.stringify(current));
    // 🔥 TARGETED REPAIR (celowane usuwanie okienek)
 if (Math.random() < 0.7) {
@@ -430,8 +442,17 @@ if (Math.random() < 0.4) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-const before = countLessons(current);
-const after = countLessons(next);
+const beforeIds = getLessonIds(current);
+const afterIds = getLessonIds(next);
+
+// ❌ jeśli zmienił zestaw lekcji → odrzucamy
+if (beforeIds.length !== afterIds.length) continue;
+
+for (let i = 0; i < beforeIds.length; i++) {
+  if (beforeIds[i] !== afterIds[i]) {
+    continue outer; // ważne!
+  }
+}
 
 // ❌ jeśli zgubił lekcje → odrzuć ruch
 if (after < before) continue;
