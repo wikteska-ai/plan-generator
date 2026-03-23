@@ -101,8 +101,12 @@ function construct(lessons, data) {
 
         let score = 0;
 
-        if (h >= 2 && h <= 6) score += 3;
+// lekki bonus za środek, ale NIE karz 1
+if (h >= 2 && h <= 6) score += 2;
+        
 
+// mały bonus za 1 godzinę (ważne!)
+if (h === 1) score += 1;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
           score -= Object.keys(day).length;
@@ -159,6 +163,8 @@ function score(s) {
       // ❌ za mało / za dużo
       if (hours.length < 4) penalty += 40;
       if (hours.length > 7) penalty += 40;
+      // ❌ jeśli dzień zaczyna się od 3 lub później
+if (hours.length > 0 && Math.min(...hours) >= 3) penalty += 40;
 
       // ❌ okienka (MEGA ważne)
       for (let i = 1; i < hours.length; i++) {
@@ -253,24 +259,24 @@ async function generateSchedule(data) {
   const start = Date.now();
   let iter = 0;
 
-  const RUNS = 5;
+while (Date.now() - start < TIME_LIMIT) {
 
-for (let i = 0; i < RUNS; i++) {
-
-  console.log(`🔁 Próba ${i+1}/${RUNS}`);
+  iter++;
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 5000);
+  const { best, bestScore } = improve(s, data, 6000);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
     globalBest = best;
+
+    console.log("🔥 Nowy najlepszy score:", globalScore);
   }
 
   saveProgress({
-    percent: Math.floor((i / RUNS) * 100),
-    iter: i+1,
+    percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
+    iter,
     score: globalScore
   });
 }
