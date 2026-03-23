@@ -270,7 +270,6 @@ lessons = lessons.sort(() => Math.random() - 0.5);
       let ok = true;
       for (let cls in schedule) {
         for (let day in schedule[cls]) {
-          if (!isDayContinuous(schedule[cls][day])) ok = false;
         }
       }
 
