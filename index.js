@@ -1,97 +1,294 @@
 import fs from "fs";
-import express from "express";
-import bodyParser from "body-parser";
-import cors from "cors";
-import { generateSchedule } from "./solver.js";
 
-const app = express();
+const TIME_LIMIT = 180000; // możesz dać 600000 = 10 min
 
-// 🔥 CORS (naprawia "Failed to fetch")
-app.use(cors());
+function saveProgress(p) {
+  try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
+}
 
-// JSON
-app.use(bodyParser.json());
+const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+const HOURS = [1,2,3,4,5,6,7,8];
 
-// 🔥 pamięć jobów
-const jobs = {};
+// 📦 lekcje (grupy + rozbicie)
+function getLessons(data) {
 
-// 🎯 START GENEROWANIA
-app.post("/generate", (req, res) => {
+  let grouped = {};
 
-  const jobId = Date.now().toString();
+  data.lessons.forEach(l => {
 
-  jobs[jobId] = {
-    status: "processing",
-    createdAt: Date.now()
-  };
+    const key = l.group
+      ? "G_" + l.group
+      : l.subject === "edu.wczesno."
+        ? `${l.class}_${l.subject}_${l.teacher}`
+        : `${l.class}_${l.subject}`;
 
-  // 🔥 uruchom w tle
-  setTimeout(async () => {
-    try {
-      const result = await generateSchedule(req.body);
-      console.log("🎉 KONIEC GENEROWANIA");
-
-jobs[jobId] = {
-status: "done",
-  result,
-  finishedAt: Date.now()
-};
-
-      console.log("✅ DONE:", jobId);
-
-    } catch (e) {
-      console.error("❌ ERROR:", e);
-
-      jobs[jobId] = {
-        status: "error",
-        error: e.message
+    if (!grouped[key]) {
+      grouped[key] = {
+        subject: l.subject,
+        teacher: l.teacher,
+        classes: [],
+        hours: l.hours
       };
     }
-  }, 0);
 
-  res.json({ jobId });
-});
-
-// 📡 STATUS
-app.get("/status/:id", (req, res) => {
-
-  const job = jobs[req.params.id];
-
-  if (!job) {
-    return res.json({ status: "not_found" });
-  }
-
-  // 🔥 Wczytaj progress
-  let progress = null;
-
-  try {
-    const file = fs.readFileSync("progress.json", "utf-8");
-    progress = JSON.parse(file);
-  } catch (e) {
-    // jeszcze nie ma pliku
-  }
-console.log("📡 progress:", progress?.percent);
-  // 🔥 dodaj progress do odpowiedzi
-  res.json({
-    ...job,
-    progress
+    grouped[key].classes.push(l.class);
   });
-});
 
-// 🧹 czyszczenie starych jobów (co 1 min)
-setInterval(() => {
-  const now = Date.now();
+  let out = [];
 
-  for (let id in jobs) {
-    if (now - jobs[id].createdAt > 1000 * 60 * 10) {
-      delete jobs[id];
+  Object.values(grouped).forEach((g, i) => {
+    for (let h = 0; h < g.hours; h++) {
+      out.push({
+        id: i + "_" + h,
+        ...g
+      });
+    }
+  });
+
+  return out;
+}
+
+// ===== CHECK =====
+function canPlace(l, d, h, s, tBusy, cBusy, data) {
+
+  const t = data.teachers.find(x => x.id === l.teacher);
+
+  if (!t.availability.includes(d + "_" + h)) return false;
+  if (tBusy[l.teacher + "_" + d + "_" + h]) return false;
+
+  for (let c of l.classes) {
+    if (cBusy[c + "_" + d + "_" + h]) return false;
+  }
+
+  return true;
+}
+
+// ===== PLACE =====
+function place(l, d, h, s, tBusy, cBusy) {
+
+  tBusy[l.teacher + "_" + d + "_" + h] = true;
+
+  for (let c of l.classes) {
+
+    cBusy[c + "_" + d + "_" + h] = true;
+
+    if (!s[c]) s[c] = {};
+    if (!s[c][d]) s[c][d] = {};
+
+    s[c][d][h] = l;
+  }
+}
+
+// ===== CONSTRUCT (PORANEK 🔥) =====
+function construct(lessons, data) {
+
+  let s = {}, tBusy = {}, cBusy = {};
+
+  for (let l of lessons.sort(() => Math.random() - 0.5)) {
+
+    let best = null;
+    let bestScore = -999;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        if (!canPlace(l, d, h, s, tBusy, cBusy, data)) continue;
+
+        let score = 0;
+
+        // 🔥 PORANEK = NAJLEPSZY
+        if (h === 1) score += 10;
+        if (h === 2) score += 8;
+        if (h === 3) score += 5;
+
+        // kara za późne
+        if (h >= 7) score -= 5;
+
+        for (let c of l.classes) {
+          const day = s[c]?.[d] || {};
+          score -= Object.keys(day).length;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = { d, h };
+        }
+      }
+    }
+
+    if (best) place(l, best.d, best.h, s, tBusy, cBusy);
+  }
+
+  return s;
+}
+
+// ===== SCORE =====
+function score(s) {
+
+  let penalty = 0;
+
+  for (let cls in s) {
+
+    for (let d of DAYS) {
+
+      const day = s[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hours.length === 0) penalty += 100;
+
+      if (hours.length < 4) penalty += 40;
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) penalty += 40; // 🔥 mocna kara
+      }
+
+      if (Math.max(...hours,0) > 7) penalty += 20;
+
+      if (cls <= 3 && hours.length > 0) {
+        if (Math.min(...hours) > 2) penalty += 50;
+      }
     }
   }
-}, 60000);
 
-// 🔥 PORT (WAŻNE NA RENDER)
-const PORT = process.env.PORT || 3000;
+  return -penalty;
+}
 
-app.listen(PORT, () => {
-  console.log("🚀 Server działa na porcie " + PORT);
-});
+// ===== HARD FIX OKIENEK 🔥 =====
+function fixGaps(s) {
+
+  for (let cls in s) {
+    for (let d in s[cls]) {
+
+      let hours = Object.keys(s[cls][d]).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+
+        if (hours[i] !== hours[i-1] + 1) {
+
+          const l = s[cls][d][hours[i]];
+
+          delete s[cls][d][hours[i]];
+
+          s[cls][d][hours[i-1]+1] = l;
+        }
+      }
+    }
+  }
+}
+
+// ===== RANDOM MOVE =====
+function move(s) {
+
+  const classes = Object.keys(s);
+  if (!classes.length) return;
+
+  const c = classes[Math.floor(Math.random()*classes.length)];
+  const d = Object.keys(s[c] || {})[0];
+  if (!d) return;
+
+  const h = Object.keys(s[c][d])[0];
+  if (!h) return;
+
+  const l = s[c][d][h];
+
+  const d2 = DAYS[Math.floor(Math.random()*5)];
+  const h2 = HOURS[Math.floor(Math.random()*8)];
+
+  for (let cc of l.classes) delete s[cc][d][h];
+
+  for (let cc of l.classes) {
+    if (!s[cc][d2]) s[cc][d2] = {};
+    s[cc][d2][h2] = l;
+  }
+}
+
+// ===== IMPROVE (DO SKUTKU 🔥) =====
+function improve(s, data, ms) {
+
+  let best = JSON.parse(JSON.stringify(s));
+  let bestScore = score(best);
+
+  let current = JSON.parse(JSON.stringify(s));
+  let currentScore = bestScore;
+
+  const start = Date.now();
+
+  while (Date.now() - start < ms) {
+
+    let next = JSON.parse(JSON.stringify(current));
+
+    move(next);
+    fixGaps(next);
+
+    let sc = score(next);
+
+    if (sc > currentScore || Math.random() < 0.15) {
+      current = next;
+      currentScore = sc;
+
+      if (sc > bestScore) {
+        best = JSON.parse(JSON.stringify(next));
+        bestScore = sc;
+      }
+    }
+  }
+
+  return { best, bestScore };
+}
+
+// ===== MAIN =====
+async function generateSchedule(data) {
+
+  const lessons = getLessons(data);
+
+  let globalBest = null;
+  let globalScore = -999;
+
+  const start = Date.now();
+  let iter = 0;
+
+  while (true) {
+
+    if (Date.now() - start > TIME_LIMIT) break;
+
+    iter++;
+
+    let s = construct(lessons, data);
+
+    const { best, bestScore } = improve(s, data, 1500);
+
+    if (bestScore > globalScore) {
+      globalScore = bestScore;
+      globalBest = best;
+    }
+
+    if (iter % 2 === 0) {
+      saveProgress({
+        percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
+        iter,
+        score: globalScore
+      });
+    }
+  }
+
+  if (!globalBest) globalBest = {};
+
+  let placed = 0;
+  for (let c in globalBest) {
+    for (let d in globalBest[c]) {
+      placed += Object.keys(globalBest[c][d]).length;
+    }
+  }
+
+  saveProgress({ percent: 100 });
+
+  return {
+    status: "OK",
+    placed,
+    total: lessons.length,
+    elapsed: Math.floor((Date.now()-start)/1000),
+    schedule: globalBest
+  };
+}
+
+export { generateSchedule };
