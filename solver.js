@@ -1,28 +1,26 @@
 import fs from "fs";
 
-const TIME_LIMIT = 120000;
+const TIME_LIMIT = 300000; // 5 min (możesz zwiększyć)
 
-// ===== PROGRESS =====
-function saveProgress(p) {
-  try {
-    fs.writeFileSync("progress.json", JSON.stringify(p));
-  } catch {}
+const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+const HOURS = [1,2,3,4,5,6,7,8];
+
+function saveProgress(p){
+  try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
 }
 
-// ===== LEKCJE =====
-function getLessons(data) {
+// ===== LEKCJE (GRUPY OK) =====
+function getLessons(data){
 
   let grouped = {};
 
   data.lessons.forEach(l => {
 
     const key = l.group
-      ? "G_" + l.group
-      : l.subject === "edu.wczesno."
-        ? `${l.class}_${l.subject}_${l.teacher}`
-        : `${l.class}_${l.subject}`;
+      ? "G_"+l.group
+      : `${l.class}_${l.subject}_${l.teacher}`;
 
-    if (!grouped[key]) {
+    if(!grouped[key]){
       grouped[key] = {
         subject: l.subject,
         teacher: l.teacher,
@@ -36,10 +34,10 @@ function getLessons(data) {
 
   let out = [];
 
-  Object.values(grouped).forEach((g, i) => {
-    for (let h = 0; h < g.hours; h++) {
+  Object.values(grouped).forEach((g,i)=>{
+    for(let h=0; h<g.hours; h++){
       out.push({
-        id: i + "_" + h,
+        id: i+"_"+h,
         ...g
       });
     }
@@ -48,71 +46,86 @@ function getLessons(data) {
   return out;
 }
 
-// ===== HELPERS =====
-const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
-const HOURS = [1,2,3,4,5,6,7,8];
+// ===== CHECK =====
+function canPlace(l,d,h,s,tBusy,cBusy,data){
 
-function teacherOk(tid, d, h, tBusy, data) {
-  const t = data.teachers.find(x => x.id === tid);
-  return t && t.availability.includes(d+"_"+h) && !tBusy[tid+"_"+d+"_"+h];
-}
+  const t = data.teachers.find(x=>x.id===l.teacher);
+  if(!t.availability.includes(d+"_"+h)) return false;
+  if(tBusy[l.teacher+"_"+d+"_"+h]) return false;
 
-function classesFree(classes, d, h, cBusy) {
-  for (let c of classes) {
-    if (cBusy[c+"_"+d+"_"+h]) return false;
+  for(let c of l.classes){
+    if(cBusy[c+"_"+d+"_"+h]) return false;
   }
+
+  // WF blok
+  if(l.subject === "wych.fizy." && h === 8) return false;
+
   return true;
 }
 
-function place(l, d, h, s, tBusy, cBusy) {
+// ===== PLACE =====
+function place(l,d,h,s,tBusy,cBusy){
+
   tBusy[l.teacher+"_"+d+"_"+h] = true;
 
-  for (let c of l.classes) {
+  for(let c of l.classes){
+
     cBusy[c+"_"+d+"_"+h] = true;
 
-    if (!s[c]) s[c] = {};
-    if (!s[c][d]) s[c][d] = {};
+    if(!s[c]) s[c] = {};
+    if(!s[c][d]) s[c][d] = {};
 
     s[c][d][h] = l;
   }
 }
 
 // ===== KONSTRUKCJA =====
-function construct(lessons, data) {
+function construct(lessons,data){
 
-  let s = {}, tBusy = {}, cBusy = {};
+  let s={}, tBusy={}, cBusy={};
 
-  const shuffled = lessons.sort(() => Math.random() - 0.5);
+  const sorted = lessons.sort((a,b)=>{
 
-  for (let l of shuffled) {
+    const ta = data.teachers.find(x=>x.id===a.teacher);
+    const tb = data.teachers.find(x=>x.id===b.teacher);
 
-    let best = null;
-    let bestScore = -999;
+    return ta.availability.length - tb.availability.length;
+  });
 
-    for (let d of DAYS) {
-      for (let h of HOURS) {
+  for(let l of sorted){
 
-        if (!teacherOk(l.teacher,d,h,tBusy,data)) continue;
-        if (!classesFree(l.classes,d,h,cBusy)) continue;
+    let best=null;
+    let bestScore=-999;
 
-        let score = 0;
+    for(let d of DAYS){
+      for(let h of HOURS){
 
-        if (h >= 2 && h <= 6) score += 2;
+        if(!canPlace(l,d,h,s,tBusy,cBusy,data)) continue;
 
-        for (let c of l.classes) {
-          const day = s[c]?.[d] || {};
+        let score=0;
+
+        // 🔥 poranek
+        if(h===1) score+=15;
+        if(h===2) score+=10;
+        if(h===3) score+=6;
+
+        // kara za późne
+        if(h>=7) score-=5;
+
+        for(let c of l.classes){
+          const day=s[c]?.[d]||{};
           score -= Object.keys(day).length;
         }
 
-        if (score > bestScore) {
-          bestScore = score;
-          best = { d, h };
+        if(score>bestScore){
+          bestScore=score;
+          best={d,h};
         }
       }
     }
 
-    if (best) {
-      place(l, best.d, best.h, s, tBusy, cBusy);
+    if(best){
+      place(l,best.d,best.h,s,tBusy,cBusy);
     }
   }
 
@@ -120,27 +133,40 @@ function construct(lessons, data) {
 }
 
 // ===== SCORE =====
-function score(s) {
+function score(s){
 
-  let penalty = 0;
+  let penalty=0;
 
-  for (let cls in s) {
+  for(let cls in s){
 
-    for (let d of DAYS) {
+    for(let d of DAYS){
 
-      const day = s[cls]?.[d] || {};
-      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+      const day=s[cls]?.[d]||{};
+      const hours=Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      if (hours.length === 0) penalty += 80;
-      if (hours.length < 4) penalty += 30;
-      if (hours.length > 7) penalty += 20;
+      if(hours.length===0) penalty+=200;
+      if(hours.length<4) penalty+=80;
+      if(hours.length>7) penalty+=40;
 
-      for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) penalty += 25;
+      // okienka
+      for(let i=1;i<hours.length;i++){
+        if(hours[i]!==hours[i-1]+1) penalty+=100;
       }
 
-      if (cls <= 3 && hours.length > 0) {
-        if (Math.min(...hours) > 2) penalty += 30;
+      // start
+      if(hours.length>0){
+        if(Math.min(...hours)>2) penalty+=100;
+      }
+
+      // max 2 tego samego
+      let subjects={};
+      for(let h of hours){
+        let sub=day[h].subject;
+        subjects[sub]=(subjects[sub]||0)+1;
+      }
+
+      for(let sub in subjects){
+        if(subjects[sub]>2) penalty+=50;
       }
     }
   }
@@ -148,96 +174,116 @@ function score(s) {
   return -penalty;
 }
 
-// ===== RANDOM MOVE =====
-function randomMove(s, data) {
+// ===== HARD FIX OKIENEK =====
+function fixGaps(s){
 
-  const classes = Object.keys(s);
-  if (!classes.length) return;
+  for(let cls in s){
+    for(let d in s[cls]){
 
-  const c = classes[Math.floor(Math.random()*classes.length)];
-  const d = Object.keys(s[c] || {})[0];
-  if (!d) return;
+      let hours=Object.keys(s[cls][d]).map(Number).sort((a,b)=>a-b);
 
-  const h = Object.keys(s[c][d])[0];
-  if (!h) return;
+      for(let i=1;i<hours.length;i++){
 
-  const l = s[c][d][h];
+        if(hours[i]!==hours[i-1]+1){
 
-  const d2 = DAYS[Math.floor(Math.random()*5)];
-  const h2 = HOURS[Math.floor(Math.random()*8)];
+          let l=s[cls][d][hours[i]];
 
-  // usuń stare
-  for (let cc of l.classes) {
-    delete s[cc][d][h];
-  }
-
-  // wstaw nowe
-  for (let cc of l.classes) {
-    if (!s[cc][d2]) s[cc][d2] = {};
-    s[cc][d2][h2] = l;
+          delete s[cls][d][hours[i]];
+          s[cls][d][hours[i-1]+1]=l;
+        }
+      }
+    }
   }
 }
 
-// ===== IMPROVE (MEGA 🔥) =====
-function improve(s, data, ms) {
+// ===== SWAP 2-3 LEKCJI =====
+function chainSwap(s){
 
-  let best = JSON.parse(JSON.stringify(s));
-  let bestScore = score(best);
+  const classes=Object.keys(s);
+  if(!classes.length) return;
 
-  let current = JSON.parse(JSON.stringify(s));
-  let currentScore = bestScore;
+  for(let i=0;i<3;i++){
 
-  const start = Date.now();
+    const c=classes[Math.floor(Math.random()*classes.length)];
+    const d=Object.keys(s[c]||{})[0];
+    if(!d) continue;
 
-  while (Date.now() - start < ms) {
+    const h=Object.keys(s[c][d])[0];
+    if(!h) continue;
 
-    let next = JSON.parse(JSON.stringify(current));
+    const l=s[c][d][h];
 
-    randomMove(next, data);
+    const d2=DAYS[Math.floor(Math.random()*5)];
+    const h2=HOURS[Math.floor(Math.random()*8)];
 
-    let sc = score(next);
+    delete s[c][d][h];
 
-    if (sc > currentScore || Math.random() < 0.2) {
-      current = next;
-      currentScore = sc;
+    if(!s[c][d2]) s[c][d2]={};
+    s[c][d2][h2]=l;
+  }
+}
 
-      if (sc > bestScore) {
-        best = JSON.parse(JSON.stringify(next));
-        bestScore = sc;
+// ===== IMPROVE =====
+function improve(s,data,ms){
+
+  let best=JSON.parse(JSON.stringify(s));
+  let bestScore=score(best);
+
+  let current=JSON.parse(JSON.stringify(s));
+  let currentScore=bestScore;
+
+  const start=Date.now();
+
+  while(Date.now()-start<ms){
+
+    let next=JSON.parse(JSON.stringify(current));
+
+    fixGaps(next);
+    chainSwap(next);
+
+    let sc=score(next);
+
+    if(sc>currentScore || Math.random()<0.1){
+      current=next;
+      currentScore=sc;
+
+      if(sc>bestScore){
+        best=JSON.parse(JSON.stringify(next));
+        bestScore=sc;
       }
     }
   }
 
-  return { best, bestScore };
+  return {best,bestScore};
 }
 
 // ===== MAIN =====
-async function generateSchedule(data) {
+async function generateSchedule(data){
 
-  const lessons = getLessons(data);
+  const lessons=getLessons(data);
 
-  let globalBest = null;
-  let globalScore = -999;
+  let globalBest=null;
+  let globalScore=-999;
 
-  const start = Date.now();
-  let iter = 0;
+  const start=Date.now();
+  let iter=0;
 
-  while (true) {
+  while(true){
 
-    if (Date.now() - start > TIME_LIMIT) break;
+    if(Date.now()-start>TIME_LIMIT) break;
 
     iter++;
 
-    let s = construct(lessons, data);
+    let s=construct(lessons,data);
 
-    const { best, bestScore } = improve(s, data, 1000);
+    const {best,bestScore}=improve(s,data,2000);
 
-    if (bestScore > globalScore) {
-      globalScore = bestScore;
-      globalBest = best;
+    if(bestScore>globalScore){
+      globalScore=bestScore;
+      globalBest=best;
     }
 
-    if (iter % 2 === 0) {
+    if(iter%2===0){
       saveProgress({
         percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
         iter,
@@ -246,24 +292,24 @@ async function generateSchedule(data) {
     }
   }
 
-  if (!globalBest) globalBest = {};
+  if(!globalBest) globalBest={};
 
-  let placed = 0;
+  let placed=0;
 
-  for (let c in globalBest) {
-    for (let d in globalBest[c]) {
-      placed += Object.keys(globalBest[c][d]).length;
+  for(let c in globalBest){
+    for(let d in globalBest[c]){
+      placed+=Object.keys(globalBest[c][d]).length;
     }
   }
 
-  saveProgress({ percent: 100 });
+  saveProgress({percent:100});
 
   return {
-    status: "OK",
+    status:"OK",
     placed,
-    total: lessons.length,
-    elapsed: Math.floor((Date.now()-start)/1000),
-    schedule: globalBest
+    total:lessons.length,
+    elapsed:Math.floor((Date.now()-start)/1000),
+    schedule:globalBest
   };
 }
 
