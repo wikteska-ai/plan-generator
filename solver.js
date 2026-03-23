@@ -158,7 +158,7 @@ function score(s) {
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
       // ❌ brak lekcji
-      if (hours.length === 0) penalty += 100;
+      if (hours.length === 0) penalty += 300;
 
       // ❌ za mało / za dużo
       if (hours.length < 4) penalty += 40;
@@ -168,7 +168,7 @@ if (hours.length > 0 && Math.min(...hours) >= 3) penalty += 40;
 
       // ❌ okienka (MEGA ważne)
       for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) penalty += 60;
+        if (hours[i] !== hours[i-1] + 1) penalty += 300;
       }
 
       // ❌ 3x ten sam przedmiot
@@ -216,22 +216,54 @@ function improve(s, data, ms) {
 
   while (Date.now() - start < ms) {
 
-    let next = JSON.parse(JSON.stringify(current));
+  let next = JSON.parse(JSON.stringify(current));
 
-    const classes = Object.keys(next);
-    const c = classes[Math.floor(Math.random()*classes.length)];
-    const d = DAYS[Math.floor(Math.random()*5)];
+// 🔥 LOSUJ: MOVE albo SWAP
+if (Math.random() < 0.5) {
 
-    const hours = Object.keys(next[c]?.[d] || {});
-    if (hours.length < 2) continue;
+  // ===== MOVE (PRZENIESIENIE LEKCJI) =====
+  const classes = Object.keys(next);
+  const c = classes[Math.floor(Math.random()*classes.length)];
 
-    const h1 = Number(hours[0]);
-    const h2 = Number(hours[1]);
+  const days = Object.keys(next[c] || {});
+  if (!days.length) continue;
 
-    const temp = next[c][d][h1];
-    next[c][d][h1] = next[c][d][h2];
-    next[c][d][h2] = temp;
+  const d = days[Math.floor(Math.random()*days.length)];
 
+  const hours = Object.keys(next[c][d] || {});
+  if (!hours.length) continue;
+
+  const h = Number(hours[Math.floor(Math.random()*hours.length)]);
+  const lesson = next[c][d][h];
+
+  // nowy slot
+  const d2 = DAYS[Math.floor(Math.random()*5)];
+  const h2 = HOURS[Math.floor(Math.random()*8)];
+
+  // usuń starą lekcję
+  delete next[c][d][h];
+
+  // dodaj w nowe miejsce
+  if (!next[c][d2]) next[c][d2] = {};
+  next[c][d2][h2] = lesson;
+
+} else {
+
+  // ===== SWAP (jak było) =====
+  const classes = Object.keys(next);
+  const c = classes[Math.floor(Math.random()*classes.length)];
+  const d = DAYS[Math.floor(Math.random()*5)];
+
+  const hours = Object.keys(next[c]?.[d] || {});
+  if (hours.length < 2) continue;
+
+  const h1 = Number(hours[0]);
+  const h2 = Number(hours[1]);
+
+  const temp = next[c][d][h1];
+  next[c][d][h1] = next[c][d][h2];
+  next[c][d][h2] = temp;
+}
     let sc = score(next);
 
     if (sc > currentScore || Math.random() < 0.15) {
