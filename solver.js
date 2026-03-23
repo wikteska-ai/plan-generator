@@ -1,4 +1,4 @@
-const TIME_LIMIT = 40000;
+const TIME_LIMIT = 30000;
 
 // 🧠 PODZIAŁ NA HARD / EASY
 function splitHardEasy(data, lessons) {
