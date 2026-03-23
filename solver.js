@@ -157,46 +157,51 @@ function score(s) {
       const day = s[cls]?.[d] || {};
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      // ❌ brak lekcji
-      if (hours.length === 0) penalty += 300;
+      if (hours.length === 0) {
+        penalty += 200;
+        continue;
+      }
 
-      // ❌ za mało / za dużo
-      if (hours.length < 4) penalty += 40;
-      if (hours.length > 7) penalty += 40;
-      // ❌ jeśli dzień zaczyna się od 3 lub później
-if (hours.length > 0 && Math.min(...hours) >= 3) penalty += 40;
-
-      // ❌ okienka (MEGA ważne)
+      // 🔥 OKIENKA = NAJGORSZE
       for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) penalty += 300;
+        if (hours[i] !== hours[i-1] + 1) {
+          penalty += 200;
+        }
       }
 
-      // ❌ 3x ten sam przedmiot
-      for (let i = 2; i < hours.length; i++) {
-        const l1 = day[hours[i]]?.subject;
-        const l2 = day[hours[i-1]]?.subject;
-        const l3 = day[hours[i-2]]?.subject;
+      // 🔥 START DNIA
+      const first = Math.min(...hours);
+      if (first === 2) penalty += 40;
+      if (first >= 3) penalty += 150;
 
-        if (l1 === l2 && l2 === l3) penalty += 50;
+      // 🔥 ZA DŁUGI / ZA KRÓTKI
+      if (hours.length < 4) penalty += 60;
+      if (hours.length > 7) penalty += 60;
+
+      // 🔥 POWTÓRZENIA (mat, pol, ang)
+      let subjects = {};
+
+      hours.forEach(h => {
+        const sub = day[h]?.subject;
+        if (!subjects[sub]) subjects[sub] = 0;
+        subjects[sub]++;
+      });
+
+      for (let sub in subjects) {
+        if (["matematyka","j.polski","j.angielski"].includes(sub)) {
+          if (subjects[sub] > 1) penalty += 80;
+        }
       }
 
-      // ❌ WF nie w bloku
+      // 🔥 WF BLOKI
       for (let h of hours) {
         const cur = day[h]?.subject;
         const next = day[h+1]?.subject;
 
         if (cur === "wych.fizy." && next !== "wych.fizy.") {
-          penalty += 40;
+          penalty += 120;
         }
       }
-
-      // ❌ ciężkie dni (dużo trudnych przedmiotów)
-      let hard = 0;
-      hours.forEach(h => {
-        const sub = day[h]?.subject;
-        if (["matematyka","fizyka","chemia"].includes(sub)) hard++;
-      });
-      if (hard >= 4) penalty += 30;
 
     }
   }
