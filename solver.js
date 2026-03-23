@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 300000;
+const TIME_LIMIT = 270000;
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
@@ -234,56 +234,52 @@ function improve(s, data, ms) {
   while (Date.now() - start < ms) {
 
 let next = JSON.parse(JSON.stringify(current));
-    // 🔥 REPAIR MOVE (usuwa konkretne okienka)
-if (Math.random() < 0.6) {
+   // 🔥 TARGETED REPAIR (celowane usuwanie okienek)
+if (Math.random() < 0.7) {
 
   const classes = Object.keys(next);
-  const c = classes[Math.floor(Math.random()*classes.length)];
 
-  const days = Object.keys(next[c] || {});
-  if (!days.length) continue;
+  for (let c of classes) {
 
-  const d = days[Math.floor(Math.random()*days.length)];
+    const days = Object.keys(next[c] || {});
 
-  const hours = Object.keys(next[c][d] || {})
-    .map(Number)
-    .sort((a,b)=>a-b);
+    for (let d of days) {
 
-  if (hours.length < 3) continue;
+      const hours = Object.keys(next[c][d] || {})
+        .map(Number)
+        .sort((a,b)=>a-b);
 
-  for (let i = 1; i < hours.length - 1; i++) {
+      for (let i = 1; i < hours.length; i++) {
 
-    const prev = hours[i-1];
-    const curr = hours[i];
-    const nextH = hours[i+1];
+        const prev = hours[i-1];
+        const curr = hours[i];
 
-    // wykryj okienko
-    if (curr !== prev + 1) {
+        // wykryto okienko
+        if (curr !== prev + 1) {
 
-      const lesson = next[c][d][curr];
+          const lesson = next[c][d][curr];
+          const target = prev + 1;
 
-      // spróbuj przesunąć w dół
-      const target = prev + 1;
+          let conflict = false;
 
-      let conflict = false;
+          for (let cc of lesson.classes) {
+            if (next[cc]?.[d]?.[target]) {
+              conflict = true;
+              break;
+            }
+          }
 
-      for (let cc of lesson.classes) {
-        if (next[cc]?.[d]?.[target]) {
-          conflict = true;
+          if (!conflict) {
+            delete next[c][d][curr];
+            next[c][d][target] = lesson;
+          }
+
           break;
         }
       }
-
-      if (!conflict) {
-        delete next[c][d][curr];
-        next[c][d][target] = lesson;
-      }
-
-      break;
     }
   }
 }
-    
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
 if (Math.random() < 0.2) {
 
