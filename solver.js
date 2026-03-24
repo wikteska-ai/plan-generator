@@ -325,56 +325,57 @@ let next = JSON.parse(JSON.stringify(current));
    // 🔥 TARGETED REPAIR (celowane usuwanie okienek)
 if (Math.random() < 0.7) {
 
-  const classes = Object.keys(next);
+// 🔥 TARGETED REPAIR v2
+const classes = Object.keys(next);
 
-  for (let c of classes) {
+for (let c of classes) {
 
-    const days = Object.keys(next[c] || {});
+  const days = Object.keys(next[c] || {});
 
-    for (let d of days) {
+  for (let d of days) {
 
-      const hours = Object.keys(next[c][d] || {})
-        .map(Number)
-        .sort((a,b)=>a-b);
+    const hours = Object.keys(next[c][d] || {})
+      .map(Number)
+      .sort((a,b)=>a-b);
 
-      for (let i = 1; i < hours.length; i++) {
+    for (let i = 1; i < hours.length; i++) {
 
-        const prev = hours[i-1];
-        const curr = hours[i];
+      const prev = hours[i-1];
+      const curr = hours[i];
 
-        // wykryto okienko
-        if (curr !== prev + 1) {
+      // wykryto okienko
+      if (curr !== prev + 1) {
 
-          const lesson = next[c][d][curr];
-          // ❗ NIE RUSZAJ lekcji łączonych (WF itd.)
-if (lesson.classes.length > 1) continue;
-          const target = prev + 1;
+        const lesson = next[c][d][curr];
 
-          let conflict = false;
+        // ❗ NIE ruszaj multiclass
+        if (lesson.classes.length > 1) continue;
 
-          for (let cc of lesson.classes) {
-            if (next[cc]?.[d]?.[target]) {
-              conflict = true;
-              break;
-            }
+        const target = prev + 1;
+
+        // 🔒 slot wolny?
+        if (next[c]?.[d]?.[target]) continue;
+
+        // 🔒 teacher availability
+        if (!teacherOk(lesson.teacher, d, target, {}, data)) continue;
+
+        // 🔒 konflikt klas
+        let ok = true;
+
+        for (let cc of lesson.classes) {
+          if (next[cc]?.[d]?.[target]) {
+            ok = false;
+            break;
           }
-
-         if (!conflict && !next[c]?.[d]?.[target]) {
-
-  // najpierw sprawdź, potem ruszaj
-  const canMove = true;
-
-  if (canMove) {
-    delete next[c][d][curr];
-
-    if (!next[c][d]) next[c][d] = {};
-    next[c][d][target] = lesson;
-  }
-
-}
-
-          break;
         }
+
+        if (!ok) continue;
+
+        // 🔄 przesunięcie
+        delete next[c][d][curr];
+        next[c][d][target] = lesson;
+
+        break;
       }
     }
   }
