@@ -529,22 +529,41 @@ if (!conflict && canPlace) {
   next[c][d2][h2] = lesson;
 }
 
-} else if (false) {
-
+} else if (Math.random() < 0.3) {
   // ===== SWAP =====
-  const classes = Object.keys(next);
-  const c = classes[Math.floor(Math.random()*classes.length)];
-  const d = DAYS[Math.floor(Math.random()*5)];
+ // ===== SAFE SWAP =====
+const classes = Object.keys(next);
+const c = classes[Math.floor(Math.random()*classes.length)];
+const d = DAYS[Math.floor(Math.random()*5)];
 
-  const hours = Object.keys(next[c]?.[d] || {});
-  if (hours.length < 2) continue;
+const hours = Object.keys(next[c]?.[d] || {});
+if (hours.length < 2) continue;
 
-  const h1 = Number(hours[0]);
-  const h2 = Number(hours[1]);
+const h1 = Number(hours[0]);
+const h2 = Number(hours[1]);
 
-  const temp = next[c][d][h1];
-  next[c][d][h1] = next[c][d][h2];
-  next[c][d][h2] = temp;
+const l1 = next[c][d][h1];
+const l2 = next[c][d][h2];
+
+// ❗ NIE ruszaj multiclass
+if (l1.classes.length > 1 || l2.classes.length > 1) continue;
+
+// 🔒 sprawdź konflikty
+let ok = true;
+
+for (let cc of l1.classes) {
+  if (next[cc]?.[d]?.[h2]) ok = false;
+}
+
+for (let cc of l2.classes) {
+  if (next[cc]?.[d]?.[h1]) ok = false;
+}
+
+if (!ok) continue;
+
+// 🔄 swap
+next[c][d][h1] = l2;
+next[c][d][h2] = l1;
 }
 const before = countLessons(current);
 const after = countLessons(next);
