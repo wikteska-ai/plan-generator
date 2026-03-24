@@ -550,18 +550,9 @@ while (Date.now() - start < TIME_LIMIT) {
   let s = construct(lessons, data);
 
 const { best, bestScore } = improve(s, data, 14000, expectedMap);
- const finalMap = getLessonMap(best);
+ 
 
-let valid = true;
-
-for (let id in expectedMap) {
-  if (finalMap[id] !== expectedMap[id]) {
-    valid = false;
-    break;
-  }
-}
-
-if (valid && bestScore > globalScore) {
+if (bestScore > globalScore) {
     globalScore = bestScore;
     globalBest = best;
 
