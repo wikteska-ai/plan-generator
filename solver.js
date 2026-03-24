@@ -392,8 +392,8 @@ for (let c of classes) {
         if (next[c]?.[d]?.[target]) continue;
 
         // 🔒 teacher availability
-        const { tBusy } = rebuildBusy(next);
-if (!teacherOk(lesson.teacher, d, target, tBusy, data)) continue;
+const t = data.teachers.find(x => x.id === lesson.teacher);
+if (!t || !t.availability.includes(d+"_"+target)) continue;
 
         // 🔒 konflikt klas
         let ok = true;
@@ -545,9 +545,9 @@ for (let cc of lesson.classes) {
 }
 
 // 🔒 teacher availability
-const { tBusy } = rebuildBusy(next);
-if (!teacherOk(lesson.teacher, d2, h2, tBusy, data)) {
- ok = false;
+const t = data.teachers.find(x => x.id === lesson.teacher);
+if (!t || !t.availability.includes(d2+"_"+h2)) {
+  ok = false;
 }
 
 if (!ok) continue;
