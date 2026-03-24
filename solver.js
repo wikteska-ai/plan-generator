@@ -217,8 +217,8 @@ if (first === 1) penalty -= 30;
       if (first >= 3) penalty += 150;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
-      if (hours.length < 4) penalty += 60;
-      if (hours.length > 7) penalty += 60;
+      if (hours.length < 4) penalty += 300;
+      if (hours.length > 7) penalty += 70;
 
       // 🔥 POWTÓRZENIA (mat, pol, ang)
       let subjects = {};
@@ -234,6 +234,16 @@ if (first === 1) penalty -= 30;
           if (subjects[sub] > 1) penalty += 80;
         }
       }
+      // 🔥 kara za rozbite lekcje (pojedyncze godziny)
+for (let h of hours) {
+  const cur = day[h]?.id;
+  const prev = day[h-1]?.id;
+  const next = day[h+1]?.id;
+
+  if (cur && cur !== prev && cur !== next) {
+    penalty += 120;
+  }
+}
 
       // 🔥 WF BLOKI
       for (let h of hours) {
@@ -345,6 +355,7 @@ for (let cc of lesson.classes) {
   }
 }
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
+// 🔥 BIG MOVE SAFE (GLOBALNY, SPÓJNY)
 if (Math.random() < 0.2) {
 
   const classes = Object.keys(next);
@@ -360,34 +371,70 @@ if (Math.random() < 0.2) {
 
   if (!day1 || !day2) continue;
 
+  const lessons1 = Object.values(day1);
+  const lessons2 = Object.values(day2);
+
+  // 🔒 sprawdź konflikty nauczycieli
   let valid = true;
 
-  // sprawdź dzień 1 -> dzień 2
-  for (let h in day1) {
-    const lesson = day1[h];
-
-    if (!teacherOk(lesson.teacher, d2, Number(h), {}, data)) {
+  for (let l of lessons1) {
+    if (!teacherOk(l.teacher, d2, 1, {}, data)) {
       valid = false;
       break;
     }
   }
 
-  // sprawdź dzień 2 -> dzień 1
-  for (let h in day2) {
-    const lesson = day2[h];
-
-    if (!teacherOk(lesson.teacher, d1, Number(h), {}, data)) {
+  for (let l of lessons2) {
+    if (!teacherOk(l.teacher, d1, 1, {}, data)) {
       valid = false;
       break;
     }
   }
 
-  if (valid) {
-    next[c][d1] = day2;
-    next[c][d2] = day1;
+  if (!valid) continue;
+
+  // 🔥 usuń oba dni (ZE WSZYSTKICH klas)
+  for (let l of lessons1) {
+    for (let cc of l.classes) {
+      for (let h in next[cc]?.[d1] || {}) {
+        if (next[cc][d1][h]?.id === l.id) {
+          delete next[cc][d1][h];
+        }
+      }
+    }
+  }
+
+  for (let l of lessons2) {
+    for (let cc of l.classes) {
+      for (let h in next[cc]?.[d2] || {}) {
+        if (next[cc][d2][h]?.id === l.id) {
+          delete next[cc][d2][h];
+        }
+      }
+    }
+  }
+
+  // 🔥 wstaw zamienione dni
+  let h = 1;
+  for (let l of lessons1) {
+    for (let cc of l.classes) {
+      if (!next[cc][d2]) next[cc][d2] = {};
+      next[cc][d2][h] = l;
+    }
+    h++;
+  }
+
+  h = 1;
+  for (let l of lessons2) {
+    for (let cc of l.classes) {
+      if (!next[cc][d1]) next[cc][d1] = {};
+      next[cc][d1][h] = l;
+    }
+    h++;
   }
 }
 // 🔥 STRONG SHIFT DOWN (BEZ UTRATY LEKCJI)
+// 🔥 SAFE COMPACT DAY (bez gubienia lekcji)
 if (Math.random() < 0.4) {
 
   const classes = Object.keys(next);
@@ -404,42 +451,41 @@ if (Math.random() < 0.4) {
 
   if (hours.length < 2) continue;
 
-  const lessons = hours.map(h => next[c][d][h]);
+  let target = 1;
 
-  // 🔥 usuń ZE WSZYSTKICH klas
-  for (let lesson of lessons) {
-    for (let cc of lesson.classes) {
-      delete next[cc]?.[d]?.[hours.find(h => next[c][d]?.[h] === lesson)];
+  for (let h of hours) {
+
+    const lesson = next[c][d][h];
+
+    // jeśli już jest ciągłość — pomiń
+    if (h === target) {
+      target++;
+      continue;
     }
-  }
 
-  let hNew = 1;
+    let conflict = false;
 
-  for (let lesson of lessons) {
-
-    while (hNew <= 8) {
-
-      let conflict = false;
-
-      for (let cc of lesson.classes) {
-        if (next[cc]?.[d]?.[hNew]) {
-          conflict = true;
-          break;
-        }
-      }
-
-      if (!conflict) {
-
-        for (let cc of lesson.classes) {
-          if (!next[cc][d]) next[cc][d] = {};
-          next[cc][d][hNew] = lesson;
-        }
-
-        hNew++;
+    for (let cc of lesson.classes) {
+      if (next[cc]?.[d]?.[target]) {
+        conflict = true;
         break;
       }
+    }
 
-      hNew++;
+    if (!conflict) {
+
+      // usuń starą pozycję
+      for (let cc of lesson.classes) {
+        delete next[cc]?.[d]?.[h];
+      }
+
+      // wstaw nową
+      for (let cc of lesson.classes) {
+        if (!next[cc][d]) next[cc][d] = {};
+        next[cc][d][target] = lesson;
+      }
+
+      target++;
     }
   }
 }
