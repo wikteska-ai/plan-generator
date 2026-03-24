@@ -294,7 +294,7 @@ if (lesson.classes.length > 1) continue;
   }
 }
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
-if (Math.random() < 0.2) {
+if (false) {
 
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
@@ -417,17 +417,31 @@ if (Math.random() < 0.4) {
     }
   }
 
-  if (!conflict) {
-   // ❗ NIE ruszaj jeśli slot zajęty
-if (next[c]?.[d2]?.[h2]) continue;
+// 🔒 NAJPIERW sprawdź czy można wstawić
+let canPlace = true;
 
-// usuń starą
-delete next[c][d][h];
+// slot zajęty?
+if (next[c]?.[d2]?.[h2]) {
+  canPlace = false;
+}
 
-// dodaj nową
-if (!next[c][d2]) next[c][d2] = {};
-next[c][d2][h2] = lesson;
+// dodatkowe zabezpieczenie
+if (!next[c] || !next[c][d]) {
+  canPlace = false;
+}
+
+// 🔒 dopiero teraz ruszaj
+if (!conflict && canPlace) {
+
+  // usuń
+  if (next[c]?.[d]?.[h]) {
+    delete next[c][d][h];
   }
+
+  // dodaj
+  if (!next[c][d2]) next[c][d2] = {};
+  next[c][d2][h2] = lesson;
+}
 
 } else if (false) {
 
