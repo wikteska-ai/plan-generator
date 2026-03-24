@@ -4,7 +4,7 @@ const TIME_LIMIT = 270000;
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
-
+ 
 // ===== PROGRESS =====
 function saveProgress(p) {
   try { fs.writeFileSync("progress.json", JSON.stringify(p)); } catch {}
