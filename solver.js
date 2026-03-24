@@ -476,58 +476,49 @@ if (false) {
 if (Math.random() < 0.4) {
 
   // ===== SAFE MOVE =====
-  const classes = Object.keys(next);
-  const c = classes[Math.floor(Math.random()*classes.length)];
+// ===== SAFE MOVE v2 =====
+const classes = Object.keys(next);
+const c = classes[Math.floor(Math.random()*classes.length)];
 
-  const days = Object.keys(next[c] || {});
-  if (!days.length) continue;
+const days = Object.keys(next[c] || {});
+if (!days.length) continue;
 
-  const d = days[Math.floor(Math.random()*days.length)];
+const d = days[Math.floor(Math.random()*days.length)];
 
-  const hours = Object.keys(next[c][d] || {});
-  if (!hours.length) continue;
+const hours = Object.keys(next[c][d] || {});
+if (!hours.length) continue;
 
-  const h = Number(hours[Math.floor(Math.random()*hours.length)]);
-  const lesson = next[c][d][h];
+const h = Number(hours[Math.floor(Math.random()*hours.length)]);
+const lesson = next[c][d][h];
 
-  const d2 = DAYS[Math.floor(Math.random()*5)];
-  const h2 = HOURS[Math.floor(Math.random()*8)];
+// ❗ NIE ruszaj multiclass
+if (lesson.classes.length > 1) continue;
 
-  // 🔒 SPRAWDZENIE KONFLIKTU (WAŻNE!)
-  let conflict = false;
+const d2 = DAYS[Math.floor(Math.random()*5)];
+const h2 = HOURS[Math.floor(Math.random()*8)];
 
-  for (let cc of lesson.classes) {
-    if (next[cc]?.[d2]?.[h2]) {
-      conflict = true;
-      break;
-    }
+// 🔒 sprawdź czy slot wolny dla wszystkich klas
+let ok = true;
+
+for (let cc of lesson.classes) {
+  if (next[cc]?.[d2]?.[h2]) {
+    ok = false;
+    break;
   }
-
-// 🔒 NAJPIERW sprawdź czy można wstawić
-let canPlace = true;
-
-// slot zajęty?
-if (next[c]?.[d2]?.[h2]) {
-  canPlace = false;
 }
 
-// dodatkowe zabezpieczenie
-if (!next[c] || !next[c][d]) {
-  canPlace = false;
+// 🔒 teacher availability
+if (!teacherOk(lesson.teacher, d2, h2, {}, data)) {
+  ok = false;
 }
 
-// 🔒 dopiero teraz ruszaj
-if (!conflict && canPlace) {
+if (!ok) continue;
 
-  // usuń
-  if (next[c]?.[d]?.[h]) {
-    delete next[c][d][h];
-  }
+// 🔄 przenieś
+delete next[c][d][h];
 
-  // dodaj
-  if (!next[c][d2]) next[c][d2] = {};
-  next[c][d2][h2] = lesson;
-}
+if (!next[c][d2]) next[c][d2] = {};
+next[c][d2][h2] = lesson;
 
 } else if (Math.random() < 0.3) {
   // ===== SWAP =====
