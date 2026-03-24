@@ -381,7 +381,7 @@ for (let c of classes) {
       }
     }
   }
-}
+}}
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
 if (false) {
 
