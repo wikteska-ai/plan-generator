@@ -116,16 +116,22 @@ let placedFlag = false;
         if (!classesFree(l.classes,d,h,cBusy)) continue;
 
         let score = 0;
+       // 🔥 preferuj ciągłość dnia
+const day = s[l.classes[0]]?.[d] || {};
+
+if (day[h-1]) score += 6;
+if (day[h+1]) score += 6;
 
 // lekki bonus za środek, ale NIE karz 1
 if (h >= 2 && h <= 6) score += 2;
         
 
 // mały bonus za 1 godzinę (ważne!)
-if (h === 1) score += 1;
+if (h === 1) score += 10;
+       if (h === 2) score += 2;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
-          score -= Object.keys(day).length;
+          score -= Object.keys(day).length* 2;
         }
 
         if (l.group) score += 5;
@@ -256,10 +262,10 @@ function score(s) {
      const first = Math.min(...hours);
 
 // 🔥 mocniejsze preferowanie początku dnia
-if (first === 1) penalty -= 60;
-else if (first === 2) penalty += 50;
-else if (first === 3) penalty += 120;
-else penalty += 200;
+if (first === 1) penalty -= 80;
+else if (first === 2) penalty += 60;
+else if (first === 3) penalty += 180;
+else penalty += 300;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
       if (hours.length < 4) penalty += 60;
