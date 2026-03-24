@@ -380,7 +380,7 @@ function improve(s, data, ms) {
             }
           }
         }
-      }}
+      }
     }
 
     const before = countLessons(current);
