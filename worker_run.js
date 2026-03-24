@@ -7,8 +7,7 @@ if (!jobId) {
   process.exit(1);
 }
 
-console.log("🧠 Worker start:", jobId, "status:", job.status);
-
+console.log("🧠 Worker start:", jobId);
 // ===== Wczytaj joby =====
 let jobs = {};
 try {
@@ -19,6 +18,7 @@ try {
 }
 
 const job = jobs[jobId];
+console.log("📦 Status joba:", job?.status);
 
 if (!job) {
   console.error("❌ Job nie istnieje:", jobId);
