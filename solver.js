@@ -248,16 +248,18 @@ function score(s) {
       // 🔥 OKIENKA = NAJGORSZE
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
-          penalty += 600;
+          penalty += 800;
         }
       }
 
       // 🔥 START DNIA
-      const first = Math.min(...hours);
-      // 🔥 premiuj 1 godzinę
-if (first === 1) penalty -= 30;
-      if (first === 2) penalty += 50;
-      if (first >= 3) penalty += 150;
+     const first = Math.min(...hours);
+
+// 🔥 mocniejsze preferowanie początku dnia
+if (first === 1) penalty -= 60;
+else if (first === 2) penalty += 50;
+else if (first === 3) penalty += 120;
+else penalty += 200;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
       if (hours.length < 4) penalty += 60;
