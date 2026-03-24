@@ -497,7 +497,9 @@ while (Date.now() - start < TIME_LIMIT) {
     score: globalScore
   });
 }
+  
   saveProgress({ percent: 100 });
+validate(globalBest, lessons);
 
   return {
     status: "OK",
@@ -528,6 +530,5 @@ function validate(schedule, lessons) {
     }
   });
 }
-validate(globalBest, lessons);
 
 export { generateSchedule };
