@@ -11,13 +11,17 @@ console.log("🧠 Worker start:", jobId);
 // ===== Wczytaj joby =====
 let jobs = {};
 try {
-  jobs = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobs = raw ? JSON.parse(raw) : {};
 } catch {
   console.error("❌ Brak jobs.json");
   process.exit(1);
 }
 
-const job = jobs[jobId];
+if (!job) {
+  console.error("❌ Job nie istnieje:", jobId);
+  process.exit(1);
+}
 console.log("📦 Status joba:", job?.status);
 
 if (!job) {
@@ -40,7 +44,8 @@ fs.writeFileSync("jobs.json", JSON.stringify(jobs));
     const result = await generateSchedule(job.data);
 
     // ===== zapis DONE =====
-    jobs = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobs = raw ? JSON.parse(raw) : {};
     jobs[jobId] = {
       status: "done",
       result
@@ -54,7 +59,8 @@ fs.writeFileSync("jobs.json", JSON.stringify(jobs));
 
     console.error("❌ ERROR JOB", jobId, e);
 
-    jobs = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobs = raw ? JSON.parse(raw) : {};
     jobs[jobId] = {
       status: "fail"
     };
