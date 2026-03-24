@@ -191,8 +191,8 @@ toReinsert.push(existing);
 }
    ({ tBusy, cBusy } = rebuildBusy(s));
   }
-if (toReinsert.length > 0) {
-  return construct([...lessons, ...toReinsert], data);
+for (let l of toReinsert) {
+  lessons.push(l);
 }
   return s;
 }
