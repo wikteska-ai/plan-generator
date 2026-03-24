@@ -185,6 +185,9 @@ if (!placedFlag) {
       }
 
       if (!occupied) continue;
+     // 🔒 SPRAWDŹ availability nauczyciela
+const t = data.teachers.find(x => x.id === l.teacher);
+if (!t || !t.availability.includes(d+"_"+h)) continue;
 
 // 🔥 znajdź lekcję, która tam siedzi
 const existing = s[l.classes[0]]?.[d]?.[h];
@@ -576,6 +579,12 @@ const h2 = Number(hours[1]);
 
 const l1 = next[c][d][h1];
 const l2 = next[c][d][h2];
+ // 🔒 teacher availability (FIX 3)
+const t1 = data.teachers.find(x => x.id === l1.teacher);
+const t2 = data.teachers.find(x => x.id === l2.teacher);
+
+if (!t1 || !t1.availability.includes(d+"_"+h2)) continue;
+if (!t2 || !t2.availability.includes(d+"_"+h1)) continue;
 
 // ❗ NIE ruszaj multiclass
 if (l1.classes.length > 1 || l2.classes.length > 1) continue;
@@ -652,6 +661,9 @@ function repairMissing(schedule, lessons, data) {
         }
 
         if (!free) continue;
+       // 🔒 teacher availability
+const t = data.teachers.find(x => x.id === l.teacher);
+if (!t || !t.availability.includes(d+"_"+h)) continue;
 
         for (let c of l.classes) {
           if (!schedule[c]) schedule[c] = {};
