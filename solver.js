@@ -127,7 +127,7 @@ if (h >= 2 && h <= 6) score += 2;
         
 
 // mały bonus za 1 godzinę (ważne!)
-if (h === 1) score += 5;
+if (h === 1) score += 4;
        if (h === 2) score += 1;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
@@ -280,12 +280,38 @@ else if (hours.length === 3) penalty += 120;
         if (!subjects[sub]) subjects[sub] = 0;
         subjects[sub]++;
       });
+for (let sub in subjects) {
 
-      for (let sub in subjects) {
-        if (["matematyka","j.polski","j.angielski"].includes(sub)) {
-          if (subjects[sub] > 1) penalty += 80;
-        }
+  const count = subjects[sub];
+
+  // ❌ 3+ razy = bardzo źle
+  if (count >= 3) {
+    penalty += 300;
+  }
+
+  // ⚠️ 2 razy → sprawdź czy są obok siebie
+  if (count === 2) {
+
+    let positions = [];
+
+    hours.forEach(h => {
+      if (day[h]?.subject === sub) {
+        positions.push(h);
       }
+    });
+
+    positions.sort((a,b)=>a-b);
+
+    // jeśli NIE są obok siebie → kara
+    if (positions[1] !== positions[0] + 1) {
+      penalty += 200;
+    } else {
+      // 🔥 mały bonus za blok
+      penalty -= 20;
+    }
+  }
+}
+
 
       // 🔥 WF BLOKI
       for (let h of hours) {
