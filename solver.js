@@ -260,6 +260,8 @@ if (Math.random() < 0.7) {
         if (curr !== prev + 1) {
 
           const lesson = next[c][d][curr];
+          // ❗ NIE RUSZAJ lekcji łączonych (WF itd.)
+if (lesson.classes.length > 1) continue;
           const target = prev + 1;
 
           let conflict = false;
@@ -272,8 +274,10 @@ if (Math.random() < 0.7) {
           }
 
           if (!conflict) {
-            delete next[c][d][curr];
-            next[c][d][target] = lesson;
+            if (next[c]?.[d]?.[target]) break;
+
+delete next[c][d][curr];
+next[c][d][target] = lesson;
           }
 
           break;
@@ -407,10 +411,15 @@ if (Math.random() < 0.4) {
   }
 
   if (!conflict) {
-    delete next[c][d][h];
+   // ❗ NIE ruszaj jeśli slot zajęty
+if (next[c]?.[d2]?.[h2]) continue;
 
-    if (!next[c][d2]) next[c][d2] = {};
-    next[c][d2][h2] = lesson;
+// usuń starą
+delete next[c][d][h];
+
+// dodaj nową
+if (!next[c][d2]) next[c][d2] = {};
+next[c][d2][h2] = lesson;
   }
 
 } else {
@@ -498,5 +507,27 @@ while (Date.now() - start < TIME_LIMIT) {
     total: lessons.length
   };
 }
+function validate(schedule, lessons) {
+  let map = {};
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        map[l.id] = (map[l.id] || 0) + 1;
+      }
+    }
+  }
+
+  lessons.forEach(l => {
+    const expected = l.classes.length;
+    const actual = map[l.id] || 0;
+
+    if (actual !== expected) {
+      console.log("❌ PROBLEM:", l.subject, l.id, actual, "/", expected);
+    }
+  });
+}
+validate(globalBest, lessons);
 
 export { generateSchedule };
