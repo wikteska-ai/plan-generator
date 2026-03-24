@@ -105,7 +105,8 @@ function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let l of lessons) {
+  for (let i = 0; i < lessons.length; i++) {
+  let l = lessons[i];
 let placedFlag = false;
     let best = null;
     let bestScore = -9999;
@@ -180,6 +181,23 @@ if (!placedFlag) {
 
 // 🔥 znajdź lekcję, która tam siedzi
 const existing = s[l.classes[0]]?.[d]?.[h];
+     if (existing) {
+
+  // 🔥 dodaj usuniętą lekcję z powrotem do kolejki
+  lessons.push(existing);
+
+  for (let cc of existing.classes) {
+    if (s[cc]?.[d]?.[h]) {
+      delete s[cc][d][h];
+    }
+  }
+
+  for (let cc of existing.classes) {
+    delete cBusy[cc+"_"+d+"_"+h];
+  }
+
+  delete tBusy[existing.teacher+"_"+d+"_"+h];
+}
 
 if (existing) {
   // ❗ usuń ją ZE WSZYSTKICH KLAS
