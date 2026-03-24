@@ -21,8 +21,7 @@ function getLessons(data) {
       ? "G_" + l.group
       : l.subject === "edu.wczesno."
         ? `${l.class}_${l.subject}_${l.teacher}`
-        : `${l.class}_${l.subject}`;
-
+: `${l.class}_${l.subject}_${l.teacher}`;
     if (!grouped[key]) {
       grouped[key] = {
         subject: l.subject,
@@ -217,8 +216,8 @@ if (first === 1) penalty -= 30;
       if (first >= 3) penalty += 150;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
-      if (hours.length < 4) penalty += 300;
-      if (hours.length > 7) penalty += 70;
+      if (hours.length < 4) penalty += 60;
+      if (hours.length > 7) penalty += 60;
 
       // 🔥 POWTÓRZENIA (mat, pol, ang)
       let subjects = {};
@@ -234,16 +233,6 @@ if (first === 1) penalty -= 30;
           if (subjects[sub] > 1) penalty += 80;
         }
       }
-      // 🔥 kara za rozbite lekcje (pojedyncze godziny)
-for (let h of hours) {
-  const cur = day[h]?.id;
-  const prev = day[h-1]?.id;
-  const next = day[h+1]?.id;
-
-  if (cur && cur !== prev && cur !== next) {
-    penalty += 120;
-  }
-}
 
       // 🔥 WF BLOKI
       for (let h of hours) {
@@ -290,7 +279,7 @@ function getLessonMap(schedule) {
   return map;
 }
 // ===== IMPROVE =====
-function improve(s, data, ms, expectedMap) {
+function improve(s, data, ms) {
 
   let best = JSON.parse(JSON.stringify(s));
   let bestScore = score(best);
@@ -300,7 +289,7 @@ function improve(s, data, ms, expectedMap) {
 
   const start = Date.now();
 
-while (Date.now() - start < ms) {
+outer: while (Date.now() - start < ms) {
 let next = JSON.parse(JSON.stringify(current));
    // 🔥 TARGETED REPAIR (celowane usuwanie okienek)
 if (Math.random() < 0.7) {
@@ -355,7 +344,6 @@ for (let cc of lesson.classes) {
   }
 }
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
-// 🔥 BIG MOVE LIGHT (bezpieczna i szybka)
 if (Math.random() < 0.2) {
 
   const classes = Object.keys(next);
@@ -371,55 +359,34 @@ if (Math.random() < 0.2) {
 
   if (!day1 || !day2) continue;
 
-  const hours1 = Object.keys(day1);
-  const hours2 = Object.keys(day2);
+  let valid = true;
 
-  if (!hours1.length || !hours2.length) continue;
+  // sprawdź dzień 1 -> dzień 2
+  for (let h in day1) {
+    const lesson = day1[h];
 
-  // wybierz jedną lekcję z każdego dnia
-  const h1 = hours1[Math.floor(Math.random()*hours1.length)];
-  const h2 = hours2[Math.floor(Math.random()*hours2.length)];
-
-  const l1 = day1[h1];
-  const l2 = day2[h2];
-
-  // sprawdź konflikt
-  let conflict = false;
-
-  for (let cc of l1.classes) {
-    if (next[cc]?.[d2]?.[h2]) {
-      conflict = true;
+    if (!teacherOk(lesson.teacher, d2, Number(h), {}, data)) {
+      valid = false;
       break;
     }
   }
 
-  for (let cc of l2.classes) {
-    if (next[cc]?.[d1]?.[h1]) {
-      conflict = true;
+  // sprawdź dzień 2 -> dzień 1
+  for (let h in day2) {
+    const lesson = day2[h];
+
+    if (!teacherOk(lesson.teacher, d1, Number(h), {}, data)) {
+      valid = false;
       break;
     }
   }
 
-  if (!conflict) {
-
-    // usuń stare
-    for (let cc of l1.classes) delete next[cc]?.[d1]?.[h1];
-    for (let cc of l2.classes) delete next[cc]?.[d2]?.[h2];
-
-    // wstaw zamienione
-    for (let cc of l1.classes) {
-      if (!next[cc][d2]) next[cc][d2] = {};
-      next[cc][d2][h2] = l1;
-    }
-
-    for (let cc of l2.classes) {
-      if (!next[cc][d1]) next[cc][d1] = {};
-      next[cc][d1][h1] = l2;
-    }
+  if (valid) {
+    next[c][d1] = day2;
+    next[c][d2] = day1;
   }
 }
 // 🔥 STRONG SHIFT DOWN (BEZ UTRATY LEKCJI)
-// 🔥 SAFE COMPACT DAY (bez gubienia lekcji)
 if (Math.random() < 0.4) {
 
   const classes = Object.keys(next);
@@ -436,44 +403,46 @@ if (Math.random() < 0.4) {
 
   if (hours.length < 2) continue;
 
-  let target = 1;
+  const lessons = hours.map(h => next[c][d][h]);
 
-  for (let h of hours) {
-
-    const lesson = next[c][d][h];
-
-    // jeśli już jest ciągłość — pomiń
-    if (h === target) {
-      target++;
-      continue;
-    }
-
-    let conflict = false;
-
+  // 🔥 usuń ZE WSZYSTKICH klas
+  for (let lesson of lessons) {
     for (let cc of lesson.classes) {
-      if (next[cc]?.[d]?.[target]) {
-        conflict = true;
+      delete next[cc]?.[d]?.[hours.find(h => next[c][d]?.[h] === lesson)];
+    }
+  }
+
+  let hNew = 1;
+
+  for (let lesson of lessons) {
+
+    while (hNew <= 8) {
+
+      let conflict = false;
+
+      for (let cc of lesson.classes) {
+        if (next[cc]?.[d]?.[hNew]) {
+          conflict = true;
+          break;
+        }
+      }
+
+      if (!conflict) {
+
+        for (let cc of lesson.classes) {
+          if (!next[cc][d]) next[cc][d] = {};
+          next[cc][d][hNew] = lesson;
+        }
+
+        hNew++;
         break;
       }
-    }
 
-    if (!conflict) {
-
-      // usuń starą pozycję
-      for (let cc of lesson.classes) {
-        delete next[cc]?.[d]?.[h];
-      }
-
-      // wstaw nową
-      for (let cc of lesson.classes) {
-        if (!next[cc][d]) next[cc][d] = {};
-        next[cc][d][target] = lesson;
-      }
-
-      target++;
+      hNew++;
     }
   }
 }
+    
 // 🔥 MOVE + SWAP (bezpieczna wersja)
 if (Math.random() < 0.4) {
 
@@ -531,75 +500,23 @@ for (let cc of lesson.classes) {
   const h1 = Number(hours[0]);
   const h2 = Number(hours[1]);
 
-const l1 = next[c][d][h1];
-const l2 = next[c][d][h2];
+  const temp = next[c][d][h1];
+  next[c][d][h1] = next[c][d][h2];
+  next[c][d][h2] = temp;
+}
+const beforeMap = getLessonMap(current);
+const afterMap = getLessonMap(next);
 
-// sprawdź czy można swapować
-let conflict = false;
-
-for (let cc of l1.classes) {
-  if (next[cc]?.[d]?.[h2] && next[cc][d][h2] !== l2) {
-    conflict = true;
-    break;
+for (let id in beforeMap) {
+  if (beforeMap[id] !== afterMap[id]) {
+    continue outer;
   }
 }
+// 🔥 HARD CHECK: czy każda lekcja istnieje
+const expected = Object.keys(getLessonMap(current)).length;
+const actual = Object.keys(getLessonMap(next)).length;
 
-for (let cc of l2.classes) {
-  if (next[cc]?.[d]?.[h1] && next[cc][d][h1] !== l1) {
-    conflict = true;
-    break;
-  }
-}
-
-if (!conflict) {
-
-  // usuń stare
-  for (let cc of l1.classes) delete next[cc]?.[d]?.[h1];
-  for (let cc of l2.classes) delete next[cc]?.[d]?.[h2];
-
-  // wstaw zamienione
-  for (let cc of l1.classes) {
-    if (!next[cc][d]) next[cc][d] = {};
-    next[cc][d][h2] = l1;
-  }
-
-  for (let cc of l2.classes) {
-    if (!next[cc][d]) next[cc][d] = {};
-    next[cc][d][h1] = l2;
-  }
-}
-}
-// 🔥 FORCE MOVE (gdy solver stoi)
-if (Math.random() < 0.05) {
-
-  const classes = Object.keys(next);
-  const c = classes[Math.floor(Math.random()*classes.length)];
-
-  const days = Object.keys(next[c] || {});
-  if (days.length) {
-
-    const d = days[Math.floor(Math.random()*days.length)];
-    const hours = Object.keys(next[c][d] || {});
-
-    if (hours.length) {
-      const h = hours[Math.floor(Math.random()*hours.length)];
-      const lesson = next[c][d][h];
-
-      const d2 = DAYS[Math.floor(Math.random()*5)];
-      const h2 = HOURS[Math.floor(Math.random()*8)];
-
-      for (let cc of lesson.classes) {
-        delete next[cc]?.[d]?.[h];
-      }
-
-      for (let cc of lesson.classes) {
-        if (!next[cc][d2]) next[cc][d2] = {};
-        next[cc][d2][h2] = lesson;
-      }
-    }
-  }
-}
-  
+if (expected !== actual) continue outer;
 // ❌ jeśli zgubił lekcje → odrzuć ruch
 let sc = score(next);
    const isGood = currentScore > -2000;
@@ -625,12 +542,6 @@ if (
 async function generateSchedule(data) {
 
   const lessons = getLessons(data);
-  const expectedMap = {};
-
-for (let l of lessons) {
-  if (!expectedMap[l.id]) expectedMap[l.id] = 0;
-  expectedMap[l.id]++;
-}
 
   let globalBest = null;
   let globalScore = -9999;
@@ -644,10 +555,9 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-const { best, bestScore } = improve(s, data, 14000, expectedMap);
- 
+  const { best, bestScore } = improve(s, data, 14000);
 
-if (bestScore > globalScore) {
+  if (bestScore > globalScore) {
     globalScore = bestScore;
     globalBest = best;
 
