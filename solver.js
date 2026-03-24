@@ -505,17 +505,6 @@ for (let cc of lesson.classes) {
   next[c][d][h2] = temp;
 }
 
-
-for (let id in beforeMap) {
-  if (beforeMap[id] !== afterMap[id]) {
-    continue outer;
-  }
-}
-// 🔥 HARD CHECK: czy każda lekcja istnieje
-const expected = Object.keys(getLessonMap(current)).length;
-const actual = Object.keys(getLessonMap(next)).length;
-
-if (expected !== actual) continue outer;
 // ❌ jeśli zgubił lekcje → odrzuć ruch
 let sc = score(next);
    const isGood = currentScore > -2000;
