@@ -161,10 +161,22 @@ if (!placedFlag) {
 
       if (!occupied) continue;
 
-      // 🔥 usuń istniejącą lekcję
-      for (let c of l.classes) {
-        delete s[c][d][h];
-      }
+// 🔥 znajdź lekcję, która tam siedzi
+const existing = s[l.classes[0]]?.[d]?.[h];
+
+if (existing) {
+  // ❗ usuń ją ZE WSZYSTKICH KLAS
+  for (let cc of existing.classes) {
+    if (s[cc]?.[d]?.[h]) {
+      delete s[cc][d][h];
+    }
+  }
+}
+   // 🔥 wyczyść busy (ważne!)
+for (let cc of existing.classes) {
+  delete cBusy[cc+"_"+d+"_"+h];
+}
+delete tBusy[existing.teacher+"_"+d+"_"+h];  
 
       // 🔥 wstaw nową
       place(l, d, h, s, tBusy, cBusy);
