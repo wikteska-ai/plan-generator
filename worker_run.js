@@ -2,7 +2,7 @@ import fs from "fs";
 import { generateSchedule } from "./solver.js";
 
 const jobId = process.argv[2];
-
+console.log("🧠 Worker start:", jobId, "status:", job.status);
 if (!jobId) {
   console.error("❌ Brak jobId");
   process.exit(1);
@@ -27,8 +27,7 @@ if (!job) {
 }
 
 // 🔥 tylko queued
-if (job.status !== "queued") {
-  console.log("⏭️ Pomijam job:", jobId);
+if (job.status !== "queued" && job.status !== "processing") {
   process.exit(0);
 }
 
