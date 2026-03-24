@@ -222,18 +222,22 @@ function countLessons(schedule) {
 
   return count;
 }
-function getLessonIds(schedule) {
-  const ids = [];
+function getLessonMap(schedule) {
+  const map = {};
 
   for (let cls in schedule) {
     for (let d in schedule[cls]) {
       for (let h in schedule[cls][d]) {
-        ids.push(schedule[cls][d][h].id);
+
+        const id = schedule[cls][d][h].id;
+
+        if (!map[id]) map[id] = 0;
+        map[id]++;
       }
     }
   }
 
-  return ids.sort();
+  return map;
 }
 // ===== IMPROVE =====
 function improve(s, data, ms) {
@@ -284,8 +288,14 @@ if (Math.random() < 0.7) {
           }
 
           if (!conflict) {
-            delete next[c][d][curr];
-            next[c][d][target] = lesson;
+           for (let cc of lesson.classes) {
+  delete next[cc]?.[d]?.[curr];
+}
+
+for (let cc of lesson.classes) {
+  if (!next[cc][d]) next[cc][d] = {};
+  next[cc][d][target] = lesson;
+}
           }
 
           break;
@@ -377,8 +387,10 @@ if (Math.random() < 0.4) {
 
       if (!conflict) {
         if (!next[c][d]) next[c][d] = {};
-        next[c][d][hNew] = lesson;
-        hNew++;
+for (let cc of lesson.classes) {
+  if (!next[cc][d]) next[cc][d] = {};
+  next[cc][d][hNew] = lesson;
+}        hNew++;
         break;
       }
 
@@ -419,10 +431,16 @@ if (Math.random() < 0.4) {
   }
 
   if (!conflict) {
-    delete next[c][d][h];
+   // 🔥 usuń ze WSZYSTKICH klas
+for (let cc of lesson.classes) {
+  delete next[cc]?.[d]?.[h];
+}
 
-    if (!next[c][d2]) next[c][d2] = {};
-    next[c][d2][h2] = lesson;
+// 🔥 wstaw do WSZYSTKICH klas
+for (let cc of lesson.classes) {
+  if (!next[cc][d2]) next[cc][d2] = {};
+  next[cc][d2][h2] = lesson;
+}
   }
 
 } else {
@@ -442,21 +460,16 @@ if (Math.random() < 0.4) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-const beforeIds = getLessonIds(current);
-const afterIds = getLessonIds(next);
+const beforeMap = getLessonMap(current);
+const afterMap = getLessonMap(next);
 
-// ❌ jeśli zmienił zestaw lekcji → odrzucamy
-if (beforeIds.length !== afterIds.length) continue;
-
-for (let i = 0; i < beforeIds.length; i++) {
-  if (beforeIds[i] !== afterIds[i]) {
-    continue outer; // ważne!
+for (let id in beforeMap) {
+  if (beforeMap[id] !== afterMap[id]) {
+    continue outer;
   }
 }
 
 // ❌ jeśli zgubił lekcje → odrzuć ruch
-if (after < before) continue;
-
 let sc = score(next);
    const isGood = currentScore > -2000;
 
