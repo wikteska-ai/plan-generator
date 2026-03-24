@@ -504,14 +504,7 @@ for (let cc of lesson.classes) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-const afterMap = getLessonMap(next);
 
-// 🔥 TWARDA WALIDACJA (dokładna liczba godzin!)
-for (let id in expectedMap) {
-  if (afterMap[id] !== expectedMap[id]) {
-    continue outer;
-  }
-}
 
 for (let id in beforeMap) {
   if (beforeMap[id] !== afterMap[id]) {
@@ -568,7 +561,18 @@ while (Date.now() - start < TIME_LIMIT) {
   let s = construct(lessons, data);
 
 const { best, bestScore } = improve(s, data, 14000, expectedMap);
-  if (bestScore > globalScore) {
+ const finalMap = getLessonMap(best);
+
+let valid = true;
+
+for (let id in expectedMap) {
+  if (finalMap[id] !== expectedMap[id]) {
+    valid = false;
+    break;
+  }
+}
+
+if (valid && bestScore > globalScore) {
     globalScore = bestScore;
     globalBest = best;
 
