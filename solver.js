@@ -660,18 +660,40 @@ function repairMissing(schedule, lessons, data) {
           }
         }
 
-        if (!free) continue;
-       // 🔒 teacher availability
+if (!free) {
+
+  // 🔥 spróbuj zrobić miejsce (usunąć coś)
+  const existing = schedule[l.classes[0]]?.[d]?.[h];
+
+  if (existing) {
+
+    // ❗ NIE ruszaj multiclass
+    if (existing.classes.length > 1) continue;
+
+    // usuń starą lekcję
+    for (let cc of existing.classes) {
+      if (schedule[cc]?.[d]?.[h]) {
+        delete schedule[cc][d][h];
+      }
+    }
+
+  } else {
+    continue;
+  }
+}
+
+// 🔒 teacher availability
 const t = data.teachers.find(x => x.id === l.teacher);
 if (!t || !t.availability.includes(d+"_"+h)) continue;
 
-        for (let c of l.classes) {
-          if (!schedule[c]) schedule[c] = {};
-          if (!schedule[c][d]) schedule[c][d] = {};
-          schedule[c][d][h] = l;
-        }
+// 🔥 wstaw nową
+for (let c of l.classes) {
+  if (!schedule[c]) schedule[c] = {};
+  if (!schedule[c][d]) schedule[c][d] = {};
+  schedule[c][d][h] = l;
+}
 
-        break outer;
+break outer;
       }
     }
   }
