@@ -105,8 +105,7 @@ function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let i = 0; i < lessons.length; i++) {
-  let l = lessons[i];
+  for (let l of lessons) {
 let placedFlag = false;
     let best = null;
     let bestScore = -9999;
@@ -184,7 +183,6 @@ const existing = s[l.classes[0]]?.[d]?.[h];
      if (existing) {
 
   // 🔥 dodaj usuniętą lekcję z powrotem do kolejki
-  lessons.push(existing);
 
   for (let cc of existing.classes) {
     if (s[cc]?.[d]?.[h]) {
@@ -574,7 +572,50 @@ if (
 
   return { best, bestScore };
 }
+function repairMissing(schedule, lessons, data) {
 
+  const map = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        map.add(schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  for (let l of lessons) {
+
+    if (map.has(l.id)) continue;
+
+    outer:
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        let free = true;
+
+        for (let c of l.classes) {
+          if (schedule[c]?.[d]?.[h]) {
+            free = false;
+            break;
+          }
+        }
+
+        if (!free) continue;
+
+        for (let c of l.classes) {
+          if (!schedule[c]) schedule[c] = {};
+          if (!schedule[c][d]) schedule[c][d] = {};
+          schedule[c][d][h] = l;
+        }
+
+        break outer;
+      }
+    }
+  }
+
+  return schedule;
+}
 // ===== MAIN =====
 async function generateSchedule(data) {
 
@@ -593,11 +634,11 @@ while (Date.now() - start < TIME_LIMIT) {
   let s = construct(lessons, data);
 
   const { best, bestScore } = improve(s, data, 10000);
+ const fixed = repairMissing(best, lessons, data);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
-    globalBest = best;
-
+globalBest = fixed;
     console.log("🔥 Nowy najlepszy score:", globalScore);
   }
 
