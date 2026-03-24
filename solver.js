@@ -184,36 +184,6 @@ function construct(lessons, data) {
 
   return s;
 }
-// 🔥 FORCE MOVE (gdy solver stoi)
-if (Math.random() < 0.05) {
-
-  const classes = Object.keys(next);
-  const c = classes[Math.floor(Math.random()*classes.length)];
-
-  const days = Object.keys(next[c] || {});
-  if (days.length) {
-
-    const d = days[Math.floor(Math.random()*days.length)];
-    const hours = Object.keys(next[c][d] || {});
-
-    if (hours.length) {
-      const h = hours[Math.floor(Math.random()*hours.length)];
-      const lesson = next[c][d][h];
-
-      const d2 = DAYS[Math.floor(Math.random()*5)];
-      const h2 = HOURS[Math.floor(Math.random()*8)];
-
-      for (let cc of lesson.classes) {
-        delete next[cc]?.[d]?.[h];
-      }
-
-      for (let cc of lesson.classes) {
-        if (!next[cc][d2]) next[cc][d2] = {};
-        next[cc][d2][h2] = lesson;
-      }
-    }
-  }
-}
 
 // ===== SCORE =====
 function score(s) {
@@ -599,7 +569,37 @@ if (!conflict) {
   }
 }
 }
+// 🔥 FORCE MOVE (gdy solver stoi)
+if (Math.random() < 0.05) {
 
+  const classes = Object.keys(next);
+  const c = classes[Math.floor(Math.random()*classes.length)];
+
+  const days = Object.keys(next[c] || {});
+  if (days.length) {
+
+    const d = days[Math.floor(Math.random()*days.length)];
+    const hours = Object.keys(next[c][d] || {});
+
+    if (hours.length) {
+      const h = hours[Math.floor(Math.random()*hours.length)];
+      const lesson = next[c][d][h];
+
+      const d2 = DAYS[Math.floor(Math.random()*5)];
+      const h2 = HOURS[Math.floor(Math.random()*8)];
+
+      for (let cc of lesson.classes) {
+        delete next[cc]?.[d]?.[h];
+      }
+
+      for (let cc of lesson.classes) {
+        if (!next[cc][d2]) next[cc][d2] = {};
+        next[cc][d2][h2] = lesson;
+      }
+    }
+  }
+}
+  
 // ❌ jeśli zgubił lekcje → odrzuć ruch
 let sc = score(next);
    const isGood = currentScore > -2000;
