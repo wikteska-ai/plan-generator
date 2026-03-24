@@ -42,7 +42,8 @@ const server = http.createServer(async (req, res) => {
         // ===== wczytaj joby =====
         let jobsData = {};
         try {
-          jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobsData = raw ? JSON.parse(raw) : {};
         } catch {}
 
         // ===== zapisz job =====
@@ -54,9 +55,11 @@ const server = http.createServer(async (req, res) => {
         fs.writeFileSync("jobs.json", JSON.stringify(jobsData));
 
         // ===== START WORKERA =====
-      spawn("node", ["worker_run.js", jobId], {
-  stdio: "inherit"
-});
+    setTimeout(() => {
+  spawn("node", ["worker_run.js", jobId], {
+    stdio: "inherit"
+  });
+}, 100);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ jobId }));
@@ -79,7 +82,8 @@ const server = http.createServer(async (req, res) => {
     let jobsData = {};
 
     try {
-      jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobsData = raw ? JSON.parse(raw) : {};
     } catch {}
 
     if (!jobsData[jobId]) {
@@ -113,7 +117,8 @@ setTimeout(() => {
   let jobsData = {};
 
   try {
-    jobsData = JSON.parse(fs.readFileSync("jobs.json"));
+const raw = fs.readFileSync("jobs.json", "utf-8");
+jobsData = raw ? JSON.parse(raw) : {};
   } catch {}
 
   for (let jobId in jobsData) {
