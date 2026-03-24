@@ -88,7 +88,9 @@ function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let l of lessons) {
+  for (let l of lessons)  {
+
+    let wasPlaced = false;
 
     let best = null;
     let bestScore = -9999;
@@ -101,12 +103,9 @@ function construct(lessons, data) {
 
         let score = 0;
 
-// lekki bonus za środek, ale NIE karz 1
-if (h >= 2 && h <= 6) score += 2;
-        
+        if (h >= 2 && h <= 6) score += 2;
+        if (h === 1) score += 1;
 
-// mały bonus za 1 godzinę (ważne!)
-if (h === 1) score += 1;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
           score -= Object.keys(day).length;
@@ -124,9 +123,10 @@ if (h === 1) score += 1;
     // ✅ NORMAL placement
     if (best) {
       place(l, best.d, best.h, s, tBusy, cBusy);
+      wasPlaced = true;
     } else {
 
-      // 🔥 FALLBACK (NAJWAŻNIEJSZY FIX)
+      // 🔥 FALLBACK
       outer:
       for (let d of DAYS) {
         for (let h of HOURS) {
@@ -135,11 +135,51 @@ if (h === 1) score += 1;
               classesFree(l.classes,d,h,cBusy)) {
 
             place(l, d, h, s, tBusy, cBusy);
+            wasPlaced = true;
             break outer;
           }
         }
       }
     }
+
+    // 🔥🔥🔥 NAJWAŻNIEJSZE — WYMUSZENIE
+    if (!wasPlaced) {
+
+      let placedFlag = false;
+
+      for (let d of DAYS) {
+        for (let h of HOURS) {
+
+          if (teacherOk(l.teacher,d,h,tBusy,data)) {
+
+            for (let c of l.classes) {
+
+              if (cBusy[c+"_"+d+"_"+h]) {
+
+                const old = s[c]?.[d]?.[h];
+                if (!old) continue;
+
+                // usuń starą lekcję ze wszystkich klas
+                for (let cc of old.classes) {
+                  delete s[cc]?.[d]?.[h];
+                  delete cBusy[cc+"_"+d+"_"+h];
+                }
+
+                delete tBusy[old.teacher+"_"+d+"_"+h];
+              }
+            }
+
+            // wstaw nową
+            place(l, d, h, s, tBusy, cBusy);
+
+            placedFlag = true;
+            break;
+          }
+        }
+        if (placedFlag) break;
+      }
+    }
+
   }
 
   return s;
