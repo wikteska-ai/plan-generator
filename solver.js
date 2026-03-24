@@ -177,6 +177,8 @@ if (!placedFlag) {
 
   // usuń co tam jest (jeśli coś jest)
   if (existing) {
+     lessons.push(existing);
+
     for (let cc of existing.classes) {
       if (s[cc]?.[d]?.[h]) {
         delete s[cc][d][h];
