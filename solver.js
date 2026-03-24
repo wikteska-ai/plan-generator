@@ -113,15 +113,10 @@ function construct(lessons, data) {
         if (!classesFree(l.classes, d, h, cBusy)) continue;
 
         let score = 0;
-        // 🔥 preferuj ciągłość dnia
-const day = s[l.classes[0]]?.[d] || {};
-
-if (day[h-1]) score += 6;
-if (day[h+1]) score += 6;
 
         if (h >= 2 && h <= 6) score += 2;
-if (h === 1) score += 8;
-if (h === 2) score += 2;
+        if (h === 1) score += 1;
+
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
           score -= Object.keys(day).length;
@@ -244,13 +239,12 @@ function score(s) {
 
       const first = Math.min(...hours);
 
-      if (first === 1) penalty -= 70;
+      if (first === 1) penalty -= 60;
       else if (first === 2) penalty += 50;
-      else if (first === 3) penalty += 220;
-      else penalty += 300;
+      else if (first === 3) penalty += 120;
+      else penalty += 200;
 
-if (hours.length <= 2) penalty += 200;
-else if (hours.length === 3) penalty += 120;
+      if (hours.length < 4) penalty += 60;
       if (hours.length > 7) penalty += 60;
 
       let subjects = {};
@@ -261,37 +255,11 @@ else if (hours.length === 3) penalty += 120;
         subjects[sub]++;
       });
 
-     for (let sub in subjects) {
-
-  const count = subjects[sub];
-
-  // ❌ 3+ razy = bardzo źle
-  if (count >= 3) {
-    penalty += 300;
-  }
-
-  // ⚠️ 2 razy → sprawdź czy są obok siebie
-  if (count === 2) {
-
-    let positions = [];
-
-    hours.forEach(h => {
-      if (day[h]?.subject === sub) {
-        positions.push(h);
+      for (let sub in subjects) {
+        if (["matematyka","j.polski","j.angielski"].includes(sub)) {
+          if (subjects[sub] > 1) penalty += 80;
+        }
       }
-    });
-
-    positions.sort((a,b)=>a-b);
-
-    // jeśli NIE są obok siebie → kara
-    if (positions[1] !== positions[0] + 1) {
-      penalty += 200;
-    } else {
-      // 🔥 mały bonus za blok
-      penalty -= 20;
-    }
-  }
-}
 
       for (let h of hours) {
         const cur = day[h]?.subject;
