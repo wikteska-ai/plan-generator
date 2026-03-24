@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 400000;
+const TIME_LIMIT = 270000;
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
@@ -21,7 +21,8 @@ function getLessons(data) {
       ? "G_" + l.group
       : l.subject === "edu.wczesno."
         ? `${l.class}_${l.subject}_${l.teacher}`
-: `${l.class}_${l.subject}_${l.teacher}`;
+        : `${l.class}_${l.subject}`;
+
     if (!grouped[key]) {
       grouped[key] = {
         subject: l.subject,
@@ -87,9 +88,7 @@ function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let l of lessons)  {
-
-    let wasPlaced = false;
+  for (let l of lessons) {
 
     let best = null;
     let bestScore = -9999;
@@ -102,9 +101,12 @@ function construct(lessons, data) {
 
         let score = 0;
 
-        if (h >= 2 && h <= 6) score += 2;
-        if (h === 1) score += 1;
+// lekki bonus za środek, ale NIE karz 1
+if (h >= 2 && h <= 6) score += 2;
+        
 
+// mały bonus za 1 godzinę (ważne!)
+if (h === 1) score += 1;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
           score -= Object.keys(day).length;
@@ -122,10 +124,9 @@ function construct(lessons, data) {
     // ✅ NORMAL placement
     if (best) {
       place(l, best.d, best.h, s, tBusy, cBusy);
-      wasPlaced = true;
     } else {
 
-      // 🔥 FALLBACK
+      // 🔥 FALLBACK (NAJWAŻNIEJSZY FIX)
       outer:
       for (let d of DAYS) {
         for (let h of HOURS) {
@@ -134,51 +135,11 @@ function construct(lessons, data) {
               classesFree(l.classes,d,h,cBusy)) {
 
             place(l, d, h, s, tBusy, cBusy);
-            wasPlaced = true;
             break outer;
           }
         }
       }
     }
-
-    // 🔥🔥🔥 NAJWAŻNIEJSZE — WYMUSZENIE
-    if (!wasPlaced) {
-
-      let placedFlag = false;
-
-      for (let d of DAYS) {
-        for (let h of HOURS) {
-
-          if (teacherOk(l.teacher,d,h,tBusy,data)) {
-
-            for (let c of l.classes) {
-
-              if (cBusy[c+"_"+d+"_"+h]) {
-
-                const old = s[c]?.[d]?.[h];
-                if (!old) continue;
-
-                // usuń starą lekcję ze wszystkich klas
-                for (let cc of old.classes) {
-                  delete s[cc]?.[d]?.[h];
-                  delete cBusy[cc+"_"+d+"_"+h];
-                }
-
-                delete tBusy[old.teacher+"_"+d+"_"+h];
-              }
-            }
-
-            // wstaw nową
-            place(l, d, h, s, tBusy, cBusy);
-
-            placedFlag = true;
-            break;
-          }
-        }
-        if (placedFlag) break;
-      }
-    }
-
   }
 
   return s;
@@ -261,23 +222,6 @@ function countLessons(schedule) {
 
   return count;
 }
-function getLessonMap(schedule) {
-  const map = {};
-
-  for (let cls in schedule) {
-    for (let d in schedule[cls]) {
-      for (let h in schedule[cls][d]) {
-
-        const id = schedule[cls][d][h].id;
-
-        if (!map[id]) map[id] = 0;
-        map[id]++;
-      }
-    }
-  }
-
-  return map;
-}
 // ===== IMPROVE =====
 function improve(s, data, ms) {
 
@@ -289,7 +233,8 @@ function improve(s, data, ms) {
 
   const start = Date.now();
 
-outer: while (Date.now() - start < ms) {
+  while (Date.now() - start < ms) {
+
 let next = JSON.parse(JSON.stringify(current));
    // 🔥 TARGETED REPAIR (celowane usuwanie okienek)
 if (Math.random() < 0.7) {
@@ -327,14 +272,8 @@ if (Math.random() < 0.7) {
           }
 
           if (!conflict) {
-           for (let cc of lesson.classes) {
-  delete next[cc]?.[d]?.[curr];
-}
-
-for (let cc of lesson.classes) {
-  if (!next[cc][d]) next[cc][d] = {};
-  next[cc][d][target] = lesson;
-}
+            delete next[c][d][curr];
+            next[c][d][target] = lesson;
           }
 
           break;
@@ -386,7 +325,7 @@ if (Math.random() < 0.2) {
     next[c][d2] = day1;
   }
 }
-// 🔥 STRONG SHIFT DOWN (BEZ UTRATY LEKCJI)
+// 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
 if (Math.random() < 0.4) {
 
   const classes = Object.keys(next);
@@ -405,17 +344,14 @@ if (Math.random() < 0.4) {
 
   const lessons = hours.map(h => next[c][d][h]);
 
-  // 🔥 usuń ZE WSZYSTKICH klas
-  for (let lesson of lessons) {
-    for (let cc of lesson.classes) {
-      delete next[cc]?.[d]?.[hours.find(h => next[c][d]?.[h] === lesson)];
-    }
-  }
+  // usuń cały dzień
+  next[c][d] = {};
 
   let hNew = 1;
 
   for (let lesson of lessons) {
 
+    // znajdź NAJNIŻSZĄ możliwą godzinę
     while (hNew <= 8) {
 
       let conflict = false;
@@ -428,12 +364,8 @@ if (Math.random() < 0.4) {
       }
 
       if (!conflict) {
-
-        for (let cc of lesson.classes) {
-          if (!next[cc][d]) next[cc][d] = {};
-          next[cc][d][hNew] = lesson;
-        }
-
+        if (!next[c][d]) next[c][d] = {};
+        next[c][d][hNew] = lesson;
         hNew++;
         break;
       }
@@ -475,16 +407,10 @@ if (Math.random() < 0.4) {
   }
 
   if (!conflict) {
-   // 🔥 usuń ze WSZYSTKICH klas
-for (let cc of lesson.classes) {
-  delete next[cc]?.[d]?.[h];
-}
+    delete next[c][d][h];
 
-// 🔥 wstaw do WSZYSTKICH klas
-for (let cc of lesson.classes) {
-  if (!next[cc][d2]) next[cc][d2] = {};
-  next[cc][d2][h2] = lesson;
-}
+    if (!next[c][d2]) next[c][d2] = {};
+    next[c][d2][h2] = lesson;
   }
 
 } else {
@@ -504,20 +430,12 @@ for (let cc of lesson.classes) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-const beforeMap = getLessonMap(current);
-const afterMap = getLessonMap(next);
+const before = countLessons(current);
+const after = countLessons(next);
 
-for (let id in beforeMap) {
-  if (beforeMap[id] !== afterMap[id]) {
-    continue outer;
-  }
-}
-// 🔥 HARD CHECK: czy każda lekcja istnieje
-const expected = Object.keys(getLessonMap(current)).length;
-const actual = Object.keys(getLessonMap(next)).length;
-
-if (expected !== actual) continue outer;
 // ❌ jeśli zgubił lekcje → odrzuć ruch
+if (after < before) continue;
+
 let sc = score(next);
    const isGood = currentScore > -2000;
 
@@ -555,7 +473,7 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 14000);
+  const { best, bestScore } = improve(s, data, 10000);
 
   if (bestScore > globalScore) {
     globalScore = bestScore;
