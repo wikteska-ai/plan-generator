@@ -89,7 +89,7 @@ function construct(lessons, data) {
   let s = {}, tBusy = {}, cBusy = {};
 
   for (let l of lessons) {
-
+let placedFlag = false;
     let best = null;
     let bestScore = -9999;
 
@@ -122,9 +122,10 @@ if (h === 1) score += 1;
     }
 
     // ✅ NORMAL placement
-    if (best) {
-      place(l, best.d, best.h, s, tBusy, cBusy);
-    } else {
+if (best) {
+  place(l, best.d, best.h, s, tBusy, cBusy);
+  placedFlag = true;
+} else {
 
       // 🔥 FALLBACK (NAJWAŻNIEJSZY FIX)
       outer:
@@ -134,12 +135,16 @@ if (h === 1) score += 1;
           if (teacherOk(l.teacher,d,h,tBusy,data) &&
               classesFree(l.classes,d,h,cBusy)) {
 
-            place(l, d, h, s, tBusy, cBusy);
-            break outer;
+place(l, d, h, s, tBusy, cBusy);
+placedFlag = true;
+           break outer;
           }
         }
       }
     }
+ if (!placedFlag) {
+  console.log("❌ NIE WSTAWIONO:", l.subject, l.classes);
+}
   }
 
   return s;
