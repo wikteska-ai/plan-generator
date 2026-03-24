@@ -127,8 +127,8 @@ if (h >= 2 && h <= 6) score += 2;
         
 
 // mały bonus za 1 godzinę (ważne!)
-if (h === 1) score += 10;
-       if (h === 2) score += 2;
+if (h === 1) score += 5;
+       if (h === 2) score += 1;
         for (let c of l.classes) {
           const day = s[c]?.[d] || {};
           score -= Object.keys(day).length* 2;
@@ -262,14 +262,15 @@ function score(s) {
      const first = Math.min(...hours);
 
 // 🔥 mocniejsze preferowanie początku dnia
-if (first === 1) penalty -= 80;
-else if (first === 2) penalty += 60;
-else if (first === 3) penalty += 180;
+if (first === 1) penalty -= 60;
+else if (first === 2) penalty += 40;
+else if (first === 3) penalty += 120;
 else penalty += 300;
 
       // 🔥 ZA DŁUGI / ZA KRÓTKI
-      if (hours.length < 4) penalty += 60;
-      if (hours.length > 7) penalty += 60;
+if (hours.length <= 2) penalty += 200;
+else if (hours.length === 3) penalty += 120;
+     if (hours.length > 7) penalty += 60;
 
       // 🔥 POWTÓRZENIA (mat, pol, ang)
       let subjects = {};
