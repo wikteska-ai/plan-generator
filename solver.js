@@ -273,12 +273,19 @@ if (lesson.classes.length > 1) continue;
             }
           }
 
-          if (!conflict) {
-            if (next[c]?.[d]?.[target]) break;
+         if (!conflict && !next[c]?.[d]?.[target]) {
 
-delete next[c][d][curr];
-next[c][d][target] = lesson;
-          }
+  // najpierw sprawdź, potem ruszaj
+  const canMove = true;
+
+  if (canMove) {
+    delete next[c][d][curr];
+
+    if (!next[c][d]) next[c][d] = {};
+    next[c][d][target] = lesson;
+  }
+
+}
 
           break;
         }
@@ -422,7 +429,7 @@ if (!next[c][d2]) next[c][d2] = {};
 next[c][d2][h2] = lesson;
   }
 
-} else {
+} else if (false) {
 
   // ===== SWAP =====
   const classes = Object.keys(next);
