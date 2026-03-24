@@ -355,7 +355,7 @@ for (let cc of lesson.classes) {
   }
 }
 // 🔥 BIG MOVE SAFE (z walidacją nauczycieli)
-// 🔥 BIG MOVE SAFE (GLOBALNY, SPÓJNY)
+// 🔥 BIG MOVE LIGHT (bezpieczna i szybka)
 if (Math.random() < 0.2) {
 
   const classes = Object.keys(next);
@@ -371,66 +371,51 @@ if (Math.random() < 0.2) {
 
   if (!day1 || !day2) continue;
 
-  const lessons1 = Object.values(day1);
-  const lessons2 = Object.values(day2);
+  const hours1 = Object.keys(day1);
+  const hours2 = Object.keys(day2);
 
-  // 🔒 sprawdź konflikty nauczycieli
-  let valid = true;
+  if (!hours1.length || !hours2.length) continue;
 
-  for (let l of lessons1) {
-    if (!teacherOk(l.teacher, d2, 1, {}, data)) {
-      valid = false;
+  // wybierz jedną lekcję z każdego dnia
+  const h1 = hours1[Math.floor(Math.random()*hours1.length)];
+  const h2 = hours2[Math.floor(Math.random()*hours2.length)];
+
+  const l1 = day1[h1];
+  const l2 = day2[h2];
+
+  // sprawdź konflikt
+  let conflict = false;
+
+  for (let cc of l1.classes) {
+    if (next[cc]?.[d2]?.[h2]) {
+      conflict = true;
       break;
     }
   }
 
-  for (let l of lessons2) {
-    if (!teacherOk(l.teacher, d1, 1, {}, data)) {
-      valid = false;
+  for (let cc of l2.classes) {
+    if (next[cc]?.[d1]?.[h1]) {
+      conflict = true;
       break;
     }
   }
 
-  if (!valid) continue;
+  if (!conflict) {
 
-  // 🔥 usuń oba dni (ZE WSZYSTKICH klas)
-  for (let l of lessons1) {
-    for (let cc of l.classes) {
-      for (let h in next[cc]?.[d1] || {}) {
-        if (next[cc][d1][h]?.id === l.id) {
-          delete next[cc][d1][h];
-        }
-      }
-    }
-  }
+    // usuń stare
+    for (let cc of l1.classes) delete next[cc]?.[d1]?.[h1];
+    for (let cc of l2.classes) delete next[cc]?.[d2]?.[h2];
 
-  for (let l of lessons2) {
-    for (let cc of l.classes) {
-      for (let h in next[cc]?.[d2] || {}) {
-        if (next[cc][d2][h]?.id === l.id) {
-          delete next[cc][d2][h];
-        }
-      }
-    }
-  }
-
-  // 🔥 wstaw zamienione dni
-  let h = 1;
-  for (let l of lessons1) {
-    for (let cc of l.classes) {
+    // wstaw zamienione
+    for (let cc of l1.classes) {
       if (!next[cc][d2]) next[cc][d2] = {};
-      next[cc][d2][h] = l;
+      next[cc][d2][h2] = l1;
     }
-    h++;
-  }
 
-  h = 1;
-  for (let l of lessons2) {
-    for (let cc of l.classes) {
+    for (let cc of l2.classes) {
       if (!next[cc][d1]) next[cc][d1] = {};
-      next[cc][d1][h] = l;
+      next[cc][d1][h1] = l2;
     }
-    h++;
   }
 }
 // 🔥 STRONG SHIFT DOWN (BEZ UTRATY LEKCJI)
