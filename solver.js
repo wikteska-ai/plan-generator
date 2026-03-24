@@ -217,15 +217,18 @@ if (first === 1) penalty -= 30;
 }
 // ===== COUNT LESSONS (NOWE) =====
 function countLessons(schedule) {
-  let count = 0;
+  const set = new Set();
 
   for (let cls in schedule) {
     for (let d in schedule[cls]) {
-      count += Object.keys(schedule[cls][d]).length;
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        set.add(l.id);
+      }
     }
   }
 
-  return count;
+  return set.size;
 }
 // ===== IMPROVE =====
 function improve(s, data, ms) {
