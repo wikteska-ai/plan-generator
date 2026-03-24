@@ -135,6 +135,9 @@ if (h === 1) score += 4;
         }
 
         if (l.group) score += 5;
+       // 🔥 preferuj lekcje trudne (mało dostępności)
+const t = data.teachers.find(x => x.id === l.teacher);
+if (t && t.availability.length < 10) score += 5;
 
         if (score > bestScore) {
           bestScore = score;
@@ -510,7 +513,7 @@ if (false) {
 }
     
 // 🔥 MOVE + SWAP (bezpieczna wersja)
-if (Math.random() < 0.4) {
+if (Math.random() < 0.6) {
 
   // ===== SAFE MOVE =====
 // ===== SAFE MOVE v2 =====
@@ -558,7 +561,7 @@ delete next[c][d][h];
 if (!next[c][d2]) next[c][d2] = {};
 next[c][d2][h2] = lesson;
 
-} else if (Math.random() < 0.3) {
+} else if (Math.random() < 0.5) {
   // ===== SWAP =====
  // ===== SAFE SWAP =====
 const classes = Object.keys(next);
@@ -605,7 +608,7 @@ let sc = score(next);
 
 if (
   sc > currentScore ||
-  (Math.random() < (isGood ? 0.05 : 0.15))
+  (Math.random() < (isGood ? 0.1 : 0.25))
 ) {
       current = next;
       currentScore = sc;
