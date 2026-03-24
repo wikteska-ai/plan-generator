@@ -21,8 +21,7 @@ function getLessons(data) {
       ? "G_" + l.group
       : l.subject === "edu.wczesno."
         ? `${l.class}_${l.subject}_${l.teacher}`
-        : `${l.class}_${l.subject}`;
-
+: `${l.class}_${l.subject}_${l.teacher}`;
     if (!grouped[key]) {
       grouped[key] = {
         subject: l.subject,
