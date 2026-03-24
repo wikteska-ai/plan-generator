@@ -2,13 +2,12 @@ import fs from "fs";
 import { generateSchedule } from "./solver.js";
 
 const jobId = process.argv[2];
-console.log("🧠 Worker start:", jobId, "status:", job.status);
 if (!jobId) {
   console.error("❌ Brak jobId");
   process.exit(1);
 }
 
-console.log("🧠 Worker start:", jobId);
+console.log("🧠 Worker start:", jobId, "status:", job.status);
 
 // ===== Wczytaj joby =====
 let jobs = {};
