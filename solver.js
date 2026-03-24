@@ -330,7 +330,7 @@ if (Math.random() < 0.2) {
   }
 }
 // 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
-if (Math.random() < 0.4) {
+if (false) {
 
   const classes = Object.keys(next);
   const c = classes[Math.floor(Math.random()*classes.length)];
