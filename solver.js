@@ -387,7 +387,7 @@ if (Math.random() < 0.2) {
     next[c][d2] = day1;
   }
 }
-// 🔥 STRONG SHIFT DOWN (usuwa okienka agresywnie)
+// 🔥 STRONG SHIFT DOWN (BEZ UTRATY LEKCJI)
 if (Math.random() < 0.4) {
 
   const classes = Object.keys(next);
@@ -406,14 +406,17 @@ if (Math.random() < 0.4) {
 
   const lessons = hours.map(h => next[c][d][h]);
 
-  // usuń cały dzień
-  next[c][d] = {};
+  // 🔥 usuń ZE WSZYSTKICH klas
+  for (let lesson of lessons) {
+    for (let cc of lesson.classes) {
+      delete next[cc]?.[d]?.[hours.find(h => next[c][d]?.[h] === lesson)];
+    }
+  }
 
   let hNew = 1;
 
   for (let lesson of lessons) {
 
-    // znajdź NAJNIŻSZĄ możliwą godzinę
     while (hNew <= 8) {
 
       let conflict = false;
@@ -426,11 +429,13 @@ if (Math.random() < 0.4) {
       }
 
       if (!conflict) {
-        if (!next[c][d]) next[c][d] = {};
-for (let cc of lesson.classes) {
-  if (!next[cc][d]) next[cc][d] = {};
-  next[cc][d][hNew] = lesson;
-}        hNew++;
+
+        for (let cc of lesson.classes) {
+          if (!next[cc][d]) next[cc][d] = {};
+          next[cc][d][hNew] = lesson;
+        }
+
+        hNew++;
         break;
       }
 
@@ -438,7 +443,6 @@ for (let cc of lesson.classes) {
     }
   }
 }
-    
 // 🔥 MOVE + SWAP (bezpieczna wersja)
 if (Math.random() < 0.4) {
 
@@ -508,7 +512,11 @@ for (let id in beforeMap) {
     continue outer;
   }
 }
+// 🔥 HARD CHECK: czy każda lekcja istnieje
+const expected = Object.keys(getLessonMap(current)).length;
+const actual = Object.keys(getLessonMap(next)).length;
 
+if (expected !== actual) continue outer;
 // ❌ jeśli zgubił lekcje → odrzuć ruch
 let sc = score(next);
    const isGood = currentScore > -2000;
