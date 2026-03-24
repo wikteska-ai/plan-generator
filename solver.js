@@ -392,7 +392,8 @@ for (let c of classes) {
         if (next[c]?.[d]?.[target]) continue;
 
         // 🔒 teacher availability
-        if (!teacherOk(lesson.teacher, d, target, {}, data)) continue;
+        const { tBusy } = rebuildBusy(next);
+if (!teacherOk(lesson.teacher, d, target, tBusy, data)) continue;
 
         // 🔒 konflikt klas
         let ok = true;
@@ -544,8 +545,9 @@ for (let cc of lesson.classes) {
 }
 
 // 🔒 teacher availability
-if (!teacherOk(lesson.teacher, d2, h2, {}, data)) {
-  ok = false;
+const { tBusy } = rebuildBusy(next);
+if (!teacherOk(lesson.teacher, d2, h2, tBusy, data)) {
+ ok = false;
 }
 
 if (!ok) continue;
