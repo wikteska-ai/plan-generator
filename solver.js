@@ -101,6 +101,7 @@ function rebuildBusy(schedule) {
   return { tBusy, cBusy };
 }
 function construct(lessons, data) {
+ let toReinsert = [];
 
   let s = {}, tBusy = {}, cBusy = {};
 
@@ -177,8 +178,7 @@ if (!placedFlag) {
 
   // usuń co tam jest (jeśli coś jest)
   if (existing) {
-     lessons.push(existing);
-
+toReinsert.push(existing);
     for (let cc of existing.classes) {
       if (s[cc]?.[d]?.[h]) {
         delete s[cc][d][h];
@@ -191,7 +191,9 @@ if (!placedFlag) {
 }
    ({ tBusy, cBusy } = rebuildBusy(s));
   }
-
+if (toReinsert.length > 0) {
+  return construct([...lessons, ...toReinsert], data);
+}
   return s;
 }
 
