@@ -500,9 +500,43 @@ for (let cc of lesson.classes) {
   const h1 = Number(hours[0]);
   const h2 = Number(hours[1]);
 
-  const temp = next[c][d][h1];
-  next[c][d][h1] = next[c][d][h2];
-  next[c][d][h2] = temp;
+const l1 = next[c][d][h1];
+const l2 = next[c][d][h2];
+
+// sprawdź czy można swapować
+let conflict = false;
+
+for (let cc of l1.classes) {
+  if (next[cc]?.[d]?.[h2] && next[cc][d][h2] !== l2) {
+    conflict = true;
+    break;
+  }
+}
+
+for (let cc of l2.classes) {
+  if (next[cc]?.[d]?.[h1] && next[cc][d][h1] !== l1) {
+    conflict = true;
+    break;
+  }
+}
+
+if (!conflict) {
+
+  // usuń stare
+  for (let cc of l1.classes) delete next[cc]?.[d]?.[h1];
+  for (let cc of l2.classes) delete next[cc]?.[d]?.[h2];
+
+  // wstaw zamienione
+  for (let cc of l1.classes) {
+    if (!next[cc][d]) next[cc][d] = {};
+    next[cc][d][h2] = l1;
+  }
+
+  for (let cc of l2.classes) {
+    if (!next[cc][d]) next[cc][d] = {};
+    next[cc][d][h1] = l2;
+  }
+}
 }
 
 // ❌ jeśli zgubił lekcje → odrzuć ruch
