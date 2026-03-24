@@ -169,70 +169,23 @@ placedFlag = true;
     }
 if (!placedFlag) {
 
-  // 🔥 FORCE PLACEMENT — znajdź JAKIEKOLWIEK miejsce
-  outer:
-  for (let d of DAYS) {
-    for (let h of HOURS) {
+  // 🔥 ABSOLUTE FORCE (zawsze wstaw coś)
+  const d = DAYS[Math.floor(Math.random()*5)];
+  const h = HOURS[Math.floor(Math.random()*8)];
 
-      // sprawdź czy slot zajęty przez klasę
-      let occupied = false;
+  const existing = s[l.classes[0]]?.[d]?.[h];
 
-      for (let c of l.classes) {
-        if (s[c]?.[d]?.[h]) {
-          occupied = true;
-          break;
-        }
+  // usuń co tam jest (jeśli coś jest)
+  if (existing) {
+    for (let cc of existing.classes) {
+      if (s[cc]?.[d]?.[h]) {
+        delete s[cc][d][h];
       }
-
-      if (!occupied) continue;
-     // 🔒 SPRAWDŹ availability nauczyciela
-const t = data.teachers.find(x => x.id === l.teacher);
-if (!t || !t.availability.includes(d+"_"+h)) continue;
-
-// 🔥 znajdź lekcję, która tam siedzi
-const existing = s[l.classes[0]]?.[d]?.[h];
-     if (existing) {
-
-  // 🔥 dodaj usuniętą lekcję z powrotem do kolejki
-
-  for (let cc of existing.classes) {
-    if (s[cc]?.[d]?.[h]) {
-      delete s[cc][d][h];
     }
   }
 
-  for (let cc of existing.classes) {
-    delete cBusy[cc+"_"+d+"_"+h];
-  }
-
-  delete tBusy[existing.teacher+"_"+d+"_"+h];
-}
-
-if (existing) {
-  // ❗ usuń ją ZE WSZYSTKICH KLAS
-  for (let cc of existing.classes) {
-    if (s[cc]?.[d]?.[h]) {
-      delete s[cc][d][h];
-    }
-  }
-}
-   // 🔥 wyczyść busy (ważne!)
-for (let cc of existing.classes) {
-  delete cBusy[cc+"_"+d+"_"+h];
-}
-delete tBusy[existing.teacher+"_"+d+"_"+h];  
-
-      // 🔥 wstaw nową
-      place(l, d, h, s, tBusy, cBusy);
-
-      placedFlag = true;
-      break outer;
-    }
-  }
-
-  if (!placedFlag) {
-    console.log("💀 TOTAL FAIL:", l.subject, l.classes);
-  }
+  // wstaw nową lekcję
+  place(l, d, h, s, tBusy, cBusy);
 }
    ({ tBusy, cBusy } = rebuildBusy(s));
   }
