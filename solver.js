@@ -280,7 +280,7 @@ function getLessonMap(schedule) {
   return map;
 }
 // ===== IMPROVE =====
-function improve(s, data, ms) {
+function improve(s, data, ms, expectedMap) {
 
   let best = JSON.parse(JSON.stringify(s));
   let bestScore = score(best);
@@ -504,8 +504,14 @@ for (let cc of lesson.classes) {
   next[c][d][h1] = next[c][d][h2];
   next[c][d][h2] = temp;
 }
-const beforeMap = getLessonMap(current);
 const afterMap = getLessonMap(next);
+
+// 🔥 TWARDA WALIDACJA (dokładna liczba godzin!)
+for (let id in expectedMap) {
+  if (afterMap[id] !== expectedMap[id]) {
+    continue outer;
+  }
+}
 
 for (let id in beforeMap) {
   if (beforeMap[id] !== afterMap[id]) {
@@ -542,6 +548,12 @@ if (
 async function generateSchedule(data) {
 
   const lessons = getLessons(data);
+  const expectedMap = {};
+
+for (let l of lessons) {
+  if (!expectedMap[l.id]) expectedMap[l.id] = 0;
+  expectedMap[l.id]++;
+}
 
   let globalBest = null;
   let globalScore = -9999;
@@ -555,8 +567,7 @@ while (Date.now() - start < TIME_LIMIT) {
 
   let s = construct(lessons, data);
 
-  const { best, bestScore } = improve(s, data, 14000);
-
+const { best, bestScore } = improve(s, data, 14000, expectedMap);
   if (bestScore > globalScore) {
     globalScore = bestScore;
     globalBest = best;
