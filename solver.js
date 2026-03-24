@@ -84,6 +84,23 @@ function place(l, d, h, s, tBusy, cBusy) {
 }
 
 // ===== CONSTRUCT (NAPRAWIONE 🔥) =====
+function rebuildBusy(schedule) {
+  let tBusy = {};
+  let cBusy = {};
+
+  for (let c in schedule) {
+    for (let d in schedule[c]) {
+      for (let h in schedule[c][d]) {
+        const l = schedule[c][d][h];
+
+        tBusy[l.teacher+"_"+d+"_"+h] = true;
+        cBusy[c+"_"+d+"_"+h] = true;
+      }
+    }
+  }
+
+  return { tBusy, cBusy };
+}
 function construct(lessons, data) {
 
   let s = {}, tBusy = {}, cBusy = {};
@@ -190,6 +207,7 @@ delete tBusy[existing.teacher+"_"+d+"_"+h];
     console.log("💀 TOTAL FAIL:", l.subject, l.classes);
   }
 }
+   ({ tBusy, cBusy } = rebuildBusy(s));
   }
 
   return s;
