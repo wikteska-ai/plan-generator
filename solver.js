@@ -142,8 +142,41 @@ placedFlag = true;
         }
       }
     }
- if (!placedFlag) {
-  console.log("❌ NIE WSTAWIONO:", l.subject, l.classes);
+if (!placedFlag) {
+
+  // 🔥 FORCE PLACEMENT — znajdź JAKIEKOLWIEK miejsce
+  outer:
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      // sprawdź czy slot zajęty przez klasę
+      let occupied = false;
+
+      for (let c of l.classes) {
+        if (s[c]?.[d]?.[h]) {
+          occupied = true;
+          break;
+        }
+      }
+
+      if (!occupied) continue;
+
+      // 🔥 usuń istniejącą lekcję
+      for (let c of l.classes) {
+        delete s[c][d][h];
+      }
+
+      // 🔥 wstaw nową
+      place(l, d, h, s, tBusy, cBusy);
+
+      placedFlag = true;
+      break outer;
+    }
+  }
+
+  if (!placedFlag) {
+    console.log("💀 TOTAL FAIL:", l.subject, l.classes);
+  }
 }
   }
 
