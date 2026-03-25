@@ -557,8 +557,7 @@ if (iter % 20 === 0) {
     lessons.sort(() => Math.random() - 0.5);
   }
 
-const shuffled = [...lessons].sort(() => Math.random() - 0.5)
-.sort(() => Math.random() - 0.5);
+const shuffled = [...lessons];
 let s = construct(shuffled, data);
 
 // 🔥 co kilka iteracji rozwal trochę plan
