@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 300000;
+const TIME_LIMIT = 270000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
@@ -134,7 +134,7 @@ function construct(lessons, data) {
 
         if (l.group) score += 5;
 
-        if (score > bestScore || Math.random() < 0.05) {
+        if (score > bestScore || Math.random() < 0.15) {
   bestScore = score;
   best = { d, h };
 }
@@ -513,8 +513,13 @@ async function generateSchedule(data) {
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
+    // 🔥 KROK 11 — restart bias
+  if (iter % 5 === 0) {
+    lessons.sort(() => Math.random() - 0.5);
+  }
 
-const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+const shuffled = [...lessons].sort(() => Math.random() - 0.5)
+.sort(() => Math.random() - 0.5);
 let s = construct(shuffled, data);
     const { best, bestScore } = improve(s, data, 30000);
 const fixed = best; // ❗ NIE używamy repairMissing
