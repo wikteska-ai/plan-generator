@@ -541,9 +541,15 @@ function repairMissing(schedule, lessons, data) {
 if (!free) {
   const moved = tryMakeSpace(schedule, l, data);
 
-  if (moved) {
-    const { d: nd, h: nh } = moved;
+ if (moved) {
+  const { d: nd, h: nh } = moved;
 
+  const { tBusy, cBusy } = rebuildBusy(schedule);
+
+  if (
+    teacherOk(l.teacher, nd, nh, tBusy, data) &&
+    classesFree(l.classes, nd, nh, cBusy)
+  ) {
     for (let c of l.classes) {
       if (!schedule[c]) schedule[c] = {};
       if (!schedule[c][nd]) schedule[c][nd] = {};
@@ -552,7 +558,7 @@ if (!free) {
 
     break outer;
   }
-
+}
   continue;
 }
     // ✅ NOWE
