@@ -43,9 +43,10 @@ const server = http.createServer(async (req, res) => {
      
 
         // 🔥 ASYNC JOB
-      await queue.add("generate", {
-  jobId,
+     await queue.add("generate", {
   data
+}, {
+  jobId: jobId
 });
 
         res.writeHead(200, { "Content-Type": "application/json" });
