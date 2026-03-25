@@ -552,7 +552,7 @@ let s = construct(shuffled, data);
 
 // 🔥 co kilka iteracji rozwal trochę plan
 if (iter % 3 === 0) {
-  s = randomDestroy(s, 0.15);
+  s = randomDestroy(s, 0.30);
 }    const { best, bestScore } = improve(s, data, 30000);
 const fixed = best; // ❗ NIE używamy repairMissing
 const missing = countMissing(best, lessons);
