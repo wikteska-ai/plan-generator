@@ -541,6 +541,17 @@ let lastBestMissing = Infinity;
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
+    // 🚨 HARD RESET co 20 iteracji
+if (iter % 20 === 0) {
+  console.log("🚨 HARD RESET");
+
+  lessons = getLessons(data).sort(() => Math.random() - 0.5);
+
+  stagnation = 0;
+  lastBestMissing = Infinity;
+
+  continue;
+}
     // 🔥 KROK 11 — restart bias
   if (iter % 5 === 0) {
     lessons.sort(() => Math.random() - 0.5);
