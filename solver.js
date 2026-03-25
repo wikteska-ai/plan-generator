@@ -398,7 +398,52 @@ cBusy = rebuilt.cBusy;
 
   return { best, bestScore };
 }
+function tryMakeSpace(schedule, lesson, data) {
+  for (let d of DAYS) {
+    for (let h of HOURS) {
 
+      // jeśli slot zajęty
+      let existing = null;
+
+      for (let c of lesson.classes) {
+        if (schedule[c]?.[d]?.[h]) {
+          existing = schedule[c][d][h];
+          break;
+        }
+      }
+
+      if (!existing) continue;
+
+      // spróbuj przenieść istniejącą lekcję gdzie indziej
+      for (let d2 of DAYS) {
+        for (let h2 of HOURS) {
+
+          const { tBusy, cBusy } = rebuildBusy(schedule);
+
+          if (
+            teacherOk(existing.teacher, d2, h2, tBusy, data) &&
+            classesFree(existing.classes, d2, h2, cBusy)
+          ) {
+            // usuń starą
+            for (let cc of existing.classes) {
+              delete schedule[cc][d][h];
+            }
+
+            // wstaw w nowe miejsce
+            for (let cc of existing.classes) {
+              if (!schedule[cc][d2]) schedule[cc][d2] = {};
+              schedule[cc][d2][h2] = existing;
+            }
+
+            return { d, h }; // zwolnione miejsce
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
 // ===== REPAIR MISSING =====
 function repairMissing(schedule, lessons, data) {
   const map = new Set();
@@ -427,8 +472,23 @@ function repairMissing(schedule, lessons, data) {
       }
     }
 
-    if (!free) continue;
+if (!free) {
+  const moved = tryMakeSpace(schedule, l, data);
 
+  if (moved) {
+    const { d: nd, h: nh } = moved;
+
+    for (let c of l.classes) {
+      if (!schedule[c]) schedule[c] = {};
+      if (!schedule[c][nd]) schedule[c][nd] = {};
+      schedule[c][nd][nh] = l;
+    }
+
+    break outer;
+  }
+
+  continue;
+}
     // ✅ NOWE
     const { tBusy } = rebuildBusy(schedule);
 
