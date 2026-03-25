@@ -595,7 +595,10 @@ if (
       iter,
       score: globalScore
     });
-    if (stagnation > 5 && lastBestMissing > 15) {
+   if (
+  (stagnation > 5 && lastBestMissing > 15) ||
+  (stagnation > 10 && lastBestMissing <= 15)
+) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
