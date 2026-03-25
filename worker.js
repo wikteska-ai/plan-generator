@@ -2,8 +2,9 @@ import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { generateSchedule } from "./solver.js";
 
-const connection = new IORedis(process.env.REDIS_URL);
-
+const connection = new IORedis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: null
+});
 new Worker(
   "jobs",
   async job => {
