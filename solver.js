@@ -382,14 +382,7 @@ function improve(s, data, ms) {
 
 while (Date.now() - start < ms) {
   let next = JSON.parse(JSON.stringify(current));
-  // 🔥 SWAP czasami
-if (Math.random() < 0.3) {
-  next = trySwap(next, data);
-}
-
-  let rebuilt = rebuildBusy(next);
-  let tBusy = rebuilt.tBusy;
-  let cBusy = rebuilt.cBusy;
+let rebuilt, tBusy, cBusy;
 
     // TARGETED REPAIR
     if (Math.random() < 0.7) {
@@ -622,8 +615,15 @@ let s = construct(shuffled, data);
 if (iter % 3 === 0) {
   s = randomDestroy(s, 0.30);
 }    const { best, bestScore } = improve(s, data, 20000);
-const fixed = best; // ❗ NIE używamy repairMissing
-const missing = countMissing(best, lessons);
+
+let candidate = best;
+let missing = countMissing(candidate, lessons);
+
+// 🔥 KOŃCÓWKA — repair
+if (missing > 0 && missing <= 6) {
+  candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
+  missing = countMissing(candidate, lessons);
+}
     if (missing < lastBestMissing) {
   lastBestMissing = missing;
   stagnation = 0;
@@ -637,7 +637,7 @@ if (
   (missing === 0 && globalBest.missing === 0 && bestScore > globalBest.score)
 ) {
   globalBest = {
-    schedule: best,
+    schedule: candidate,
     missing,
     score: bestScore
   };
@@ -655,7 +655,7 @@ if (
     });
    if (
   (stagnation > 5 && lastBestMissing > 15) ||
-  (stagnation > 10 && lastBestMissing <= 15)
+  (stagnation > 15 && lastBestMissing <= 15)
 ) {
   console.log("💥 RESET — stagnacja");
 
