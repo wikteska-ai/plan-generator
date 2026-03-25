@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 240000;
+const TIME_LIMIT = 300000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
@@ -519,12 +519,21 @@ let s = construct(shuffled, data);
     const { best, bestScore } = improve(s, data, 30000);
     const fixed = repairMissing(best, lessons, data);
 
-    if (bestScore > globalScore) {
-      globalScore = bestScore;
-      globalBest = fixed;
+const missing = countMissing(fixed, lessons);
 
-      console.log("🔥 Nowy najlepszy score:", globalScore);
-    }
+if (
+  !globalBest ||
+  missing < globalBest.missing ||
+  (missing === globalBest.missing && bestScore > globalScore)
+) {
+  globalScore = bestScore;
+  globalBest = {
+    schedule: fixed,
+    missing
+  };
+
+  console.log("🔥 BEST:", "missing:", missing, "score:", globalScore);
+}
 
     saveProgress({
       percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
@@ -544,12 +553,11 @@ if (teacherErrors.length) {
 }
 
   return {
-    status: "OK",
-    score: globalScore,
-    schedule: globalBest,
-    placed: lessons.length,
-    total: lessons.length
-  };
+  status: "OK",
+  score: globalScore,
+  schedule: globalBest.schedule,
+  missing: globalBest.missing
+};
 }
 
 // ===== VALIDATE =====
@@ -592,6 +600,19 @@ function validateTeachers(schedule, data) {
   }
 
   return errors;
+}
+function countMissing(schedule, lessons) {
+  const set = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        set.add(schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  return lessons.length - set.size;
 }
 
 export { generateSchedule };
