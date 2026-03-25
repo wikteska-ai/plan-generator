@@ -181,33 +181,21 @@ function construct(lessons, data) {
 
           const existing = s[l.classes[0]]?.[d]?.[h];
 
-          if (existing) {
-            for (let cc of existing.classes) {
-              if (s[cc]?.[d]?.[h]) {
-                delete s[cc][d][h];
-              }
-            }
+        if (existing) {
+  for (let cc of existing.classes) {
+    if (s[cc]?.[d]?.[h]) {
+      delete s[cc][d][h];
+    }
+  }
 
-            for (let cc of existing.classes) {
-              delete cBusy[cc + "_" + d + "_" + h];
-            }
+  for (let cc of existing.classes) {
+    delete cBusy[cc + "_" + d + "_" + h];
+  }
 
-            delete tBusy[existing.teacher + "_" + d + "_" + h];
-          }
+  delete tBusy[existing.teacher + "_" + d + "_" + h];
+}
 
-          if (existing) {
-            for (let cc of existing.classes) {
-              if (s[cc]?.[d]?.[h]) {
-                delete s[cc][d][h];
-              }
-            }
-          }
-
-          for (let cc of existing.classes) {
-            delete cBusy[cc + "_" + d + "_" + h];
-          }
-
-          delete tBusy[existing.teacher + "_" + d + "_" + h];
+      
 if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
           place(l, d, h, s, tBusy, cBusy);
           placedFlag = true;
