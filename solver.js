@@ -134,10 +134,10 @@ function construct(lessons, data) {
 
         if (l.group) score += 5;
 
-        if (score > bestScore) {
-          bestScore = score;
-          best = { d, h };
-        }
+        if (score > bestScore || Math.random() < 0.05) {
+  bestScore = score;
+  best = { d, h };
+}
       }
     }
 
@@ -526,9 +526,9 @@ async function generateSchedule(data) {
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
 
-    let s = construct(lessons, data);
-
-    const { best, bestScore } = improve(s, data, 10000);
+const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+let s = construct(shuffled, data);
+    const { best, bestScore } = improve(s, data, 30000);
     const fixed = repairMissing(best, lessons, data);
 
     if (bestScore > globalScore) {
