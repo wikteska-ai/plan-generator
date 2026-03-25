@@ -134,7 +134,7 @@ function construct(lessons, data) {
 
         if (l.group) score += 5;
 
-        if (score > bestScore || Math.random() < 0.15) {
+        if (score > bestScore || Math.random() < 0.25) {
   bestScore = score;
   best = { d, h };
 }
@@ -288,7 +288,34 @@ function countLessons(schedule) {
 
   return set.size;
 }
+function randomDestroy(schedule, percent = 0.1) {
+  const all = [];
 
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        all.push({ cls, d, h });
+      }
+    }
+  }
+
+  const toRemove = Math.floor(all.length * percent);
+
+  for (let i = 0; i < toRemove; i++) {
+    const r = all[Math.floor(Math.random() * all.length)];
+    if (!schedule[r.cls]?.[r.d]?.[r.h]) continue;
+
+    const lesson = schedule[r.cls][r.d][r.h];
+
+    for (let c of lesson.classes) {
+      if (schedule[c]?.[r.d]?.[r.h]) {
+        delete schedule[c][r.d][r.h];
+      }
+    }
+  }
+
+  return schedule;
+}
 // ===== IMPROVE =====
 function improve(s, data, ms) {
   let best = JSON.parse(JSON.stringify(s));
@@ -521,7 +548,11 @@ async function generateSchedule(data) {
 const shuffled = [...lessons].sort(() => Math.random() - 0.5)
 .sort(() => Math.random() - 0.5);
 let s = construct(shuffled, data);
-    const { best, bestScore } = improve(s, data, 30000);
+
+// 🔥 co kilka iteracji rozwal trochę plan
+if (iter % 3 === 0) {
+  s = randomDestroy(s, 0.15);
+}    const { best, bestScore } = improve(s, data, 30000);
 const fixed = best; // ❗ NIE używamy repairMissing
 const missing = countMissing(best, lessons);
 if (
