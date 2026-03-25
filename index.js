@@ -40,10 +40,7 @@ const server = http.createServer(async (req, res) => {
 
         console.log(`🚀 START JOB ${jobId}`);
 
-        jobs[jobId] = {
-          status: "processing",
-          progress: { percent: 0, bestPlaced: 0, total: 0, elapsed: 0 }
-        };
+     
 
         // 🔥 ASYNC JOB
       await queue.add("generate", {
