@@ -610,11 +610,14 @@ if (iter % 30 === 0) {
 
 const shuffled = [...lessons];
 let s = construct(shuffled, data);
+    if (Math.random() < 0.3) {
+  s = trySwap(s, data);
+}
 
 // 🔥 co kilka iteracji rozwal trochę plan
 if (iter % 3 === 0) {
   s = randomDestroy(s, 0.30);
-}    const { best, bestScore } = improve(s, data, 20000);
+}    const { best, bestScore } = improve(s, data, 5000);
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
@@ -655,7 +658,7 @@ if (
     });
   if (
   (stagnation > 5 && lastBestMissing > 15) ||
-  (stagnation > 10 && lastBestMissing <= 15)
+  (stagnation > 15 && lastBestMissing <= 15)
 ) {
   console.log("💥 RESET — stagnacja");
 
