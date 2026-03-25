@@ -434,10 +434,11 @@ function repairMissing(schedule, lessons, data) {
         break outer;
       }
     }
-  }
-if (!map.has(l.id)) {
+    if (!map.has(l.id)) {
   console.log("❌ NIE DA SIĘ WSTAWIĆ:", l.subject, l.classes);
 }
+  }
+
   return schedule;
 }
 
