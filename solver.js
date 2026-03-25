@@ -492,7 +492,7 @@ if (!free) {
         break outer;
       }
     }
-    if (!map.has(l.id)) {
+  if (process.env.DEBUG) {
   console.log("❌ NIE DA SIĘ WSTAWIĆ:", l.subject, l.classes);
 }
   }
