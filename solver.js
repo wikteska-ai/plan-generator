@@ -405,18 +405,25 @@ function repairMissing(schedule, lessons, data) {
     if (map.has(l.id)) continue;
 
     outer:
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-        let free = true;
+   for (let d of DAYS) {
+  for (let h of HOURS) {
 
-        for (let c of l.classes) {
-          if (schedule[c]?.[d]?.[h]) {
-            free = false;
-            break;
-          }
-        }
+    let free = true;
 
-        if (!free) continue;
+    for (let c of l.classes) {
+      if (schedule[c]?.[d]?.[h]) {
+        free = false;
+        break;
+      }
+    }
+
+    if (!free) continue;
+
+    // ✅ NOWE
+    const { tBusy } = rebuildBusy(schedule);
+
+    if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
+        
 
         for (let c of l.classes) {
           if (!schedule[c]) schedule[c] = {};
@@ -428,7 +435,9 @@ function repairMissing(schedule, lessons, data) {
       }
     }
   }
-
+if (!map.has(l.id)) {
+  console.log("❌ NIE DA SIĘ WSTAWIĆ:", l.subject, l.classes);
+}
   return schedule;
 }
 
