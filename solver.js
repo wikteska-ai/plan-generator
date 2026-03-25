@@ -531,7 +531,8 @@ if (!free) {
 // ===== MAIN =====
 async function generateSchedule(data) {
   const lessons = getLessons(data);
-
+let stagnation = 0;
+let lastBestMissing = Infinity;
   let globalBest = null;
   let globalScore = -9999;
 
@@ -555,6 +556,13 @@ if (iter % 3 === 0) {
 }    const { best, bestScore } = improve(s, data, 30000);
 const fixed = best; // ❗ NIE używamy repairMissing
 const missing = countMissing(best, lessons);
+    if (missing < lastBestMissing) {
+  lastBestMissing = missing;
+  stagnation = 0;
+} else {
+  stagnation++;
+}
+    
 if (
   !globalBest ||
   missing < globalBest.missing ||
@@ -577,6 +585,13 @@ if (
       iter,
       score: globalScore
     });
+    if (stagnation > 20) {
+  console.log("💥 RESET — stagnacja");
+
+  lessons.sort(() => Math.random() - 0.5);
+
+  stagnation = 0;
+}
   }
 
   saveProgress({ percent: 100 });
