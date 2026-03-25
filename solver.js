@@ -530,8 +530,8 @@ if (!free) {
 
 // ===== MAIN =====
 async function generateSchedule(data) {
-  const lessons = getLessons(data);
-let stagnation = 0;
+let lessons = getLessons(data);
+  let stagnation = 0;
 let lastBestMissing = Infinity;
   let globalBest = null;
   let globalScore = -9999;
@@ -542,7 +542,7 @@ let lastBestMissing = Infinity;
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
     // 🚨 HARD RESET co 20 iteracji
-if (iter % 20 === 0) {
+if (iter % 30 === 0) {
   console.log("🚨 HARD RESET");
 
   lessons = getLessons(data).sort(() => Math.random() - 0.5);
@@ -595,7 +595,7 @@ if (
       iter,
       score: globalScore
     });
-    if (stagnation > 5) {
+    if (stagnation > 5 && lastBestMissing > 15) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
