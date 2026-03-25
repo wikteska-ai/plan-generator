@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 270000;
+const TIME_LIMIT = 900000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
