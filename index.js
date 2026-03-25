@@ -55,9 +55,14 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ jobId }));
 
       } catch (err) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ status: "error" }));
-      }
+  console.error("❌ GENERATE ERROR:", err);
+
+  res.writeHead(500);
+  res.end(JSON.stringify({
+    status: "error",
+    message: err.message
+  }));
+}
     });
 
     return;
