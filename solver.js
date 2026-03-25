@@ -198,7 +198,7 @@ function construct(lessons, data) {
           }
 
           delete tBusy[existing.teacher + "_" + d + "_" + h];
-
+if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
           place(l, d, h, s, tBusy, cBusy);
           placedFlag = true;
 
@@ -302,6 +302,9 @@ function improve(s, data, ms) {
   const start = Date.now();
 
   while (Date.now() - start < ms) {
+    let rebuilt = rebuildBusy(next);
+let tBusy = rebuilt.tBusy;
+let cBusy = rebuilt.cBusy;
     let next = JSON.parse(JSON.stringify(current));
 
     // TARGETED REPAIR
@@ -327,9 +330,16 @@ function improve(s, data, ms) {
 
               const target = prev + 1;
 
-              if (next[c]?.[d]?.[target]) continue;
-              if (!teacherOk(lesson.teacher, d, target, {}, data)) continue;
+let ok = true;
 
+for (let cc of lesson.classes) {
+  if (next[cc]?.[d]?.[target]) {
+    ok = false;
+    break;
+  }
+}
+
+if (!ok) continue;if (!teacherOk(lesson.teacher, d, target, tBusy, data)) continue;
               let ok = true;
 
               for (let cc of lesson.classes) {
@@ -343,6 +353,9 @@ function improve(s, data, ms) {
 
               delete next[c][d][curr];
               next[c][d][target] = lesson;
+              rebuilt = rebuildBusy(next);
+tBusy = rebuilt.tBusy;
+cBusy = rebuilt.cBusy;
 
               break;
             }
@@ -419,6 +432,7 @@ function repairMissing(schedule, lessons, data) {
   return schedule;
 }
 
+
 // ===== MAIN =====
 async function generateSchedule(data) {
   const lessons = getLessons(data);
@@ -454,6 +468,12 @@ async function generateSchedule(data) {
   saveProgress({ percent: 100 });
 
   validate(globalBest, lessons);
+  const teacherErrors = validateTeachers(globalBest, data);
+
+if (teacherErrors.length) {
+  console.log("🚨 BŁĘDY NAUCZYCIELI:");
+  teacherErrors.forEach(e => console.log(e));
+}
 
   return {
     status: "OK",
@@ -485,6 +505,25 @@ function validate(schedule, lessons) {
       console.log("❌ PROBLEM:", l.subject, l.id, actual, "/", expected);
     }
   });
+}
+function validateTeachers(schedule, data) {
+  let errors = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+
+        const t = data.teachers.find(x => x.id === l.teacher);
+
+        if (!t.availability.includes(d + "_" + h)) {
+          errors.push(`❌ ${l.teacher} brak dostępności ${d}_${h}`);
+        }
+      }
+    }
+  }
+
+  return errors;
 }
 
 export { generateSchedule };
