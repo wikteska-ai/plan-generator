@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 900000;
+const TIME_LIMIT = 600000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
@@ -592,20 +592,11 @@ let lastBestMissing = Infinity;
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
-    // 🚨 HARD RESET co 20 iteracji
 if (
-  (!globalBest || globalBest.missing > 0) && // 🔥 KLUCZ
+  (!globalBest || globalBest.missing > 0) &&
   iter % 30 === 0
 ) {
   console.log("🚨 HARD RESET");
-
-  lessons = getLessons(data).sort(() => Math.random() - 0.5);
-
-  stagnation = 0;
-  lastBestMissing = Infinity;
-
-  continue;
-}  console.log("🚨 HARD RESET");
 
   lessons = getLessons(data).sort(() => Math.random() - 0.5);
 
@@ -665,7 +656,7 @@ if (
     saveProgress({
       percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
       iter,
-      score: globalScore
+score: globalBest?.score || globalScore
     });
   if (
   (stagnation > 5 && lastBestMissing > 15) ||
@@ -690,8 +681,7 @@ if (
   saveProgress({ percent: 100 });
 
 validate(globalBest.schedule, lessons);
-  const teacherErrors = validateTeachers(globalBest, data);
-
+const teacherErrors = validateTeachers(globalBest.schedule, data);
 if (teacherErrors.length) {
   console.log("🚨 BŁĘDY NAUCZYCIELI:");
   teacherErrors.forEach(e => console.log(e));
