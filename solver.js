@@ -301,11 +301,12 @@ function improve(s, data, ms) {
 
   const start = Date.now();
 
-  while (Date.now() - start < ms) {
-    let rebuilt = rebuildBusy(next);
-let tBusy = rebuilt.tBusy;
-let cBusy = rebuilt.cBusy;
-    let next = JSON.parse(JSON.stringify(current));
+while (Date.now() - start < ms) {
+  let next = JSON.parse(JSON.stringify(current));
+
+  let rebuilt = rebuildBusy(next);
+  let tBusy = rebuilt.tBusy;
+  let cBusy = rebuilt.cBusy;
 
     // TARGETED REPAIR
     if (Math.random() < 0.7) {
@@ -339,8 +340,7 @@ for (let cc of lesson.classes) {
   }
 }
 
-if (!ok) continue;if (!teacherOk(lesson.teacher, d, target, tBusy, data)) continue;
-              let ok = true;
+if (!ok) continue;
 
               for (let cc of lesson.classes) {
                 if (next[cc]?.[d]?.[target]) {
