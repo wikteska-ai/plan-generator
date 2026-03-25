@@ -37,17 +37,28 @@ const server = http.createServer(async (req, res) => {
         const data = JSON.parse(body);
 
         const jobId = randomId();
+        const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const REPO = "wikteska-ai/plan-generator"; // np. wikteska-ai/plan-generator
+
+await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/worker.yml/dispatches`, {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${GITHUB_TOKEN}`,
+    "Accept": "application/vnd.github+json"
+  },
+  body: JSON.stringify({
+    ref: "main",
+    inputs: {
+      jobId: jobId
+    }
+  })
+});
 
         console.log(`🚀 START JOB ${jobId}`);
 
      
 
-        // 🔥 ASYNC JOB
-     await queue.add("generate", {
-  data
-}, {
-  jobId: jobId
-});
+   
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ jobId }));
