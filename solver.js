@@ -653,13 +653,21 @@ if (
       iter,
       score: globalScore
     });
-   if (
+  if (
   (stagnation > 5 && lastBestMissing > 15) ||
-  (stagnation > 15 && lastBestMissing <= 15)
+  (stagnation > 10 && lastBestMissing <= 15)
 ) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
+
+  // 🔥 NOWE — rozwal plan mocniej
+  if (globalBest && globalBest.schedule) {
+    globalBest.schedule = randomDestroy(
+      JSON.parse(JSON.stringify(globalBest.schedule)),
+      0.5
+    );
+  }
 
   stagnation = 0;
 }
