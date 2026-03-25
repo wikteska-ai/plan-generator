@@ -517,22 +517,23 @@ async function generateSchedule(data) {
 const shuffled = [...lessons].sort(() => Math.random() - 0.5);
 let s = construct(shuffled, data);
     const { best, bestScore } = improve(s, data, 30000);
-    const fixed = repairMissing(best, lessons, data);
-
-const missing = countMissing(fixed, lessons);
-
+const fixed = best; // ❗ NIE używamy repairMissing
+const missing = countMissing(best, lessons);
 if (
   !globalBest ||
   missing < globalBest.missing ||
-  (missing === globalBest.missing && bestScore > globalScore)
+  (missing === 0 && globalBest.missing === 0 && bestScore > globalBest.score)
 ) {
-  globalScore = bestScore;
   globalBest = {
-    schedule: fixed,
-    missing
+    schedule: best,
+    missing,
+    score: bestScore
   };
 
-  console.log("🔥 BEST:", "missing:", missing, "score:", globalScore);
+  console.log("🔥 BEST:", "missing:", missing, "score:", bestScore);
+}
+    if (globalBest && globalBest.missing === 0 && missing > 0) {
+  continue; // ❗ nie psuj idealnego planu
 }
 
     saveProgress({
@@ -552,11 +553,11 @@ if (teacherErrors.length) {
   teacherErrors.forEach(e => console.log(e));
 }
 
-  return {
+return {
   status: "OK",
-  score: globalScore,
-  schedule: globalBest.schedule,
-  missing: globalBest.missing
+  score: globalBest.score,
+  missing: globalBest.missing,
+  schedule: globalBest.schedule
 };
 }
 
@@ -590,9 +591,14 @@ function validateTeachers(schedule, data) {
       for (let h in schedule[cls][d]) {
         const l = schedule[cls][d][h];
 
-        const t = data.teachers.find(x => x.id === l.teacher);
+       const t = data.teachers.find(x => x.id === l.teacher);
 
-        if (!t.availability.includes(d + "_" + h)) {
+if (!t) {
+  console.log("💀 NIEZNANY NAUCZYCIEL:", l.teacher);
+  continue;
+}
+
+if (!t.availability.includes(d + "_" + h)) {
           errors.push(`❌ ${l.teacher} brak dostępności ${d}_${h}`);
         }
       }
