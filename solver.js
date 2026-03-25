@@ -41,7 +41,7 @@ function getLessons(data) {
   Object.values(grouped).forEach((g, i) => {
     for (let h = 0; h < g.hours; h++) {
       out.push({
-        id: i + "_" + h,
+      id: `${i}_${h}_${g.teacher}_${g.subject}_${g.classes.join("-")}`,
         ...g
       });
     }
@@ -593,8 +593,19 @@ let lastBestMissing = Infinity;
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
     // 🚨 HARD RESET co 20 iteracji
-if (iter % 30 === 0) {
+if (
+  (!globalBest || globalBest.missing > 0) && // 🔥 KLUCZ
+  iter % 30 === 0
+) {
   console.log("🚨 HARD RESET");
+
+  lessons = getLessons(data).sort(() => Math.random() - 0.5);
+
+  stagnation = 0;
+  lastBestMissing = Infinity;
+
+  continue;
+}  console.log("🚨 HARD RESET");
 
   lessons = getLessons(data).sort(() => Math.random() - 0.5);
 
@@ -678,7 +689,7 @@ if (
 
   saveProgress({ percent: 100 });
 
-  validate(globalBest, lessons);
+validate(globalBest.schedule, lessons);
   const teacherErrors = validateTeachers(globalBest, data);
 
 if (teacherErrors.length) {
