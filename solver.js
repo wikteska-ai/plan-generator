@@ -316,6 +316,60 @@ function randomDestroy(schedule, percent = 0.1) {
 
   return schedule;
 }
+function trySwap(schedule, data) {
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+      }
+    }
+  }
+
+  if (entries.length < 2) return schedule;
+
+  const a = entries[Math.floor(Math.random() * entries.length)];
+  const b = entries[Math.floor(Math.random() * entries.length)];
+
+  if (!a.lesson || !b.lesson) return schedule;
+  if (a.lesson.id === b.lesson.id) return schedule;
+
+  const { tBusy, cBusy } = rebuildBusy(schedule);
+
+  // sprawdź czy można zamienić
+  const canPlaceA =
+    teacherOk(a.lesson.teacher, b.d, b.h, tBusy, data) &&
+    classesFree(a.lesson.classes, b.d, b.h, cBusy);
+
+  const canPlaceB =
+    teacherOk(b.lesson.teacher, a.d, a.h, tBusy, data) &&
+    classesFree(b.lesson.classes, a.d, a.h, cBusy);
+
+  if (!canPlaceA || !canPlaceB) return schedule;
+
+  // usuń stare
+  for (let c of a.lesson.classes) {
+    delete schedule[c][a.d][a.h];
+  }
+
+  for (let c of b.lesson.classes) {
+    delete schedule[c][b.d][b.h];
+  }
+
+  // wstaw zamienione
+  for (let c of a.lesson.classes) {
+    if (!schedule[c][b.d]) schedule[c][b.d] = {};
+    schedule[c][b.d][b.h] = a.lesson;
+  }
+
+  for (let c of b.lesson.classes) {
+    if (!schedule[c][a.d]) schedule[c][a.d] = {};
+    schedule[c][a.d][a.h] = b.lesson;
+  }
+
+  return schedule;
+}
 // ===== IMPROVE =====
 function improve(s, data, ms) {
   let best = JSON.parse(JSON.stringify(s));
@@ -328,6 +382,10 @@ function improve(s, data, ms) {
 
 while (Date.now() - start < ms) {
   let next = JSON.parse(JSON.stringify(current));
+  // 🔥 SWAP czasami
+if (Math.random() < 0.3) {
+  next = trySwap(next, data);
+}
 
   let rebuilt = rebuildBusy(next);
   let tBusy = rebuilt.tBusy;
