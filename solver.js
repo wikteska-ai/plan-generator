@@ -48,11 +48,21 @@ function getLessons(data) {
   });
 
   // 🔥 SORTOWANIE
-  out.sort((a, b) => {
-    if (a.group && !b.group) return -1;
-    if (!a.group && b.group) return 1;
-    return b.classes.length - a.classes.length;
-  });
+ out.sort((a, b) => {
+  if (a.group && !b.group) return -1;
+  if (!a.group && b.group) return 1;
+
+  const teacherA = data.teachers.find(t => t.id === a.teacher);
+  const teacherB = data.teachers.find(t => t.id === b.teacher);
+
+  const availA = teacherA?.availability.length || 0;
+  const availB = teacherB?.availability.length || 0;
+
+  const difficultyA = availA / a.hours;
+  const difficultyB = availB / b.hours;
+
+  return difficultyA - difficultyB;
+});
 
   return out;
 }
