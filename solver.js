@@ -661,18 +661,19 @@ if (
   continue; // ❗ nie psuj idealnego planu
 }
 
-    saveProgress({
-      percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
-      iter,
-score: globalBest?.score || globalScore
- if (
-  stagnation > 10 && lastBestMissing > 0 // 🔥 NIE resetuj jak blisko celu
+   saveProgress({
+  percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
+  iter,
+  score: globalBest?.score || globalScore
+});
+
+if (
+  stagnation > 10 && lastBestMissing > 0
 ) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
 
-  // 🔥 NOWE — rozwal plan mocniej
   if (globalBest && globalBest.schedule) {
     globalBest.schedule = randomDestroy(
       JSON.parse(JSON.stringify(globalBest.schedule)),
