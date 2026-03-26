@@ -599,9 +599,10 @@ let lastBestMissing = Infinity;
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
 if (
-  (!globalBest || globalBest.missing > 0) &&
-  iter % 30 === 0
-) {
+  (!globalBest || globalBest.missing > 10) && // 🔥 tylko jak naprawdę źle
+  iter % 50 === 0 &&                         // 🔥 rzadziej
+  stagnation > 10                            // 🔥 tylko jak stoi długo
+)  {
   console.log("🚨 HARD RESET");
 
   lessons = getLessons(data).sort(() => Math.random() - 0.5);
@@ -656,6 +657,7 @@ if (
   console.log("🔥 BEST:", "missing:", missing, "score:", bestScore);
 }
     if (globalBest && globalBest.missing === 0 && missing > 0) {
+      stagnation = 0; // 🔥 nie licz stagnacji przy idealnym planie
   continue; // ❗ nie psuj idealnego planu
 }
 
@@ -663,10 +665,8 @@ if (
       percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
       iter,
 score: globalBest?.score || globalScore
-    });
-  if (
-  (stagnation > 5 && lastBestMissing > 15) ||
-  (stagnation > 15 && lastBestMissing <= 15)
+ if (
+  stagnation > 10 && lastBestMissing > 0 // 🔥 NIE resetuj jak blisko celu
 ) {
   console.log("💥 RESET — stagnacja");
 
