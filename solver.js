@@ -621,10 +621,12 @@ const shuffled = [...lessons];
 let s;
 
 if (globalBest && globalBest.schedule && Math.random() < 0.7) {
-  // 🔥 startuj od najlepszego planu
   s = JSON.parse(JSON.stringify(globalBest.schedule));
+
+  // 🔥 KLUCZ — rozwal go lekko
+  s = randomDestroy(s, 0.25);
+
 } else {
-  // 🔄 klasyczny start
   s = construct(shuffled, data);
 }    if (Math.random() < 0.3) {
   s = trySwap(s, data);
@@ -632,7 +634,11 @@ if (globalBest && globalBest.schedule && Math.random() < 0.7) {
 
 // 🔥 co kilka iteracji rozwal trochę plan
 if (iter % 3 === 0) {
-  const strength = globalBest && globalBest.missing < 10 ? 0.15 : 0.30;
+  let strength = 0.3;
+
+  if (globalBest && globalBest.missing < 15) strength = 0.2;
+  if (globalBest && globalBest.missing < 8) strength = 0.1;
+
   s = randomDestroy(s, strength);
 }   const { best, bestScore } = improve(s, data, 5000);
 
@@ -675,9 +681,7 @@ if (
   score: globalBest?.score || globalScore
 });
 
-if (
-  stagnation > 10 && lastBestMissing > 0
-) {
+if (stagnation > 10 && lastBestMissing > 0 && iter % 5 === 0) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
