@@ -741,16 +741,38 @@ if (
   score: globalBest?.score || globalScore
 });
 
-if (stagnation > 10 && lastBestMissing > 0 && iter % 5 === 0) {
+if (
+  stagnation > 10 && lastBestMissing > 0 && iter % 5 === 0
+) {
   console.log("💥 RESET — stagnacja");
 
   lessons.sort(() => Math.random() - 0.5);
 
+  // 🔥 TRYB PANIKI
   if (globalBest && globalBest.schedule) {
-    globalBest.schedule = randomDestroy(
-      JSON.parse(JSON.stringify(globalBest.schedule)),
-      0.5
-    );
+    let s = JSON.parse(JSON.stringify(globalBest.schedule));
+
+    // 🔥 MOCNE ROZWALENIE
+    s = randomDestroy(s, 0.5);
+
+    // 🔥 AGRESYWNA NAPRAWA
+    s = repairMissing(s, lessons, data);
+
+    // 🔥 JESZCZE IMPROVE
+    const improved = improve(s, data, 3000);
+
+    // 🔥 PODMIEŃ jeśli lepsze
+    const newMissing = countMissing(improved.best, lessons);
+
+    if (newMissing < globalBest.missing) {
+      globalBest = {
+        schedule: improved.best,
+        missing: newMissing,
+        score: improved.bestScore
+      };
+
+      console.log("🔥 PANIC IMPROVE:", newMissing);
+    }
   }
 
   stagnation = 0;
