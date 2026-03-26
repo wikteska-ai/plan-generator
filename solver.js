@@ -632,8 +632,9 @@ if (globalBest && globalBest.schedule && Math.random() < 0.7) {
 
 // 🔥 co kilka iteracji rozwal trochę plan
 if (iter % 3 === 0) {
-  s = randomDestroy(s, 0.30);
-}    const { best, bestScore } = improve(s, data, 5000);
+  const strength = globalBest && globalBest.missing < 10 ? 0.15 : 0.30;
+  s = randomDestroy(s, strength);
+}   const { best, bestScore } = improve(s, data, 5000);
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
