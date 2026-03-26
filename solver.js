@@ -618,8 +618,15 @@ if (
   }
 
 const shuffled = [...lessons];
-let s = construct(shuffled, data);
-    if (Math.random() < 0.3) {
+let s;
+
+if (globalBest && globalBest.schedule && Math.random() < 0.7) {
+  // 🔥 startuj od najlepszego planu
+  s = JSON.parse(JSON.stringify(globalBest.schedule));
+} else {
+  // 🔄 klasyczny start
+  s = construct(shuffled, data);
+}    if (Math.random() < 0.3) {
   s = trySwap(s, data);
 }
 
