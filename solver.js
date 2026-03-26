@@ -710,6 +710,56 @@ if (missing > 0 && missing <= 6) {
   candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
   missing = countMissing(candidate, lessons);
 }
+    // 🔥 FINAL FIX MODE
+if (missing <= 3) {
+  let s2 = JSON.parse(JSON.stringify(candidate));
+
+  // 🔥 usuń tylko problematyczne lekcje
+  const placedIds = new Set();
+
+  for (let cls in s2) {
+    for (let d in s2[cls]) {
+      for (let h in s2[cls][d]) {
+        placedIds.add(s2[cls][d][h].id);
+      }
+    }
+  }
+
+  const missingLessons = lessons.filter(l => !placedIds.has(l.id));
+
+  // 🔥 usuń trochę miejsca wokół nich
+  s2 = randomDestroy(s2, 0.15);
+
+  // 🔥 próbuj je wstawić agresywnie
+  for (let l of missingLessons) {
+    const moved = tryChainMove(s2, l, data, 3);
+
+    if (moved) {
+      const { d, h } = moved;
+
+      const { tBusy, cBusy } = rebuildBusy(s2);
+
+      if (
+        teacherOk(l.teacher, d, h, tBusy, data) &&
+        classesFree(l.classes, d, h, cBusy)
+      ) {
+        for (let c of l.classes) {
+          if (!s2[c]) s2[c] = {};
+          if (!s2[c][d]) s2[c][d] = {};
+          s2[c][d][h] = l;
+        }
+      }
+    }
+  }
+
+  const newMissing = countMissing(s2, lessons);
+
+  if (newMissing < missing) {
+    console.log("🎯 FINAL FIX:", newMissing);
+    candidate = s2;
+    missing = newMissing;
+  }
+}
     if (missing < lastBestMissing) {
   lastBestMissing = missing;
   stagnation = 0;
