@@ -659,9 +659,10 @@ let lastBestMissing = Infinity;
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
 if (
-  (!globalBest || globalBest.missing > 10) && // 🔥 tylko jak naprawdę źle
-  iter % 50 === 0 &&                         // 🔥 rzadziej
-  stagnation > 10                            // 🔥 tylko jak stoi długo
+  stagnation > 10 &&
+  lastBestMissing > 8 &&   // 🔥 tylko gdy naprawdę daleko
+  missing > 8 &&           // 🔥 KLUCZOWE
+  iter % 5 === 0
 )  {
   console.log("🚨 HARD RESET");
 
@@ -710,8 +711,15 @@ if (missing > 0 && missing <= 6) {
   candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
   missing = countMissing(candidate, lessons);
 }
+    const teacherErrors2 = validateTeachers(candidate, data);
+
+if (teacherErrors2.length > 0) {
+  // ❌ cofamy do best bez oszustwa
+  candidate = best;
+  missing = countMissing(candidate, lessons);
+}
     // 🔥 FINAL FIX MODE
-if (missing <= 3) {
+if (missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 
   // 🔥 usuń tylko problematyczne lekcje
@@ -813,8 +821,9 @@ if (
 
     // 🔥 PODMIEŃ jeśli lepsze
     const newMissing = countMissing(improved.best, lessons);
+const teacherErrors = validateTeachers(improved.best, data);
 
-    if (newMissing < globalBest.missing) {
+if (newMissing < globalBest.missing && teacherErrors.length === 0) {
       globalBest = {
         schedule: improved.best,
         missing: newMissing,
