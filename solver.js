@@ -510,6 +510,62 @@ function tryMakeSpace(schedule, lesson, data) {
 
   return null;
 }
+function tryChainMove(schedule, lesson, data, depth = 2) {
+  if (depth <= 0) return false;
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      const { tBusy, cBusy } = rebuildBusy(schedule);
+
+      if (
+        teacherOk(lesson.teacher, d, h, tBusy, data) &&
+        classesFree(lesson.classes, d, h, cBusy)
+      ) {
+        return { d, h };
+      }
+
+      // 🔥 jeśli zajęte — spróbuj przesunąć blokującą lekcję
+      let blocker = null;
+
+      for (let c of lesson.classes) {
+        if (schedule[c]?.[d]?.[h]) {
+          blocker = schedule[c][d][h];
+          break;
+        }
+      }
+
+      if (!blocker) continue;
+
+      const moved = tryChainMove(schedule, blocker, data, depth - 1);
+
+     if (moved) {
+  const { tBusy, cBusy } = rebuildBusy(schedule);
+
+  // 🔒 SPRAWDZENIE — czy można tam legalnie wstawić blocker
+  if (
+    teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
+    classesFree(blocker.classes, moved.d, moved.h, cBusy)
+  ) {
+    // usuń blocker
+    for (let cc of blocker.classes) {
+      delete schedule[cc][d][h];
+    }
+
+    // wstaw blocker gdzie indziej
+    for (let cc of blocker.classes) {
+      if (!schedule[cc][moved.d]) schedule[cc][moved.d] = {};
+      schedule[cc][moved.d][moved.h] = blocker;
+    }
+
+    return { d, h };
+  }
+}
+    }
+  }
+
+  return false;
+}
 // ===== REPAIR MISSING =====
 function repairMissing(schedule, lessons, data) {
   const map = new Set();
@@ -539,7 +595,11 @@ function repairMissing(schedule, lessons, data) {
     }
 
 if (!free) {
-  const moved = tryMakeSpace(schedule, l, data);
+  let moved = tryMakeSpace(schedule, l, data);
+
+  if (!moved) {
+    moved = tryChainMove(schedule, l, data);
+  }
 
  if (moved) {
   const { d: nd, h: nh } = moved;
