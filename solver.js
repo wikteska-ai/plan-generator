@@ -717,7 +717,7 @@ if (teacherErrors2.length > 0) {
   missing = countMissing(candidate, lessons);
 }
     // 🔥 FINAL FIX MODE
-if (missing <= 12) {
+if (missing <= 7) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 
   // 🔥 usuń tylko problematyczne lekcje
