@@ -679,7 +679,7 @@ lessons = getLessons(data);
 const shuffled = [...lessons].sort(() => Math.random() - 0.5);
     let s;
 
-if (globalBest && globalBest.schedule && Math.random() < 0.3) {
+if (globalBest && globalBest.schedule && Math.random() < 0.5) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
 
   // 🔥 KLUCZ — rozwal go lekko
@@ -717,7 +717,7 @@ if (teacherErrors2.length > 0) {
   missing = countMissing(candidate, lessons);
 }
     // 🔥 FINAL FIX MODE
-if (missing <= 7) {
+if (missing > 0 && missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 
   // 🔥 usuń tylko problematyczne lekcje
@@ -786,9 +786,9 @@ if (
 
   console.log("🔥 BEST:", "missing:", missing, "score:", bestScore);
 }
-    if (globalBest && globalBest.missing === 0 && missing > 0) {
-      stagnation = 0; // 🔥 nie licz stagnacji przy idealnym planie
-  continue; // ❗ nie psuj idealnego planu
+    if (globalBest && globalBest.missing <= 1 && missing > globalBest.missing) {
+  candidate = globalBest.schedule;
+  missing = globalBest.missing;
 }
 
    saveProgress({
@@ -799,7 +799,7 @@ if (
 
 if (
   stagnation > 10 &&
-  lastBestMissing > 5 &&
+  lastBestMissing > 0 &&
   iter % 5 === 0
 ) {
   console.log("🧪 SOFT RESET");
