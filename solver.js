@@ -134,7 +134,7 @@ function construct(lessons, data) {
 
         if (l.group) score += 5;
 
-        if (score > bestScore || Math.random() < 0.25) {
+        if (score > bestScore || Math.random() < 0.6) {
   bestScore = score;
   best = { d, h };
 }
@@ -701,7 +701,7 @@ if (globalBest && globalBest.schedule && Math.random() < 0.3) {
 }
 
 // 🔥 co kilka iteracji rozwal trochę plan
-if (iter % 3 === 0) {
+if (iter % 2 === 0) {
   let strength = 0.3;
 
   if (globalBest && globalBest.missing < 15) strength = 0.2;
