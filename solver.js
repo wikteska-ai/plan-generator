@@ -390,6 +390,9 @@ if (Math.random() < 0.7) {
 }  if (Math.random() < 0.3) {
   next = trySwap(next, data);
 }
+  if (Math.random() < 0.2) {
+  next = randomDestroy(next, 0.1);
+}
 let rebuilt, tBusy, cBusy;
 
     // TARGETED REPAIR
@@ -451,15 +454,14 @@ cBusy = rebuilt.cBusy;
     const before = countLessons(current);
     const after = countLessons(next);
 
-    if (after < before) continue;
-
+if (after < before && Math.random() > 0.3) continue;
     let sc = score(next);
     const isGood = currentScore > -2000;
 
     if (
       sc > currentScore ||
-      (Math.random() < (isGood ? 0.05 : 0.15))
-    ) {
+(Math.random() < (isGood ? 0.1 : 0.25))
+     {
       current = next;
       currentScore = sc;
 
