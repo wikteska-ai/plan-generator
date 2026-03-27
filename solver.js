@@ -798,37 +798,36 @@ if (
 });
 
 if (
-  stagnation > 10 && lastBestMissing > 0 && iter % 5 === 0
+  stagnation > 10 &&
+  lastBestMissing > 0 &&
+  iter % 5 === 0
 ) {
-  console.log("💥 RESET — stagnacja");
+  console.log("🧪 SOFT RESET");
 
-  lessons.sort(() => Math.random() - 0.5);
-
-  // 🔥 TRYB PANIKI
   if (globalBest && globalBest.schedule) {
     let s = JSON.parse(JSON.stringify(globalBest.schedule));
 
-    // 🔥 MOCNE ROZWALENIE
-    s = randomDestroy(s, 0.5);
+    // 🔥 LEKKIE ROZWALENIE (nie 50%!)
+    let strength = 0.3;
 
-    // 🔥 AGRESYWNA NAPRAWA
+    if (globalBest.missing < 15) strength = 0.2;
+    if (globalBest.missing < 8) strength = 0.1;
+
+    s = randomDestroy(s, strength);
+
+    // 🔥 napraw
     s = repairMissing(s, lessons, data);
 
-    // 🔥 JESZCZE IMPROVE
-    const improved = improve(s, data, 3000);
+    const newMissing = countMissing(s, lessons);
 
-    // 🔥 PODMIEŃ jeśli lepsze
-    const newMissing = countMissing(improved.best, lessons);
-const teacherErrors = validateTeachers(improved.best, data);
-
-if (newMissing < globalBest.missing && teacherErrors.length === 0) {
+    if (newMissing < globalBest.missing) {
       globalBest = {
-        schedule: improved.best,
+        schedule: s,
         missing: newMissing,
-        score: improved.bestScore
+        score: score(s)
       };
 
-      console.log("🔥 PANIC IMPROVE:", newMissing);
+      console.log("🧪 SOFT IMPROVE:", newMissing);
     }
   }
 
