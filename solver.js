@@ -513,7 +513,9 @@ if (
 
   return null;
 }
-function tryChainMove(schedule, lesson, data, depth = 2) {
+function tryChainMove(schedule, lesson, data, depth = 2, visited = new Set()) {
+  if (visited.has(lesson.id)) return false;
+visited.add(lesson.id);
   if (depth <= 0) return false;
 
   for (let d of DAYS) {
@@ -540,8 +542,7 @@ function tryChainMove(schedule, lesson, data, depth = 2) {
 
       if (!blocker) continue;
 
-      const moved = tryChainMove(schedule, blocker, data, depth - 1);
-
+const moved = tryChainMove(schedule, blocker, data, depth - 1, visited);
      if (moved) {
   const { tBusy, cBusy } = rebuildBusy(schedule);
 
