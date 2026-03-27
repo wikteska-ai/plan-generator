@@ -673,20 +673,17 @@ if (
 )  {
   console.log("🚨 HARD RESET");
 
-  lessons = getLessons(data).sort(() => Math.random() - 0.5);
-
+lessons = getLessons(data);
   stagnation = 0;
   lastBestMissing = Infinity;
 
   continue;
 }
     // 🔥 KROK 11 — restart bias
-  if (iter % 5 === 0) {
-    lessons.sort(() => Math.random() - 0.5);
-  }
 
-const shuffled = [...lessons];
-let s;
+
+const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+    let s;
 
 if (globalBest && globalBest.schedule && Math.random() < 0.3) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
