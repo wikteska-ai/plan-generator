@@ -381,8 +381,13 @@ function improve(s, data, ms) {
   const start = Date.now();
 
 while (Date.now() - start < ms) {
-  let next = JSON.parse(JSON.stringify(current));
-  if (Math.random() < 0.3) {
+let next;
+
+if (Math.random() < 0.7) {
+  next = JSON.parse(JSON.stringify(current));
+} else {
+  next = current; // 🔥 reuse
+}  if (Math.random() < 0.3) {
   next = trySwap(next, data);
 }
 let rebuilt, tBusy, cBusy;
