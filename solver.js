@@ -799,7 +799,7 @@ if (
 
 if (
   stagnation > 10 &&
-  lastBestMissing > 0 &&
+  lastBestMissing > 5 &&
   iter % 5 === 0
 ) {
   console.log("🧪 SOFT RESET");
