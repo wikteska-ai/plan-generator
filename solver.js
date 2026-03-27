@@ -658,6 +658,10 @@ let lastBestMissing = Infinity;
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
+   if (iter % 20 === 0) {
+  console.log("🌪️ FULL RANDOM RESTART");
+  globalBest = null;
+} 
 if (
   stagnation > 30 &&
   lastBestMissing > 8 &&
@@ -681,11 +685,11 @@ if (
 const shuffled = [...lessons];
 let s;
 
-if (globalBest && globalBest.schedule && Math.random() < 0.7) {
+if (globalBest && globalBest.schedule && Math.random() < 0.3) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
 
   // 🔥 KLUCZ — rozwal go lekko
-  s = randomDestroy(s, 0.25);
+  s = randomDestroy(s, 0.5);
 
 } else {
   s = construct(shuffled, data);
