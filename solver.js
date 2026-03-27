@@ -486,10 +486,13 @@ function tryMakeSpace(schedule, lesson, data) {
 
           const { tBusy, cBusy } = rebuildBusy(schedule);
 
-          if (
-            teacherOk(existing.teacher, d2, h2, tBusy, data) &&
-            classesFree(existing.classes, d2, h2, cBusy) && data.teachers.find(t => t.id === existing.teacher)?.availability.includes(d2 + "_" + h2)
-          ) {
+          const teacher = data.teachers.find(t => t.id === existing.teacher);
+
+if (
+  teacherOk(existing.teacher, d2, h2, tBusy, data) &&
+  classesFree(existing.classes, d2, h2, cBusy) &&
+  teacher?.availability.includes(d2 + "_" + h2)
+) {
             // usuń starą
             for (let cc of existing.classes) {
               delete schedule[cc][d][h];
@@ -544,6 +547,8 @@ function tryChainMove(schedule, lesson, data, depth = 2) {
 
   // 🔒 SPRAWDZENIE — czy można tam legalnie wstawić blocker
   const teacher = data.teachers.find(t => t.id === blocker.teacher);
+
+const teacher = data.teachers.find(t => t.id === blocker.teacher);
 
 if (
   teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
@@ -625,7 +630,7 @@ if (!free) {
   continue;
 }
     // ✅ NOWE
-   const { tBusy, cBusy } = rebuildBusy(schedule);
+const { tBusy, cBusy } = rebuildBusy(schedule);
 
 if (
   !teacherOk(l.teacher, d, h, tBusy, data) ||
@@ -689,7 +694,7 @@ if (globalBest && globalBest.schedule && Math.random() < 0.5) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
 
   // 🔥 KLUCZ — rozwal go lekko
-  s = randomDestroy(s, 0.5);
+  s = randomDestroy(s, 0.2);
 
 } else {
   s = construct(shuffled, data);
@@ -698,14 +703,14 @@ if (globalBest && globalBest.schedule && Math.random() < 0.5) {
 }
 
 // 🔥 co kilka iteracji rozwal trochę plan
-if (iter % 2 === 0) {
+if (iter % 5 === 0) {
   let strength = 0.3;
 
   if (globalBest && globalBest.missing < 15) strength = 0.2;
   if (globalBest && globalBest.missing < 8) strength = 0.1;
 
   s = randomDestroy(s, strength);
-}   const { best, bestScore } = improve(s, data, 5000);
+}   const { best, bestScore } = improve(s, data, 8000);
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
@@ -715,12 +720,22 @@ if (missing > 0 && missing <= 6) {
   candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
   missing = countMissing(candidate, lessons);
 }
+    // 🔥 FIX 4 — DOŁÓŻ IMPROVE NA KOŃCU
+if (missing <= 10) {
+  const improved = improve(candidate, data, 3000);
+  candidate = improved.best;
+  missing = countMissing(candidate, lessons);
+}
     const teacherErrors2 = validateTeachers(candidate, data);
 
 if (teacherErrors2.length > 0) {
-  // ❌ cofamy do best bez oszustwa
-  candidate = best;
-  missing = countMissing(candidate, lessons);
+  // ❌ ODRZUĆ NIELEGALNY PLAN
+  if (globalBest) {
+    candidate = JSON.parse(JSON.stringify(globalBest.schedule));
+    missing = globalBest.missing;
+  }
+
+  continue; // 🚫 nie idziemy dalej z tym kandydatem
 }
     // 🔥 FINAL FIX MODE
 if (missing > 0 && missing <= 5) {
