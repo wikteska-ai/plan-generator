@@ -488,7 +488,7 @@ function tryMakeSpace(schedule, lesson, data) {
 
           if (
             teacherOk(existing.teacher, d2, h2, tBusy, data) &&
-            classesFree(existing.classes, d2, h2, cBusy)
+            classesFree(existing.classes, d2, h2, cBusy) && data.teachers.find(t => t.id === existing.teacher)?.availability.includes(d2 + "_" + h2)
           ) {
             // usuń starą
             for (let cc of existing.classes) {
@@ -543,10 +543,13 @@ function tryChainMove(schedule, lesson, data, depth = 2) {
   const { tBusy, cBusy } = rebuildBusy(schedule);
 
   // 🔒 SPRAWDZENIE — czy można tam legalnie wstawić blocker
-  if (
-    teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
-    classesFree(blocker.classes, moved.d, moved.h, cBusy)
-  ) {
+  const teacher = data.teachers.find(t => t.id === blocker.teacher);
+
+if (
+  teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
+  classesFree(blocker.classes, moved.d, moved.h, cBusy) &&
+  teacher?.availability.includes(moved.d + "_" + moved.h)
+) {
     // usuń blocker
     for (let cc of blocker.classes) {
       delete schedule[cc][d][h];
@@ -622,9 +625,12 @@ if (!free) {
   continue;
 }
     // ✅ NOWE
-    const { tBusy } = rebuildBusy(schedule);
+   const { tBusy, cBusy } = rebuildBusy(schedule);
 
-    if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
+if (
+  !teacherOk(l.teacher, d, h, tBusy, data) ||
+  !classesFree(l.classes, d, h, cBusy)
+) continue;
         
 
         for (let c of l.classes) {
