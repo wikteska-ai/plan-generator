@@ -382,6 +382,9 @@ function improve(s, data, ms) {
 
 while (Date.now() - start < ms) {
   let next = JSON.parse(JSON.stringify(current));
+  if (Math.random() < 0.3) {
+  next = trySwap(next, data);
+}
 let rebuilt, tBusy, cBusy;
 
     // TARGETED REPAIR
@@ -513,7 +516,7 @@ if (
 
   return null;
 }
-function tryChainMove(schedule, lesson, data, depth = 2, visited = new Set()) {
+function tryChainMove(schedule, lesson, data, depth = 3, visited = new Set()) {
   if (visited.has(lesson.id)) return false;
 visited.add(lesson.id);
   if (depth <= 0) return false;
@@ -550,9 +553,8 @@ const moved = tryChainMove(schedule, blocker, data, depth - 1, visited);
   const teacher = data.teachers.find(t => t.id === blocker.teacher);
 
 if (
-  teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
-  classesFree(blocker.classes, moved.d, moved.h, cBusy) &&
-  teacher?.availability.includes(moved.d + "_" + moved.h)
+ teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
+  classesFree(blocker.classes, moved.d, moved.h, cBusy)
 ) {
     // usuń blocker
     for (let cc of blocker.classes) {
@@ -686,8 +688,11 @@ lessons = getLessons(data);
     // 🔥 KROK 11 — restart bias
 
 
-const shuffled = [...lessons].sort(() => Math.random() - 0.5);
-    let s;
+const shuffled = [...lessons];
+
+if (Math.random() < 0.3) {
+  shuffled.sort(() => Math.random() - 0.5);
+}    let s;
 
 if (globalBest && globalBest.schedule && Math.random() < 0.5) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
