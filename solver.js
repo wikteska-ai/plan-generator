@@ -661,7 +661,6 @@ let lastBestMissing = Infinity;
 if (
   stagnation > 10 &&
   lastBestMissing > 8 &&   // 🔥 tylko gdy naprawdę daleko
-  missing > 8 &&           // 🔥 KLUCZOWE
   iter % 5 === 0
 )  {
   console.log("🚨 HARD RESET");
