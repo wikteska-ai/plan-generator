@@ -659,9 +659,10 @@ let lastBestMissing = Infinity;
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
 if (
-  stagnation > 10 &&
-  lastBestMissing > 8 &&   // 🔥 tylko gdy naprawdę daleko
-  iter % 5 === 0
+  stagnation > 30 &&
+  lastBestMissing > 8 &&
+  iter % 10 === 0 &&
+  Date.now() - start > 60000
 )  {
   console.log("🚨 HARD RESET");
 
