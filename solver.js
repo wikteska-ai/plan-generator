@@ -548,8 +548,6 @@ function tryChainMove(schedule, lesson, data, depth = 2) {
   // 🔒 SPRAWDZENIE — czy można tam legalnie wstawić blocker
   const teacher = data.teachers.find(t => t.id === blocker.teacher);
 
-const teacher = data.teachers.find(t => t.id === blocker.teacher);
-
 if (
   teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
   classesFree(blocker.classes, moved.d, moved.h, cBusy) &&
@@ -729,13 +727,7 @@ if (missing <= 10) {
     const teacherErrors2 = validateTeachers(candidate, data);
 
 if (teacherErrors2.length > 0) {
-  // ❌ ODRZUĆ NIELEGALNY PLAN
-  if (globalBest) {
-    candidate = JSON.parse(JSON.stringify(globalBest.schedule));
-    missing = globalBest.missing;
-  }
-
-  continue; // 🚫 nie idziemy dalej z tym kandydatem
+  continue;
 }
     // 🔥 FINAL FIX MODE
 if (missing > 0 && missing <= 5) {
@@ -807,9 +799,8 @@ if (
 
   console.log("🔥 BEST:", "missing:", missing, "score:", bestScore);
 }
-    if (globalBest && globalBest.missing <= 1 && missing > globalBest.missing) {
-  candidate = globalBest.schedule;
-  missing = globalBest.missing;
+   if (globalBest && globalBest.missing <= 1 && missing > globalBest.missing) {
+  continue;
 }
 
    saveProgress({
