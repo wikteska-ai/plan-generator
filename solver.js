@@ -658,13 +658,7 @@ let lastBestMissing = Infinity;
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
- if (
-  iter % 20 === 0 &&
-  (!globalBest || globalBest.missing > 10)
-) {
-  console.log("🌪️ FULL RANDOM RESTART");
-  globalBest = null;
-}
+
 if (
   stagnation > 30 &&
   lastBestMissing > 8 &&
@@ -723,7 +717,7 @@ if (teacherErrors2.length > 0) {
   missing = countMissing(candidate, lessons);
 }
     // 🔥 FINAL FIX MODE
-if (missing <= 8) {
+if (missing <= 12) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 
   // 🔥 usuń tylko problematyczne lekcje
