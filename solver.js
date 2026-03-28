@@ -792,7 +792,9 @@ let candidate = best;
 let missing = countMissing(candidate, lessons);
     console.log("📊 MISSING BEFORE FIX:", missing);
     // 🔥 FIX 4 — TUTAJ
-if (
+if (missing <= 3) {
+  console.log("🚀 FORCE CONTINUE LOW MISSING:", missing);
+} else if (
   globalBest &&
   missing > globalBest.missing &&
   Math.random() > 0.3
