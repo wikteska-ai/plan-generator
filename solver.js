@@ -121,7 +121,7 @@ function construct(lessons, data) {
   let queue = [...lessons];
 let attempts = 0;
 
-while (queue.length > 0 && attempts < lessons.length * 3) {
+while (queue.length > 0 && attempts < lessons.length * 50) {
   const l = queue.shift();
   attempts++;
     let placedFlag = false;
