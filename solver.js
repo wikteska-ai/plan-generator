@@ -47,11 +47,9 @@ function getLessons(data) {
   let out = [];
 
   Object.values(grouped).forEach((g, i) => {
-    const realHours = g.group
-      ? Math.ceil(g.hours / 2)
-      : g.hours;
+    const real = g.group ? Math.ceil(g.hours / 2) : g.hours;
 
-    for (let h = 0; h < realHours; h++) {
+    for (let h = 0; h < real; h++) {
       out.push({
         id: `${i}_${h}`,
         ...g
@@ -59,7 +57,7 @@ function getLessons(data) {
     }
   });
 
-  // ciasność nauczyciela
+  // ciasność
   out.sort((a, b) => {
     const ta = getTeacher(data, a.teacher);
     const tb = getTeacher(data, b.teacher);
@@ -101,18 +99,79 @@ function place(l, d, h, s, tBusy, cBusy, data) {
 
   if (!teacherOk(l.teacher, d, h, tBusy, data)) return false;
 
+  if (l.block === 2) {
+    if (h >= 8) return false;
+
+    if (
+      !teacherOk(l.teacher, d, h+1, tBusy, data) ||
+      !classesFree(l.classes, d, h+1, cBusy)
+    ) return false;
+  }
+
   for (let c of l.classes) {
     if (!s[c]) s[c] = {};
     if (!s[c][d]) s[c][d] = {};
+
     s[c][d][h] = l;
+  }
+
+  if (l.block === 2) {
+    for (let c of l.classes) {
+      s[c][d][h+1] = l;
+    }
   }
 
   return true;
 }
 
+// ===== SCORE (Twoja estetyka) =====
+function score(s) {
+  let penalty = 0;
+
+  for (let cls in s) {
+    for (let d of DAYS) {
+      const day = s[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hours.length === 0) {
+        penalty += 200;
+        continue;
+      }
+
+      // okienka
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) penalty += 500;
+      }
+
+      const first = Math.min(...hours);
+
+      if (first === 1) penalty -= 40;
+      else penalty += 100;
+
+      if (hours.length < 4) penalty += 50;
+      if (hours.length > 7) penalty += 50;
+
+      // duplikaty ciężkich
+      let subjects = {};
+
+      hours.forEach(h => {
+        const sub = day[h]?.subject;
+        subjects[sub] = (subjects[sub] || 0) + 1;
+      });
+
+      for (let sub in subjects) {
+        if (["matematyka","j.polski","j.angielski"].includes(sub)) {
+          if (subjects[sub] > 1) penalty += 80;
+        }
+      }
+    }
+  }
+
+  return -penalty;
+}
+
 // ===== FORCE =====
 function forcePlace(l, schedule, data) {
-
   for (let d of DAYS) {
     for (let h of HOURS) {
 
@@ -158,73 +217,11 @@ function forcePlace(l, schedule, data) {
   return false;
 }
 
-// ===== CHAIN =====
-function tryChainMove(schedule, lesson, data, depth = 6, visited = new Set()) {
-  if (visited.has(lesson.id) || depth <= 0) return false;
-  visited.add(lesson.id);
-
-  for (let d of DAYS) {
-    for (let h of HOURS) {
-
-      const { tBusy, cBusy } = rebuildBusy(schedule);
-
-      if (
-        teacherOk(lesson.teacher, d, h, tBusy, data) &&
-        classesFree(lesson.classes, d, h, cBusy)
-      ) {
-        return { d, h };
-      }
-
-      let blocker = null;
-
-      for (let c of lesson.classes) {
-        if (schedule[c]?.[d]?.[h]) {
-          blocker = schedule[c][d][h];
-          break;
-        }
-      }
-
-      if (!blocker) continue;
-
-      const moved = tryChainMove(schedule, blocker, data, depth-1, visited);
-
-      if (moved) {
-
-        if (!teacherAvailableRaw(blocker.teacher, moved.d, moved.h, data)) {
-          continue;
-        }
-
-        const { tBusy, cBusy } = rebuildBusy(schedule);
-
-        if (
-          !teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) ||
-          !classesFree(blocker.classes, moved.d, moved.h, cBusy)
-        ) continue;
-
-        for (let cc of blocker.classes) {
-          delete schedule[cc][d][h];
-        }
-
-        for (let cc of blocker.classes) {
-          if (!schedule[cc][moved.d]) schedule[cc][moved.d] = {};
-          schedule[cc][moved.d][moved.h] = blocker;
-        }
-
-        return { d, h };
-      }
-    }
-  }
-
-  return false;
-}
-
 // ===== CONSTRUCT =====
 function construct(lessons, data) {
-
   let s = {};
 
   for (let l of lessons) {
-
     let { tBusy, cBusy } = rebuildBusy(s);
     let placed = false;
 
@@ -234,27 +231,16 @@ function construct(lessons, data) {
           teacherOk(l.teacher, d, h, tBusy, data) &&
           classesFree(l.classes, d, h, cBusy)
         ) {
-          place(l, d, h, s, tBusy, cBusy, data);
-          placed = true;
-          break;
+          if (place(l, d, h, s, tBusy, cBusy, data)) {
+            placed = true;
+            break;
+          }
         }
       }
       if (placed) break;
     }
 
     if (!placed && forcePlace(l, s, data)) placed = true;
-
-    if (!placed) {
-      const moved = tryChainMove(s, l, data, 8);
-      if (moved) {
-        for (let c of l.classes) {
-          if (!s[c]) s[c] = {};
-          if (!s[c][moved.d]) s[c][moved.d] = {};
-          s[c][moved.d][moved.h] = l;
-        }
-        placed = true;
-      }
-    }
 
     if (!placed) {
       console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
@@ -264,10 +250,39 @@ function construct(lessons, data) {
   return s;
 }
 
+// ===== COUNT HOURS =====
+function countMissing(schedule, lessons) {
+  let placed = 0;
+  let required = 0;
+
+  for (let l of lessons) {
+    required += l.block === 2 ? 2 : 1;
+  }
+
+  const seen = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+
+        const l = schedule[cls][d][h];
+        const key = l.id + "_" + d;
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        placed += l.block === 2 ? 2 : 1;
+      }
+    }
+  }
+
+  return required - placed;
+}
+
 // ===== VALIDATION =====
 function validateAll(schedule, lessons, data) {
 
-  const errors = [];
+  let ok = true;
 
   // nauczyciele
   for (let cls in schedule) {
@@ -276,30 +291,21 @@ function validateAll(schedule, lessons, data) {
         const l = schedule[cls][d][h];
 
         if (!teacherAvailableRaw(l.teacher, d, h, data)) {
-          errors.push(`❌ NIEZGODNA DYSPOZYCJA: ${l.teacher} ${d}_${h}`);
+          console.log(`❌ NIEZGODNA DYSPOZYCJA: ${l.teacher} ${d}_${h}`);
+          ok = false;
         }
       }
     }
   }
 
-  // missing
-  const set = new Set();
-
-  for (let cls in schedule) {
-    for (let d in schedule[cls]) {
-      for (let h in schedule[cls][d]) {
-        set.add(schedule[cls][d][h].id);
-      }
-    }
+  // godziny
+  const missing = countMissing(schedule, lessons);
+  if (missing > 0) {
+    console.log("❌ NIE WSTAWIONO PRZEDMIOTÓW (godziny):", missing);
+    ok = false;
   }
 
-  for (let l of lessons) {
-    if (!set.has(l.id)) {
-      errors.push(`❌ NIE WSTAWIONO PRZEDMIOTU: ${l.subject} (${l.teacher})`);
-    }
-  }
-
-  return errors;
+  if (ok) console.log("✅ PLAN POPRAWNY");
 }
 
 // ===== MAIN =====
@@ -308,6 +314,7 @@ async function generateSchedule(data) {
   const lessons = getLessons(data);
 
   let best = null;
+  let bestScore = -9999;
   let bestMissing = Infinity;
 
   const start = Date.now();
@@ -316,50 +323,40 @@ async function generateSchedule(data) {
 
     const shuffled = [...lessons].sort(() => Math.random() - 0.5);
 
-    const s = construct(shuffled, data);
+    let s = construct(shuffled, data);
 
     const missing = countMissing(s, lessons);
 
+    let sc = score(s);
+
     console.log("missing:", missing);
 
-    if (missing < bestMissing) {
+    if (
+      missing < bestMissing ||
+      (missing === bestMissing && sc > bestScore)
+    ) {
       best = s;
       bestMissing = missing;
+      bestScore = sc;
     }
 
-    if (missing === 0) break;
+    if (missing === 0 && sc > -1000) break;
+
+    saveProgress({
+      percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
+      missing,
+      score: sc
+    });
   }
 
-  // 🔥 FINAL VALIDATION
-  const errors = validateAll(best, lessons, data);
-
-  if (errors.length) {
-    console.log("🚨 FINAL ERRORS:");
-    errors.forEach(e => console.log(e));
-  } else {
-    console.log("✅ PLAN POPRAWNY");
-  }
+  validateAll(best, lessons, data);
 
   return {
     status: "OK",
     missing: bestMissing,
+    score: bestScore,
     schedule: best
   };
-}
-
-// ===== COUNT =====
-function countMissing(schedule, lessons) {
-  const set = new Set();
-
-  for (let cls in schedule) {
-    for (let d in schedule[cls]) {
-      for (let h in schedule[cls][d]) {
-        set.add(schedule[cls][d][h].id);
-      }
-    }
-  }
-
-  return lessons.length - set.size;
 }
 
 export { generateSchedule };
