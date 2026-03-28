@@ -253,9 +253,16 @@ function generateSchedule(data, runs = 10) {
     console.log("🚀 RUN", i);
 
     const result = solveOnce(data);
-    const sc = score(result.schedule);
+    const isValid = result.placed === result.total;
 
-    console.log("➡️ placed:", result.placed, "score:", sc);
+let sc = null;
+
+if (isValid) {
+  sc = score(result.schedule);
+  console.log("➡️ placed:", result.placed, "score:", sc);
+} else {
+  console.log("⛔ INVALID (missing):", result.total - result.placed);
+}
     // 🔒 WALIDACJA NAUCZYCIELI
 let teacherErrors = [];
 
@@ -300,10 +307,21 @@ if (
         score: sc,
         placed: result.placed
       };
+    console.log("🔥 NEW BEST:", sc);
+
     }
   }
 
-  return best;
+ if (!best) {
+  console.log("🚨 BRAK POPRAWNEGO ROZWIĄZANIA");
+  return {
+    status: "FAIL",
+    schedule: null,
+    score: null
+  };
+}
+
+return best;
 }
 
 export { generateSchedule };
