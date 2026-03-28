@@ -495,6 +495,77 @@ function fixHardGaps(schedule, data) {
 
   return schedule;
 }
+function fixGapsBySwap(schedule, data) {
+
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        const prev = hours[i-1];
+        const curr = hours[i];
+
+        if (curr > prev + 1) {
+          const gapHour = prev + 1;
+
+          const lessonA = schedule[cls][d][curr];
+
+          for (let cls2 in schedule) {
+            for (let d2 in schedule[cls2]) {
+              for (let h2 in schedule[cls2][d2]) {
+
+                const h2num = Number(h2);
+                const lessonB = schedule[cls2][d2][h2num];
+
+                if (lessonA === lessonB) continue;
+
+                // 🔥 symulacja
+                const tempSchedule = JSON.parse(JSON.stringify(schedule));
+
+                // wykonaj swap na kopii
+                tempSchedule[cls][d][curr] = lessonB;
+                tempSchedule[cls2][d2][h2num] = lessonA;
+
+                // 🔥 odbuduj state
+                const state = buildStateFromSchedule(tempSchedule);
+
+                // 🔒 SPRAWDZENIE GLOBALNE
+                let ok = true;
+
+                for (let c in tempSchedule) {
+                  for (let dd in tempSchedule[c]) {
+                    for (let hh in tempSchedule[c][dd]) {
+
+                      const l = tempSchedule[c][dd][hh];
+
+                      if (
+                        !teacherOk(l.teacher, dd, Number(hh), state, data) ||
+                        !classesOk(l.classes, dd, Number(hh), state)
+                      ) {
+                        ok = false;
+                        break;
+                      }
+                    }
+                    if (!ok) break;
+                  }
+                  if (!ok) break;
+                }
+
+                if (ok) {
+                  return tempSchedule; // 🔥 tylko bezpieczny swap
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return schedule;
+}
 function improve(schedule, data, iterations = 1000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
@@ -524,8 +595,13 @@ if (Math.random() < 0.7) {
         bestScore = sc;
       }
     }
-    if (Math.random() < 0.3) {
+  
+    if (Math.random() < 0.4) {
   schedule = fixHardGaps(schedule, data);
+}
+
+if (Math.random() < 0.4) {
+  schedule = fixGapsBySwap(schedule, data);
 }
   }
 
