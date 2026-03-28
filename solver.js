@@ -134,8 +134,6 @@ const shuffledHours = [...HOURS].sort(() => Math.random() - 0.5);
 for (let d of shuffledDays) {
   for (let h of shuffledHours) {
         if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
-        if (!classesFree(l.classes, d, h, cBusy)) continue;
-
         let score = 0;
 
         if (h >= 2 && h <= 6) score += 2;
