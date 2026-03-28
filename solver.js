@@ -141,6 +141,7 @@ const shuffledHours = [...HOURS].sort(() => Math.random() - 0.5);
 for (let d of shuffledDays) {
   for (let h of shuffledHours) {
         if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
+if (!classesFree(l.classes, d, h, cBusy)) continue;
         let score = 0;
 
         if (h >= 2 && h <= 6) score += 2;
@@ -164,15 +165,7 @@ for (let d of shuffledDays) {
    if (best) {
 
   // 🔥 USUŃ wszystko z tego slotu
-  for (let c of l.classes) {
-    if (s[c]?.[best.d]?.[best.h]) {
-      const old = s[c][best.d][best.h];
-
-      for (let cc of old.classes) {
-        delete s[cc][best.d][best.h];
-      }
-    }
-  }
+  
 
   place(l, best.d, best.h, s, tBusy, cBusy, data);
   placedFlag = true;
@@ -185,18 +178,13 @@ for (let d of shuffledDays) {
 outer:
 for (let d of DAYS) {
   for (let h of HOURS) {
-    if (teacherOk(l.teacher, d, h, tBusy, data)) {
+    if (
+  teacherOk(l.teacher, d, h, tBusy, data) &&
+  classesFree(l.classes, d, h, cBusy)
+) {
 
       // 🔥 usuń co tam siedzi
-      for (let c of l.classes) {
-        if (s[c]?.[d]?.[h]) {
-          const old = s[c][d][h];
-
-          for (let cc of old.classes) {
-            delete s[cc][d][h];
-          }
-        }
-      }
+     
 
       place(l, d, h, s, tBusy, cBusy, data);
 placedFlag = true;
