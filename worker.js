@@ -1,5 +1,7 @@
 import IORedis from "ioredis";
+
 import { generateSchedule } from "./solver.js";
+import { Queue } from "bullmq";
 
 console.log("🚀 WORKER START");
 
@@ -38,7 +40,7 @@ const jobKey = `bull:jobs:${jobId}`;
     console.log("✅ DONE JOB", jobId);
 
     // 💾 zapisz wynik
-import { Queue } from "bullmq";
+
 
 const queue = new Queue("jobs", {
   connection
