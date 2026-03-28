@@ -258,13 +258,23 @@ function findGaps(schedule) {
         const curr = hours[i];
 
         if (curr > prev + 1) {
+          const size = curr - prev - 1;
+
           for (let h = prev + 1; h < curr; h++) {
-            gaps.push({ cls, d, h });
+            gaps.push({
+              cls,
+              d,
+              h,
+              size // 🔥 wielkość dziury
+            });
           }
         }
       }
     }
   }
+
+  // 🔥 NAJGORSZE DZIURY NA POCZĄTEK
+  gaps.sort((a, b) => b.size - a.size);
 
   return gaps;
 }
@@ -274,8 +284,7 @@ function tryFixGap(schedule, data) {
 
   if (gaps.length === 0) return null;
 
-  const gap = gaps[Math.floor(Math.random() * gaps.length)];
-
+const gap = gaps[0]; // bierz najgorszą dziurę
   const entries = [];
 
   for (let cls in schedule) {
