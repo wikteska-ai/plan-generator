@@ -696,10 +696,8 @@ for (let c of l.classes) {
 
 const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
 
-if (
-  !teacherOk(l.teacher, d, h, t1, data) ||
-  !classesFree(l.classes, d, h, c1)
-) {
+// 🔥 tylko nauczyciel!
+if (!teacherOk(l.teacher, d, h, t1, data)) {
   continue;
 }
 
@@ -768,10 +766,8 @@ for (let c of l.classes) {
 
 const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
 
-if (
-  !teacherOk(l.teacher, d, h, t1, data) ||
-  !classesFree(l.classes, d, h, c1)
-) {
+// 🔥 tylko nauczyciel!
+if (!teacherOk(l.teacher, d, h, t1, data)) {
   continue;
 }
 
@@ -1068,10 +1064,7 @@ const moved = tryChainMove(s2, l, data, depth);
 
   const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
 
-  if (
-    !teacherOk(l.teacher, d, h, t1, data) ||
-    !classesFree(l.classes, d, h, c1)
-  ) continue;
+  if (!teacherOk(l.teacher, d, h, t1, data)) continue;
 
   // 🔥 2. REALNY PLAN
   const { tBusy: t2, cBusy: c2 } = rebuildBusy(s2);
