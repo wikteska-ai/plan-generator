@@ -924,16 +924,17 @@ if (!valid) continue;
         }
       }
     }
-  }
-}
-
-  const newMissing = countMissing(s2, lessons);
+    const newMissing = countMissing(s2, lessons);
 
   if (newMissing < missing) {
     console.log("💥 FINAL PUSH:", newMissing);
     candidate = s2;
     missing = newMissing;
   }
+  }
+}
+
+
 }
     // 🔥 FINAL FIX MODE
 if (missing > 3 && missing <= 5) {
