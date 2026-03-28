@@ -798,7 +798,13 @@ let missing = countMissing(candidate, lessons);
 console.log("🧠 ORIGINAL:", originalMissing, "NOW:", missing);
     // 🔥 FIX 4 — TUTAJ
 if (missing <= 3) {
-  console.log("🚀 FORCE CONTINUE LOW MISSING:", missing);
+  console.log("🧊 FREEZE MODE:", missing);
+
+  // 🔥 NIE RÓB DESTROY ANI SWAP
+} else {
+  if (Math.random() < 0.3) {
+    s = trySwap(s, data);
+  }
 } else if (
   globalBest &&
   missing > globalBest.missing &&
@@ -857,26 +863,35 @@ console.log("💣 ENTER FINAL PUSH:", missing);
   for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
 s2 = destroyAroundLesson(s2, l);
 
-if (Math.random() < 0.5) {
-  s2 = randomDestroy(s2, 0.1);
-}  }
+// 🔥 tylko czasami rozwal
+if (Math.random() < 0.2) {
+  s2 = randomDestroy(s2, 0.05);
+} }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
 for (let pass = 0; pass < 3; pass++) {
 
-  const shuffled = missingLessons.sort(() => Math.random() - 0.5);
+const shuffled = missingLessons.sort((a, b) => {
+  const ta = data.teachers.find(t => t.id === a.teacher);
+  const tb = data.teachers.find(t => t.id === b.teacher);
 
+  return (ta?.availability.length || 0) - (tb?.availability.length || 0);
+});
   for (let l of shuffled) {
 
-  const shuffled = missingLessons.sort(() => Math.random() - 0.5);
+const shuffled = missingLessons.sort((a, b) => {
+  const ta = data.teachers.find(t => t.id === a.teacher);
+  const tb = data.teachers.find(t => t.id === b.teacher);
 
+  return (ta?.availability.length || 0) - (tb?.availability.length || 0);
+});
   for (let l of shuffled) {
 
     let moved = null;
 
-    for (let attempt = 0; attempt < 5; attempt++) {
+for (let attempt = 0; attempt < 2; attempt++) {
       console.log("🎯 TRY FINAL:", l.subject, l.teacher);
-      moved = tryChainMove(s2, l, data, 12, new Set());
+moved = tryChainMove(s2, l, data, 6, new Set());
       if (moved) break;
     }
 
