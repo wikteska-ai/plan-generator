@@ -685,12 +685,40 @@ if (
 ) continue;
         
 
-        for (let c of l.classes) {
-          if (!schedule[c]) schedule[c] = {};
-          if (!schedule[c][d]) schedule[c][d] = {};
-          schedule[c][d][h] = l;
-        }
+       // 🔥 SYMULACJA
+const temp = JSON.parse(JSON.stringify(schedule));
 
+for (let c of l.classes) {
+  if (!temp[c]) temp[c] = {};
+  if (!temp[c][d]) temp[c][d] = {};
+  temp[c][d][h] = l;
+}
+
+const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
+
+if (
+  !teacherOk(l.teacher, d, h, t1, data) ||
+  !classesFree(l.classes, d, h, c1)
+) {
+  continue;
+}
+
+// 🔥 REALNY CHECK
+const { tBusy: t2, cBusy: c2 } = rebuildBusy(schedule);
+
+if (
+  !teacherOk(l.teacher, d, h, t2, data) ||
+  !classesFree(l.classes, d, h, c2)
+) {
+  continue;
+}
+
+// ✅ DOPIERO TERAZ WSTAW
+for (let c of l.classes) {
+  if (!schedule[c]) schedule[c] = {};
+  if (!schedule[c][d]) schedule[c][d] = {};
+  schedule[c][d][h] = l;
+}
         break outer;
       }
     }
@@ -729,11 +757,40 @@ for (let i = 0; i < 3; i++) {
       teacherOk(l.teacher, d, h, tBusy, data) &&
       classesFree(l.classes, d, h, cBusy)
     ) {
-      for (let c of l.classes) {
-        if (!schedule[c]) schedule[c] = {};
-        if (!schedule[c][d]) schedule[c][d] = {};
-        schedule[c][d][h] = l;
-      }
+     // 🔥 SYMULACJA
+const temp = JSON.parse(JSON.stringify(schedule));
+
+for (let c of l.classes) {
+  if (!temp[c]) temp[c] = {};
+  if (!temp[c][d]) temp[c][d] = {};
+  temp[c][d][h] = l;
+}
+
+const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
+
+if (
+  !teacherOk(l.teacher, d, h, t1, data) ||
+  !classesFree(l.classes, d, h, c1)
+) {
+  continue;
+}
+
+// 🔥 REALNY CHECK
+const { tBusy: t2, cBusy: c2 } = rebuildBusy(schedule);
+
+if (
+  !teacherOk(l.teacher, d, h, t2, data) ||
+  !classesFree(l.classes, d, h, c2)
+) {
+  continue;
+}
+
+// ✅ DOPIERO TERAZ WSTAW
+for (let c of l.classes) {
+  if (!schedule[c]) schedule[c] = {};
+  if (!schedule[c][d]) schedule[c][d] = {};
+  schedule[c][d][h] = l;
+}
     }
   }
 }
