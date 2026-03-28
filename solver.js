@@ -1124,9 +1124,6 @@ const moved = tryChainMove(s2, l, data, depth);
 if (teacherErrors2.length > 0) {
   console.log("⚠️ INVALID AFTER FIX — revert");
 
-  candidate = best;
-  missing = countMissing(candidate, lessons);
-
 } else {
   // OK
 }
