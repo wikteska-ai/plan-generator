@@ -244,6 +244,78 @@ function score(schedule) {
 
   return -penalty;
 }
+// ===== GAP DETECTION =====
+function findGaps(schedule) {
+  const gaps = [];
+
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        const prev = hours[i-1];
+        const curr = hours[i];
+
+        if (curr > prev + 1) {
+          for (let h = prev + 1; h < curr; h++) {
+            gaps.push({ cls, d, h });
+          }
+        }
+      }
+    }
+  }
+
+  return gaps;
+}
+// ===== GAP FIX =====
+function tryFixGap(schedule, data) {
+  const gaps = findGaps(schedule);
+
+  if (gaps.length === 0) return null;
+
+  const gap = gaps[Math.floor(Math.random() * gaps.length)];
+
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+      }
+    }
+  }
+
+  const candidate = entries[Math.floor(Math.random() * entries.length)];
+
+  if (!candidate.lesson) return null;
+
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
+  const { teacherBusy, classBusy } = rebuildBusy(newSchedule);
+
+  // usuń starą lekcję
+  for (let c of candidate.lesson.classes) {
+    delete newSchedule[c][candidate.d][candidate.h];
+    delete classBusy[c + "_" + candidate.d + "_" + candidate.h];
+  }
+
+  delete teacherBusy[candidate.lesson.teacher + "_" + candidate.d + "_" + candidate.h];
+
+  // sprawdź czy można wstawić w gap
+  const canPlace =
+    teacherOk(candidate.lesson.teacher, gap.d, gap.h, { teacherBusy, classBusy }, data) &&
+    classesOk(candidate.lesson.classes, gap.d, gap.h, { classBusy });
+
+  if (!canPlace) return null;
+
+  // wstaw w gap
+  for (let c of candidate.lesson.classes) {
+    if (!newSchedule[c][gap.d]) newSchedule[c][gap.d] = {};
+    newSchedule[c][gap.d][gap.h] = candidate.lesson;
+  }
+
+  return newSchedule;
+}
 function rebuildBusy(schedule) {
   const teacherBusy = {};
   const classBusy = {};
@@ -324,6 +396,7 @@ function trySwap(schedule, data) {
 
   return newSchedule;
 }
+
 function improve(schedule, data, iterations = 1000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
@@ -332,8 +405,14 @@ function improve(schedule, data, iterations = 1000) {
   let currentScore = bestScore;
 
   for (let i = 0; i < iterations; i++) {
-    const next = trySwap(current, data);
+let next;
 
+// 🎯 najpierw próbujemy naprawić dziurę
+if (Math.random() < 0.7) {
+  next = tryFixGap(current, data);
+} else {
+  next = trySwap(current, data);
+}
     if (!next) continue;
 
     const sc = score(next);
