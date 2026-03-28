@@ -258,11 +258,11 @@ function generateSchedule(data, runs = 10) {
     // 🔒 WALIDACJA NAUCZYCIELI
 let teacherErrors = [];
 
-for (let cls in state.schedule) {
-  for (let d in state.schedule[cls]) {
-    for (let h in state.schedule[cls][d]) {
+for (let cls in result.schedule) {
+  for (let d in result.schedule[cls]) {
+    for (let h in result.schedule[cls][d]) {
 
-      const lesson = state.schedule[cls][d][h];
+      const lesson = result.schedule[cls][d][h];
       const teacher = data.teachers.find(t => t.id === lesson.teacher);
 
       if (!teacher) {
