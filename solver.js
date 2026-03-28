@@ -296,10 +296,7 @@ if (teacherErrors.length === 0) {
   teacherErrors.forEach(e => console.log(e));
 }
 
-if (
-  isValid &&
-  (!best || sc > best.score)
-) {
+if (isValid && sc !== null && (!best || sc > best.score)) {
       best = {
         schedule: result.schedule,
         score: sc,
