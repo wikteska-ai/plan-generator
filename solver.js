@@ -934,7 +934,7 @@ if (!valid) continue;
     candidate = s2;
     missing = newMissing;
   }
-}}
+}
     // 🔥 FINAL FIX MODE
 if (missing > 3 && missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
