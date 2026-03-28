@@ -255,6 +255,38 @@ function generateSchedule(data, runs = 10) {
     const sc = score(result.schedule);
 
     console.log("➡️ placed:", result.placed, "score:", sc);
+    // 🔒 WALIDACJA NAUCZYCIELI
+let teacherErrors = [];
+
+for (let cls in state.schedule) {
+  for (let d in state.schedule[cls]) {
+    for (let h in state.schedule[cls][d]) {
+
+      const lesson = state.schedule[cls][d][h];
+      const teacher = data.teachers.find(t => t.id === lesson.teacher);
+
+      if (!teacher) {
+        teacherErrors.push(`💀 NIEZNANY NAUCZYCIEL ${lesson.teacher}`);
+        continue;
+      }
+
+      const key = d + "_" + h;
+
+      if (!teacher.availability.includes(key)) {
+        teacherErrors.push(
+          `❌ ${lesson.teacher} brak dostępności ${key}`
+        );
+      }
+    }
+  }
+}
+
+if (teacherErrors.length === 0) {
+  console.log("✅ TEACHERS OK");
+} else {
+  console.log("🚨 BŁĘDY NAUCZYCIELI:");
+  teacherErrors.forEach(e => console.log(e));
+}
 
     if (!best || sc > best.score) {
       best = {
