@@ -763,7 +763,21 @@ if (iter % 5 === 0) {
   if (globalBest && globalBest.missing < 8) strength = 0.1;
 
   s = randomDestroy(s, strength);
-}   const { best, bestScore } = improve(s, data, 8000);
+}   let { best, bestScore } = improve(s, data, 8000);
+    // 🔥 AUTOMATYCZNY SOFT IMPROVE gdy dużo missing
+if (countMissing(best, lessons) > 20) {
+  let s2 = JSON.parse(JSON.stringify(best));
+
+  s2 = randomDestroy(s2, 0.25);
+  s2 = repairMissing(s2, lessons, data);
+
+  const newMissing = countMissing(s2, lessons);
+
+  if (newMissing < countMissing(best, lessons)) {
+    console.log("⚡ AUTO SOFT:", newMissing);
+    best = s2;
+  }
+}
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
@@ -773,7 +787,7 @@ if (globalBest && missing > globalBest.missing) {
 }
 
 // 🔥 KOŃCÓWKA — repair
-if (missing > 0 && missing <= 6) {
+if (missing > 0 && missing <= 20) {
   candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
   missing = countMissing(candidate, lessons);
 }
@@ -875,9 +889,8 @@ if (
 });
 
 if (
-  stagnation > 30 &&
-  lastBestMissing > 0 &&
-  iter % 5 === 0
+  stagnation > 10 &&
+  lastBestMissing > 0
 ) {
   console.log("🧪 SOFT RESET");
 
@@ -890,14 +903,22 @@ if (
     if (globalBest.missing < 15) strength = 0.2;
     if (globalBest.missing < 8) strength = 0.1;
 
-    s = randomDestroy(s, strength);
+// 🔥 bardziej agresywne niszczenie gdy stuck
+let boost = 0;
 
+if (stagnation > 20) boost = 0.15;
+if (stagnation > 40) boost = 0.25;
+
+s = randomDestroy(s, strength + boost);
     // 🔥 napraw
     s = repairMissing(s, lessons, data);
 
     const newMissing = countMissing(s, lessons);
 
-    if (newMissing < globalBest.missing) {
+    if (
+  newMissing < globalBest.missing ||
+  (newMissing === globalBest.missing && Math.random() < 0.3)
+) {
       globalBest = {
         schedule: s,
         missing: newMissing,
