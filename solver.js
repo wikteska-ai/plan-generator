@@ -233,9 +233,26 @@ function score(schedule) {
       if (hours.length === 0) continue;
 
       for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) {
-          penalty += 20;
-        }
+       if (hours[i] !== hours[i-1] + 1) {
+  const gapSize = hours[i] - hours[i-1] - 1;
+
+  penalty += 40 * gapSize; // 🔥 mocna kara
+}
+        const first = hours[0];
+
+if (first >= 3) penalty += 30; // bardzo źle
+if (first === 2) penalty += 5; // lekka kara
+        if (hours.length < 4) {
+  penalty += (4 - hours.length) * 15;
+}
+        if (
+  hours.length >= 4 &&
+  hours.length <= 7 &&
+  hours.every((h, i) => i === 0 || h === hours[i-1] + 1)
+) {
+  penalty -= 5; // 🔥 nagroda
+}
+        
       }
 
       if (hours.length > 7) penalty += 10;
