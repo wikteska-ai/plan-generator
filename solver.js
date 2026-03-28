@@ -296,8 +296,6 @@ if (teacherErrors.length === 0) {
   teacherErrors.forEach(e => console.log(e));
 }
 
-const isValid = result.placed === result.total;
-
 if (
   isValid &&
   (!best || sc > best.score)
