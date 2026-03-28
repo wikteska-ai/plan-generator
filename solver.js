@@ -78,7 +78,13 @@ function classesFree(classes, d, h, cBusy) {
 }
 
 // ===== PLACE =====
-function place(l, d, h, s, tBusy, cBusy) {
+function place(l, d, h, s, tBusy, cBusy, data) {
+
+  // 🔒 TWARDY CHECK — nauczyciel MUSI być dostępny
+  if (!teacherOk(l.teacher, d, h, tBusy, data)) {
+    throw new Error(`❌ INVALID PLACE ${l.teacher} ${d}_${h}`);
+  }
+
   tBusy[l.teacher + "_" + d + "_" + h] = true;
 
   for (let c of l.classes) {
@@ -154,7 +160,7 @@ function construct(lessons, data) {
             teacherOk(l.teacher, d, h, tBusy, data) &&
             classesFree(l.classes, d, h, cBusy)
           ) {
-            place(l, d, h, s, tBusy, cBusy);
+            place(l, d, h, s, tBusy, cBusy, data);
             placedFlag = true;
             break outer;
           }
@@ -162,52 +168,9 @@ function construct(lessons, data) {
       }
     }
 
-    if (!placedFlag) {
-      // FORCE PLACEMENT
-      outer:
-      for (let d of DAYS) {
-        for (let h of HOURS) {
-
-          let occupied = false;
-
-          for (let c of l.classes) {
-            if (s[c]?.[d]?.[h]) {
-              occupied = true;
-              break;
-            }
-          }
-
-          if (!occupied) continue;
-
-          const existing = s[l.classes[0]]?.[d]?.[h];
-
-        if (existing) {
-  for (let cc of existing.classes) {
-    if (s[cc]?.[d]?.[h]) {
-      delete s[cc][d][h];
-    }
-  }
-
-  for (let cc of existing.classes) {
-    delete cBusy[cc + "_" + d + "_" + h];
-  }
-
-  delete tBusy[existing.teacher + "_" + d + "_" + h];
+   if (!placedFlag) {
+  continue;
 }
-
-      
-if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
-          place(l, d, h, s, tBusy, cBusy);
-          placedFlag = true;
-
-          break outer;
-        }
-      }
-
-      if (!placedFlag) {
-        console.log("💀 TOTAL FAIL:", l.subject, l.classes);
-      }
-    }
 
     ({ tBusy, cBusy } = rebuildBusy(s));
   }
@@ -526,7 +489,7 @@ if (
 
   return null;
 }
-function tryChainMove(schedule, lesson, data, depth = 3, visited = new Set()) {
+function tryChainMove(schedule, lesson, data, depth = 6, visited = new Set()) {
   if (visited.has(lesson.id)) return false;
 visited.add(lesson.id);
   if (depth <= 0) return false;
@@ -585,6 +548,26 @@ if (
 
   return false;
 }
+function destroyAroundLesson(schedule, lesson) {
+  for (let c of lesson.classes) {
+    for (let d in schedule[c] || {}) {
+      for (let h in schedule[c][d] || {}) {
+        const l = schedule[c][d][h];
+
+        if (
+          l.teacher === lesson.teacher ||
+          l.classes.some(cc => lesson.classes.includes(cc))
+        ) {
+          for (let cc of l.classes) {
+            delete schedule[cc][d][h];
+          }
+        }
+      }
+    }
+  }
+
+  return schedule;
+}
 // ===== REPAIR MISSING =====
 function repairMissing(schedule, lessons, data) {
   const map = new Set();
@@ -597,8 +580,22 @@ function repairMissing(schedule, lessons, data) {
     }
   }
 
-  for (let l of lessons) {
-    if (map.has(l.id)) continue;
+ const missingLessons = lessons
+  .filter(l => !map.has(l.id))
+  .sort((a, b) => {
+    const ta = data.teachers.find(t => t.id === a.teacher);
+    const tb = data.teachers.find(t => t.id === b.teacher);
+
+    const availA = ta?.availability.length || 0;
+    const availB = tb?.availability.length || 0;
+
+    const scoreA = availA / (a.hours || 1);
+    const scoreB = availB / (b.hours || 1);
+
+    return scoreA - scoreB;
+  });
+
+for (let l of missingLessons) {
 
     outer:
    for (let d of DAYS) {
@@ -615,6 +612,10 @@ function repairMissing(schedule, lessons, data) {
 
 if (!free) {
   let moved = tryMakeSpace(schedule, l, data);
+  if (!moved) {
+  schedule = destroyAroundLesson(schedule, l);
+  moved = tryChainMove(schedule, l, data, 8);
+}
 
   if (!moved) {
     moved = tryChainMove(schedule, l, data);
@@ -662,7 +663,45 @@ if (
   console.log("❌ NIE DA SIĘ WSTAWIĆ:", l.subject, l.classes);
 }
   }
+// 🔥 DRUGA FALA — agresywna próba wstawienia brakujących lekcji
+for (let i = 0; i < 3; i++) {
 
+  // przelicz co nadal brakuje
+  const placed = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        placed.add(schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  const stillMissing = lessons.filter(l => !placed.has(l.id));
+
+  for (let l of stillMissing) {
+
+    const moved = tryChainMove(schedule, l, data, 10);
+
+    if (!moved) continue;
+
+    const { d, h } = moved;
+
+    const { tBusy, cBusy } = rebuildBusy(schedule);
+
+    // 🔒 ZAWSZE sprawdzamy nauczyciela i klasy
+    if (
+      teacherOk(l.teacher, d, h, tBusy, data) &&
+      classesFree(l.classes, d, h, cBusy)
+    ) {
+      for (let c of l.classes) {
+        if (!schedule[c]) schedule[c] = {};
+        if (!schedule[c][d]) schedule[c][d] = {};
+        schedule[c][d][h] = l;
+      }
+    }
+  }
+}
   return schedule;
 }
 
@@ -771,7 +810,13 @@ if (missing > 0 && missing <= 5) {
 
   // 🔥 próbuj je wstawić agresywnie
   for (let l of missingLessons) {
-    const moved = tryChainMove(s2, l, data, 3);
+    let depth = 4;
+
+if (missing < 15) depth = 6;
+if (missing < 8) depth = 8;
+if (missing < 4) depth = 12;
+
+const moved = tryChainMove(s2, l, data, depth);
 
     if (moved) {
       const { d, h } = moved;
