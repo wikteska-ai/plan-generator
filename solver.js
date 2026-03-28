@@ -241,6 +241,10 @@ function score(schedule) {
       if (hours.length === 0) continue;
 
       for (let i = 1; i < hours.length; i++) {
+        if (hours.length === 0) {
+  penalty += 100;
+  continue;
+}
        if (hours[i] !== hours[i-1] + 1) {
   const gapSize = hours[i] - hours[i-1] - 1;
 
@@ -250,6 +254,8 @@ function score(schedule) {
 
 if (first >= 3) penalty += 30; // bardzo źle
 if (first === 2) penalty += 5; // lekka kara
+        if (hours.length === 1) penalty += 60;
+if (hours.length === 2) penalty += 30;
         if (hours.length < 4) {
   penalty += (4 - hours.length) * 15;
 }
@@ -431,7 +437,64 @@ function trySwap(schedule, data) {
 
   return newSchedule;
 }
+function buildStateFromSchedule(schedule) {
+  const state = createState();
 
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        place(l, d, Number(h), state);
+      }
+    }
+  }
+
+  return state;
+}
+function fixHardGaps(schedule, data) {
+  const state = buildStateFromSchedule(schedule);
+
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        const prev = hours[i-1];
+        const curr = hours[i];
+
+        // jeśli jest okienko
+        if (curr > prev + 1) {
+          const gapHour = prev + 1;
+
+          const lesson = schedule[cls][d][curr];
+
+          // 🔒 KLUCZ: sprawdzamy constrainty
+          if (
+            teacherOk(lesson.teacher, d, gapHour, state, data) &&
+            classesOk(lesson.classes, d, gapHour, state)
+          ) {
+            // usuń starą lekcję
+            delete schedule[cls][d][curr];
+
+            // wstaw w okienko
+            schedule[cls][d][gapHour] = lesson;
+
+            // 🔥 zaktualizuj state
+            state.teacherBusy[lesson.teacher + "_" + d + "_" + gapHour] = true;
+
+            for (let c of lesson.classes) {
+              state.classBusy[c + "_" + d + "_" + gapHour] = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return schedule;
+}
 function improve(schedule, data, iterations = 1000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
@@ -461,6 +524,9 @@ if (Math.random() < 0.7) {
         bestScore = sc;
       }
     }
+    if (Math.random() < 0.3) {
+  schedule = fixHardGaps(schedule, data);
+}
   }
 
   console.log("✨ IMPROVED:", bestScore);
