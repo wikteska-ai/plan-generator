@@ -151,7 +151,7 @@ function findBestSlot(l, state, data) {
 
       const sc = scoreSlot(l, d, h, state);
 
-      if (sc > bestScore) {
+    if (sc > bestScore || Math.random() < 0.1) {
         bestScore = sc;
         best = { d, h };
       }
