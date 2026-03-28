@@ -1413,4 +1413,4 @@ function countMissing(schedule, lessons) {
   return lessons.length - set.size;
 }
 
-module.exports = { generateSchedule };
+export { generateSchedule };
