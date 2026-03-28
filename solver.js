@@ -888,14 +888,20 @@ const moved = tryChainMove(s2, l, data, depth);
   const missingLessons = lessons.filter(l => !placedIds.has(l.id));
 
   // 🔥 1. usuń DUŻO miejsca wokół nich
-  for (let l of missingLessons) {
+  for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
     s2 = destroyAroundLesson(s2, l);
   }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
-  for (let l of missingLessons) {
-    const moved = tryChainMove(s2, l, data, 12);
+ for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
+let moved = null;
 
+// 🔥 próbuj kilka razy (różne ścieżki)
+for (let attempt = 0; attempt < 5; attempt++) {
+  console.log("🎯 TRY FINAL:", l.subject, l.teacher);
+  moved = tryChainMove(s2, l, data, 12, new Set());
+  if (moved) break;
+}
     if (moved) {
       const { d, h } = moved;
 
