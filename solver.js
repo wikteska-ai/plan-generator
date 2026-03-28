@@ -149,7 +149,7 @@ function construct(lessons, data) {
 
     // NORMAL placement
     if (best) {
-      place(l, best.d, best.h, s, tBusy, cBusy);
+      place(l, best.d, best.h, s, tBusy, cBusy, data);
       placedFlag = true;
     } else {
       // FALLBACK
