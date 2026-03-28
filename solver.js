@@ -65,21 +65,7 @@ function getLessons(data) {
   });
 
   // 🔥 SORTOWANIE
- out.sort((a, b) => {
-  const prio = { CRITICAL: 0, MEDIUM: 1, EASY: 2 };
 
-  if (prio[a.priority] !== prio[b.priority]) {
-    return prio[a.priority] - prio[b.priority];
-  }
-
-  const teacherA = data.teachers.find(t => t.id === a.teacher);
-  const teacherB = data.teachers.find(t => t.id === b.teacher);
-
-  const availA = teacherA?.availability.length || 0;
-  const availB = teacherB?.availability.length || 0;
-
-  return availA - availB;
-});
 const stats = getTeacherStats(data);
 
 out.forEach(l => {
@@ -93,6 +79,21 @@ out.forEach(l => {
   } else {
     l.priority = "EASY";
   }
+});
+  out.sort((a, b) => {
+  const prio = { CRITICAL: 0, MEDIUM: 1, EASY: 2 };
+
+  if (prio[a.priority] !== prio[b.priority]) {
+    return prio[a.priority] - prio[b.priority];
+  }
+
+  const teacherA = data.teachers.find(t => t.id === a.teacher);
+  const teacherB = data.teachers.find(t => t.id === b.teacher);
+
+  const availA = teacherA?.availability.length || 0;
+  const availB = teacherB?.availability.length || 0;
+
+  return availA - availB;
 });
   return out;
   
@@ -450,7 +451,7 @@ if (Math.random() < 0.7) {
 } else {
   next = current; // 🔥 reuse
 }  if (Math.random() < 0.3) {
-  next = trySwap(next, data);
+  next = trySwap(next, data, frozen);
 }
   if (Math.random() < 0.1) {
   next = randomDestroy(next, 0.05, frozen);
