@@ -45,13 +45,14 @@ function lessonDifficulty(l, data) {
 
   const avail = t?.availability.length || 0;
 
-  let difficulty = avail;
+  // 🔥 NAJWAŻNIEJSZE: dostępność (małe = trudne)
+  let difficulty = avail * 10;
 
-  // 🔥 GRUPY = trudniejsze
-  if (l.group) difficulty -= 10;
+  // 🔥 grupy ważne, ale NIE ważniejsze niż brak slotów
+  if (l.group) difficulty -= 5;
 
-  // 🔥 wiele klas = trudniejsze
-  difficulty -= (l.classes.length - 1) * 5;
+  // 🔥 wiele klas trochę trudniejsze
+  difficulty -= (l.classes.length - 1) * 2;
 
   return difficulty;
 }
