@@ -322,7 +322,7 @@ function countLessons(schedule) {
 }
 
 // ===== DESTROY (FIX: NIE RUSZAJ TIGHT TEACHERS) =====
-function randomDestroy(schedule, percent = 0.1) {
+function randomDestroy(schedule, percent = 0.1, data) {
   const all = [];
 
   for (let cls in schedule) {
@@ -460,7 +460,7 @@ function improve(s, data, ms) {
     }
 
     if (Math.random() < 0.1) {
-      next = randomDestroy(next, 0.05);
+next = randomDestroy(next, 0.05, data);
     }
 
     // 🔥 FIX — NIE TRAĆ LEKCJI
