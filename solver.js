@@ -468,76 +468,54 @@ function validateSchedule(schedule, data) {
   return true;
 }
 // ===== MULTI RUN =====
-function generateSchedule(data, runs = 10) {
+function generateSchedule(data, runs = 20) {
+  let best = null;
+let candidates = [];
+for (let i = 0; i < runs; i++) {
+  console.log("🚀 RUN", i);
+
+  const result = solveOnce(data);
+
+  const isValid = result.placed === result.total;
+
+  if (isValid) {
+    const sc = score(result.schedule);
+
+    candidates.push({
+      schedule: result.schedule,
+      score: sc
+    });
+
+    console.log("📦 candidate:", sc);
+  } else {
+    console.log("⛔ INVALID:", result.total - result.placed);
+  }
+}
+  if (candidates.length === 0) {
+  console.log("🚨 BRAK POPRAWNYCH PLANÓW");
+  return null;
+}
+  candidates.sort((a, b) => b.score - a.score);
+  const top = candidates.slice(0, 5);
   let best = null;
 
-  for (let i = 0; i < runs; i++) {
-    console.log("🚀 RUN", i);
+for (let c of top) {
+  console.log("🧪 IMPROVE START:", c.score);
 
-    const result = solveOnce(data);
-    const isValid = result.placed === result.total;
+  const improved = improve(c.schedule, data, 1500);
+  const sc = score(improved);
 
-let sc = null;
+  console.log("✨ IMPROVED:", sc);
 
-if (isValid) {
+  if (!best || sc > best.score) {
+    best = {
+      schedule: improved,
+      score: sc
+    };
 
-  // 🔥 tutaj odpalamy improve
-  const improved = improve(result.schedule, data, 1000);
-
-  sc = score(improved);
-
-if (validateSchedule(improved, data)) {
-  result.schedule = improved;
-} else {
-  console.log("⚠️ IMPROVE ODRZUCONE (integrity fail)");
-}
-  console.log("➡️ placed:", result.placed, "score:", sc);
-} else {
-  console.log("⛔ INVALID (missing):", result.total - result.placed);
-}
-    // 🔒 WALIDACJA NAUCZYCIELI
-let teacherErrors = [];
-
-for (let cls in result.schedule) {
-  for (let d in result.schedule[cls]) {
-    for (let h in result.schedule[cls][d]) {
-
-      const lesson = result.schedule[cls][d][h];
-      const teacher = data.teachers.find(t => t.id === lesson.teacher);
-
-      if (!teacher) {
-        teacherErrors.push(`💀 NIEZNANY NAUCZYCIEL ${lesson.teacher}`);
-        continue;
-      }
-
-      const key = d + "_" + h;
-
-      if (!teacher.availability.includes(key)) {
-        teacherErrors.push(
-          `❌ ${lesson.teacher} brak dostępności ${key}`
-        );
-      }
-    }
-  }
-}
-
-if (teacherErrors.length === 0) {
-  console.log("✅ TEACHERS OK");
-} else {
-  console.log("🚨 BŁĘDY NAUCZYCIELI:");
-  teacherErrors.forEach(e => console.log(e));
-}
-
-if (isValid && sc !== null && (!best || sc > best.score)) {
-      best = {
-        schedule: result.schedule,
-        score: sc,
-        placed: result.placed
-      };
     console.log("🔥 NEW BEST:", sc);
-
-    }
   }
+}
 
  if (!best) {
   console.log("🚨 BRAK POPRAWNEGO ROZWIĄZANIA");
