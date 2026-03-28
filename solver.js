@@ -4,6 +4,23 @@ const TIME_LIMIT = 1200000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
+function getTeacherStats(data) {
+  const map = {};
+
+  data.teachers.forEach(t => {
+    map[t.id] = {
+      availability: t.availability.length,
+      hours: 0
+    };
+  });
+
+  data.lessons.forEach(l => {
+    map[l.teacher].hours += l.hours;
+  });
+
+  return map;
+}
+
 // ===== PROGRESS =====
 function saveProgress(p) {
   try {
@@ -49,8 +66,11 @@ function getLessons(data) {
 
   // 🔥 SORTOWANIE
  out.sort((a, b) => {
-  if (a.group && !b.group) return -1;
-  if (!a.group && b.group) return 1;
+  const prio = { CRITICAL: 0, MEDIUM: 1, EASY: 2 };
+
+  if (prio[a.priority] !== prio[b.priority]) {
+    return prio[a.priority] - prio[b.priority];
+  }
 
   const teacherA = data.teachers.find(t => t.id === a.teacher);
   const teacherB = data.teachers.find(t => t.id === b.teacher);
@@ -58,13 +78,24 @@ function getLessons(data) {
   const availA = teacherA?.availability.length || 0;
   const availB = teacherB?.availability.length || 0;
 
-  const difficultyA = availA / a.hours;
-  const difficultyB = availB / b.hours;
-
-  return difficultyA - difficultyB;
+  return availA - availB;
 });
+const stats = getTeacherStats(data);
 
+out.forEach(l => {
+  const t = stats[l.teacher];
+  const ratio = t.hours / t.availability;
+
+  if (t.availability <= l.hours + 1 || ratio > 0.7) {
+    l.priority = "CRITICAL";
+  } else if (ratio > 0.4) {
+    l.priority = "MEDIUM";
+  } else {
+    l.priority = "EASY";
+  }
+});
   return out;
+  
 }
 
 // ===== CHECK =====
@@ -79,6 +110,12 @@ function classesFree(classes, d, h, cBusy) {
 
 // ===== PLACE =====
 function place(l, d, h, s, tBusy, cBusy, data) {
+  if (l.block === 2) {
+  if (h === 8) return;
+
+  if (!teacherOk(l.teacher, d, h + 1, tBusy, data)) return;
+  if (!classesFree(l.classes, d, h + 1, cBusy)) return;
+}
 
   // 🔒 TWARDY CHECK — nauczyciel MUSI być dostępny
   if (!teacherOk(l.teacher, d, h, tBusy, data)) {
@@ -114,15 +151,65 @@ function rebuildBusy(schedule) {
 
   return { tBusy, cBusy };
 }
-
-function construct(lessons, data) {
+function placeCritical(lessons, data) {
   let s = {}, tBusy = {}, cBusy = {};
+  let frozen = new Set();
 
+  const critical = lessons.filter(l => l.priority === "CRITICAL");
+
+  for (let l of critical) {
+
+    let possible = [];
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
+        if (!classesFree(l.classes, d, h, cBusy)) continue;
+
+        possible.push({ d, h });
+      }
+    }
+
+    if (possible.length === 0) return null;
+
+    let best = null;
+    let bestScore = Infinity;
+
+    for (let p of possible) {
+      let score = 0;
+
+      for (let other of lessons) {
+        if (other.id === l.id) continue;
+
+        if (
+          teacherOk(other.teacher, p.d, p.h, tBusy, data) &&
+          classesFree(other.classes, p.d, p.h, cBusy)
+        ) {
+          score++;
+        }
+      }
+
+      if (score < bestScore) {
+        bestScore = score;
+        best = p;
+      }
+    }
+
+    place(l, best.d, best.h, s, tBusy, cBusy, data);
+    frozen.add(l.id);
+  }
+
+  return { schedule: s, frozen };
+}
+function construct(lessons, data, base = null, frozen = new Set()) {
+let s = base ? JSON.parse(JSON.stringify(base)) : {};
+let { tBusy, cBusy } = rebuildBusy(s);
   let queue = [...lessons];
 let attempts = 0;
 
 while (queue.length > 0 && attempts < lessons.length * 3) {
-  const l = queue.shift();
+if (frozen.has(l.id)) continue;
   attempts++;
     let placedFlag = false;
     let best = null;
@@ -260,7 +347,7 @@ function countLessons(schedule) {
 
   return set.size;
 }
-function randomDestroy(schedule, percent = 0.1) {
+function randomDestroy(schedule, percent = 0.1, frozen = new Set()) {
   const all = [];
 
   for (let cls in schedule) {
@@ -278,6 +365,7 @@ function randomDestroy(schedule, percent = 0.1) {
     if (!schedule[r.cls]?.[r.d]?.[r.h]) continue;
 
 const lesson = schedule[r.cls]?.[r.d]?.[r.h];
+    if (!lesson || frozen.has(lesson.id)) continue;
 if (!lesson) continue;
     for (let c of lesson.classes) {
       if (schedule[c]?.[r.d]?.[r.h]) {
@@ -303,7 +391,7 @@ function trySwap(schedule, data) {
 
   const a = entries[Math.floor(Math.random() * entries.length)];
   const b = entries[Math.floor(Math.random() * entries.length)];
-
+if (frozen.has(a.lesson.id) || frozen.has(b.lesson.id)) return schedule;
   if (!a.lesson || !b.lesson) return schedule;
   if (a.lesson.id === b.lesson.id) return schedule;
 
@@ -363,7 +451,7 @@ if (Math.random() < 0.7) {
   next = trySwap(next, data);
 }
   if (Math.random() < 0.1) {
-  next = randomDestroy(next, 0.05);
+  next = randomDestroy(next, 0.05, frozen);
 }
 let rebuilt, tBusy, cBusy;
 
@@ -753,16 +841,26 @@ const shuffled = [...lessons];
 
 if (Math.random() < 0.3) {
   shuffled.sort(() => Math.random() - 0.5);
-}    let s;
+}   let s;
+let frozen = new Set();
 
 if (globalBest && globalBest.schedule && Math.random() < 0.5) {
   s = JSON.parse(JSON.stringify(globalBest.schedule));
 
   // 🔥 KLUCZ — rozwal go lekko
-  s = randomDestroy(s, 0.2);
+  s = randomDestroy(s, 0.2, frozen);
 
 } else {
-  s = construct(shuffled, data);console.log("AFTER CONSTRUCT");
+  const criticalBase = placeCritical(lessons, data);
+
+if (!criticalBase) {
+  console.log("❌ CRITICAL FAIL");
+  continue;
+}
+
+frozen = criticalBase.frozen;
+s = construct(shuffled, data, criticalBase.schedule, frozen);
+  console.log("AFTER CONSTRUCT");
 }    if (Math.random() < 0.3) {
   s = trySwap(s, data);
 }
@@ -774,13 +872,13 @@ if (iter % 5 === 0) {
   if (globalBest && globalBest.missing < 15) strength = 0.2;
   if (globalBest && globalBest.missing < 8) strength = 0.1;
 
-  s = randomDestroy(s, strength);
+  s = randomDestroy(s, strength, frozen);
 }   let { best, bestScore } = improve(s, data, 8000);
     // 🔥 AUTOMATYCZNY SOFT IMPROVE gdy dużo missing
 if (countMissing(best, lessons) > 20) {
   let s2 = JSON.parse(JSON.stringify(best));
 
-  s2 = randomDestroy(s2, 0.25);
+  s2 = randomDestroy(s2, 0.25, frozen);
   s2 = repairMissing(s2, lessons, data);
 
   const newMissing = countMissing(s2, lessons);
@@ -858,7 +956,7 @@ console.log("💣 ENTER FINAL PUSH:", missing);
 s2 = destroyAroundLesson(s2, l);
 
 if (Math.random() < 0.5) {
-  s2 = randomDestroy(s2, 0.1);
+  s2 = randomDestroy(s2, 0.1, frozen);
 }  }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
@@ -926,7 +1024,7 @@ if (missing > 0 && missing <= 5) {
   const missingLessons = lessons.filter(l => !placedIds.has(l.id));
 
   // 🔥 usuń trochę miejsca wokół nich
-  s2 = randomDestroy(s2, 0.15);
+  s2 = randomDestroy(s2, 0.15, frozen);
 
   // 🔥 próbuj je wstawić agresywnie
   for (let l of missingLessons) {
@@ -1023,7 +1121,7 @@ let boost = 0;
 if (stagnation > 20) boost = 0.15;
 if (stagnation > 40) boost = 0.25;
 
-s = randomDestroy(s, strength + boost);
+s = randomDestroy(s, strength + boost, frozen);
     // 🔥 napraw
     s = repairMissing(s, lessons, data);
 
