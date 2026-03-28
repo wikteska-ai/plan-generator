@@ -244,6 +244,115 @@ function score(schedule) {
 
   return -penalty;
 }
+function rebuildBusy(schedule) {
+  const teacherBusy = {};
+  const classBusy = {};
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        const key = d + "_" + h;
+
+        teacherBusy[l.teacher + "_" + key] = true;
+        classBusy[cls + "_" + key] = true;
+      }
+    }
+  }
+
+  return { teacherBusy, classBusy };
+}
+function trySwap(schedule, data) {
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+      }
+    }
+  }
+
+  if (entries.length < 2) return null;
+
+  const a = entries[Math.floor(Math.random() * entries.length)];
+  const b = entries[Math.floor(Math.random() * entries.length)];
+
+  if (!a.lesson || !b.lesson) return null;
+  if (a.lesson.id === b.lesson.id) return null;
+
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
+  const { teacherBusy, classBusy } = rebuildBusy(newSchedule);
+
+  // 🔥 usuń A
+  for (let c of a.lesson.classes) {
+    delete newSchedule[c][a.d][a.h];
+    delete classBusy[c + "_" + a.d + "_" + a.h];
+  }
+
+  // 🔥 usuń B
+  for (let c of b.lesson.classes) {
+    delete newSchedule[c][b.d][b.h];
+    delete classBusy[c + "_" + b.d + "_" + b.h];
+  }
+
+  delete teacherBusy[a.lesson.teacher + "_" + a.d + "_" + a.h];
+  delete teacherBusy[b.lesson.teacher + "_" + b.d + "_" + b.h];
+
+  // 🔥 sprawdź
+  const canPlaceA =
+    teacherOk(a.lesson.teacher, b.d, b.h, { teacherBusy, classBusy }, data) &&
+    classesOk(a.lesson.classes, b.d, b.h, { classBusy });
+
+  const canPlaceB =
+    teacherOk(b.lesson.teacher, a.d, a.h, { teacherBusy, classBusy }, data) &&
+    classesOk(b.lesson.classes, a.d, a.h, { classBusy });
+
+  if (!canPlaceA || !canPlaceB) return null;
+
+  // 🔥 wstaw A → B
+  for (let c of a.lesson.classes) {
+    if (!newSchedule[c][b.d]) newSchedule[c][b.d] = {};
+    newSchedule[c][b.d][b.h] = a.lesson;
+  }
+
+  // 🔥 wstaw B → A
+  for (let c of b.lesson.classes) {
+    if (!newSchedule[c][a.d]) newSchedule[c][a.d] = {};
+    newSchedule[c][a.d][a.h] = b.lesson;
+  }
+
+  return newSchedule;
+}
+function improve(schedule, data, iterations = 1000) {
+  let best = JSON.parse(JSON.stringify(schedule));
+  let bestScore = score(best);
+
+  let current = best;
+  let currentScore = bestScore;
+
+  for (let i = 0; i < iterations; i++) {
+    const next = trySwap(current, data);
+
+    if (!next) continue;
+
+    const sc = score(next);
+
+    if (sc > currentScore) {
+      current = next;
+      currentScore = sc;
+
+      if (sc > bestScore) {
+        best = JSON.parse(JSON.stringify(next));
+        bestScore = sc;
+      }
+    }
+  }
+
+  console.log("✨ IMPROVED:", bestScore);
+
+  return best;
+}
 
 // ===== MULTI RUN =====
 function generateSchedule(data, runs = 10) {
@@ -258,7 +367,14 @@ function generateSchedule(data, runs = 10) {
 let sc = null;
 
 if (isValid) {
-  sc = score(result.schedule);
+
+  // 🔥 tutaj odpalamy improve
+  const improved = improve(result.schedule, data, 1000);
+
+  sc = score(improved);
+
+  result.schedule = improved;
+
   console.log("➡️ placed:", result.placed, "score:", sc);
 } else {
   console.log("⛔ INVALID (missing):", result.total - result.placed);
