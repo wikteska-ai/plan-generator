@@ -1,7 +1,11 @@
 import http from "http";
 import { queue } from "./queue.js";
+import IORedis from "ioredis";
 
 const PORT = process.env.PORT || 3000;
+
+// 🔥 JEDNO połączenie do Redis (ważne)
+const connection = new IORedis(process.env.REDIS_URL);
 
 function randomId() {
   return Math.random().toString(36).substr(2, 9);
@@ -36,7 +40,7 @@ const server = http.createServer(async (req, res) => {
 
         console.log("🚀 START JOB", jobId);
 
-        // 🔥 1. ZAPISZ JOB DO REDIS (WAŻNE)
+        // 🔥 zapis do Redis przez BullMQ
         await queue.add("generate", {
           jobId,
           data
@@ -46,7 +50,7 @@ const server = http.createServer(async (req, res) => {
 
         console.log("📦 Job zapisany do Redis");
 
-        // 🔥 2. ODPAL GITHUB WORKFLOW
+        // 🔥 odpal GitHub worker
         const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
         const REPO = "wikteska-ai/plan-generator";
 
@@ -96,33 +100,38 @@ const server = http.createServer(async (req, res) => {
     const jobId = req.url.split("/")[2];
 
     try {
-      const job = await queue.getJob(jobId);
 
-      if (!job) {
+      const jobData = await connection.hgetall(`bull:jobs:${jobId}`);
+
+      // brak joba
+      if (!jobData || Object.keys(jobData).length === 0) {
         res.writeHead(200);
         res.end(JSON.stringify({ status: "not_found" }));
         return;
       }
 
-      const state = await job.getState();
+      // 🔥 zakończony job
+      if (jobData.finishedOn) {
 
-      if (state === "completed") {
+        let result = null;
+
+        try {
+          result = JSON.parse(jobData.returnvalue);
+        } catch (e) {
+          console.error("❌ JSON PARSE ERROR:", e);
+        }
+
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
           status: "done",
-          result: job.returnvalue
+          result
         }));
         return;
       }
 
-      if (state === "failed") {
-        res.writeHead(200);
-        res.end(JSON.stringify({ status: "fail" }));
-        return;
-      }
-
+      // 🔄 w trakcie
       res.writeHead(200);
-      res.end(JSON.stringify({ status: state }));
+      res.end(JSON.stringify({ status: "processing" }));
 
     } catch (e) {
       console.error("❌ STATUS ERROR:", e);
