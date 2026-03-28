@@ -127,17 +127,22 @@ function scoreSlot(l, d, h, state) {
     score += 6; // 🔥 bonus za start dnia od 1
   }
 }
+  // ❌ OKIENKA (MEGA KARA)
+    for (let i = 1; i < hours.length; i++) {
+      if (hours[i] !== hours[i-1] + 1) {
+        penalty += 100; // 🔥 było 20
+      }
+    }
 
   for (let c of l.classes) {
     const day = state.schedule[c]?.[d] || {};
     const hours = Object.keys(day).map(Number);
 
-    // kara za przeładowanie dnia
-    score -= hours.length * 2;
+
 
     // bonus za ciągłość
-    if (hours.includes(h - 1)) score += 3;
-    if (hours.includes(h + 1)) score += 3;
+    if (hours.includes(h - 1)) score += 5;
+    if (hours.includes(h + 1)) score += 5;
   }
 
   // grupy ważniejsze
