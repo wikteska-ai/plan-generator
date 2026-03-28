@@ -528,7 +528,7 @@ function repairSchedule(result, data) {
     for (let d of DAYS) {
       for (let h = 1; h <= 8; h++) {
 
-        if (canPlace(lesson, d, h, result.schedule)) {
+        if (canPlace(lesson, d, h, result.schedule, data)) {
           placeLesson(lesson, d, h, result.schedule);
           result.placed++;
           placed = true;
@@ -542,11 +542,11 @@ function repairSchedule(result, data) {
         if (existing) {
           removeLesson(existing, result.schedule);
 
-          if (canPlace(lesson, d, h, result.schedule)) {
+          if (canPlace(lesson, d, h, result.schedule, data)) {
             placeLesson(lesson, d, h, result.schedule);
 
             // spróbuj wstawić starą gdzie indziej
-            if (!tryReinsert(existing, result.schedule)) {
+            if (!tryReinsert(existing, result.schedule, data)) {
               // rollback jeśli się nie udało
               removeLesson(lesson, result.schedule);
               placeLesson(existing, d, h, result.schedule);
@@ -569,10 +569,10 @@ function repairSchedule(result, data) {
     }
   }
 }
-function tryReinsert(lesson, schedule) {
+function tryReinsert(lesson, schedule, data) {
   for (let d of DAYS) {
     for (let h = 1; h <= 8; h++) {
-      if (canPlace(lesson, d, h, schedule)) {
+      if (canPlace(lesson, d, h, schedule, data)) {
         placeLesson(lesson, d, h, schedule);
         return true;
       }
@@ -596,7 +596,7 @@ function normalizeSchedule(schedule) {
 
           // spróbuj przesunąć w dół
           for (let h = hours[i-1] + 1; h < hours[i]; h++) {
-            if (canPlace(lesson, d, h, schedule)) {
+            if (canPlace(lesson, d, h, schedule, data)) {
               removeLesson(lesson, schedule);
               placeLesson(lesson, d, h, schedule);
               break;
