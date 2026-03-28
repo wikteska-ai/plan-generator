@@ -169,7 +169,7 @@ function findBestSlot(l, state, data) {
 
       const sc = scoreSlot(l, d, h, state);
 
-    if (sc > bestScore || Math.random() < 0.1) {
+    if (sc > bestScore || Math.random() < 0.2) {
         bestScore = sc;
         best = { d, h };
       }
@@ -795,7 +795,7 @@ function validateSchedule(schedule, data) {
   return true;
 }
 // ===== MULTI RUN =====
-function generateSchedule(data, runs = 50) {
+function generateSchedule(data, runs = 200) {
   let candidates = [];
 
   for (let i = 0; i < runs; i++) {
@@ -840,7 +840,7 @@ const result = solveOnce(data);
 
   candidates.sort((a, b) => b.score - a.score);
 
-  const top = candidates.slice(0, 3);
+  const top = candidates.slice(0, 10);
 
   let best = null;
 
