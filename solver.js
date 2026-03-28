@@ -45,9 +45,15 @@ function lessonDifficulty(l, data) {
 
   const avail = t?.availability.length || 0;
 
-  // 🔥 ważne: każda "lekcja 1h" ma znaczenie
-  // więc traktujemy każdą jako osobny byt
-  return avail;
+  let difficulty = avail;
+
+  // 🔥 GRUPY = trudniejsze
+  if (l.group) difficulty -= 10;
+
+  // 🔥 wiele klas = trudniejsze
+  difficulty -= (l.classes.length - 1) * 5;
+
+  return difficulty;
 }
 // ===== SORT =====
 function sortLessons(lessons, data) {
