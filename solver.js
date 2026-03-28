@@ -305,8 +305,8 @@ function randomDestroy(schedule, percent = 0.1) {
     const r = all[Math.floor(Math.random() * all.length)];
     if (!schedule[r.cls]?.[r.d]?.[r.h]) continue;
 
-    const lesson = schedule[r.cls][r.d][r.h];
-
+const lesson = schedule[r.cls]?.[r.d]?.[r.h];
+if (!lesson) continue;
     for (let c of lesson.classes) {
       if (schedule[c]?.[r.d]?.[r.h]) {
         delete schedule[c][r.d][r.h];
@@ -412,7 +412,8 @@ let rebuilt, tBusy, cBusy;
             const curr = hours[i];
 
             if (curr !== prev + 1) {
-              const lesson = next[c][d][curr];
+const lesson = next[c]?.[d]?.[curr];
+              if (!lesson) continue;
 
               if (lesson.classes.length > 1) continue;
 
@@ -677,7 +678,7 @@ let lastBestMissing = Infinity;
 
   while (Date.now() - start < TIME_LIMIT) {
     iter++;
-
+console.log("ITER START", iter);
 if (
   stagnation > 30 &&
   lastBestMissing > 8 &&
@@ -708,7 +709,7 @@ if (globalBest && globalBest.schedule && Math.random() < 0.5) {
   s = randomDestroy(s, 0.2);
 
 } else {
-  s = construct(shuffled, data);
+  s = construct(shuffled, data);console.log("AFTER CONSTRUCT");
 }    if (Math.random() < 0.3) {
   s = trySwap(s, data);
 }
