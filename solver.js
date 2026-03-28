@@ -14,11 +14,21 @@ function teacherAvailableRaw(tid, d, h, data) {
   return t && t.availability.includes(d + "_" + h);
 }
 
-// ===== PROGRESS =====
-function saveProgress(p) {
-  try {
-    fs.writeFileSync("progress.json", JSON.stringify(p));
-  } catch {}
+// ===== BUSY =====
+function rebuildBusy(schedule) {
+  let tBusy = {}, cBusy = {};
+
+  for (let c in schedule) {
+    for (let d in schedule[c]) {
+      for (let h in schedule[c][d]) {
+        const l = schedule[c][d][h];
+        tBusy[l.teacher+"_"+d+"_"+h] = true;
+        cBusy[c+"_"+d+"_"+h] = true;
+      }
+    }
+  }
+
+  return { tBusy, cBusy };
 }
 
 // ===== LESSONS =====
@@ -57,7 +67,7 @@ function getLessons(data) {
     }
   });
 
-  // ciasność
+  // ciasność nauczyciela
   out.sort((a, b) => {
     const ta = getTeacher(data, a.teacher);
     const tb = getTeacher(data, b.teacher);
@@ -65,23 +75,6 @@ function getLessons(data) {
   });
 
   return out;
-}
-
-// ===== BUSY =====
-function rebuildBusy(schedule) {
-  let tBusy = {}, cBusy = {};
-
-  for (let c in schedule) {
-    for (let d in schedule[c]) {
-      for (let h in schedule[c][d]) {
-        const l = schedule[c][d][h];
-        tBusy[l.teacher+"_"+d+"_"+h] = true;
-        cBusy[c+"_"+d+"_"+h] = true;
-      }
-    }
-  }
-
-  return { tBusy, cBusy };
 }
 
 // ===== CHECK =====
@@ -95,7 +88,9 @@ function classesFree(classes, d, h, cBusy) {
 }
 
 // ===== PLACE =====
-function place(l, d, h, s, tBusy, cBusy, data) {
+function place(l, d, h, s, data) {
+
+  const { tBusy, cBusy } = rebuildBusy(s);
 
   if (!teacherOk(l.teacher, d, h, tBusy, data)) return false;
 
@@ -111,7 +106,6 @@ function place(l, d, h, s, tBusy, cBusy, data) {
   for (let c of l.classes) {
     if (!s[c]) s[c] = {};
     if (!s[c][d]) s[c][d] = {};
-
     s[c][d][h] = l;
   }
 
@@ -124,7 +118,7 @@ function place(l, d, h, s, tBusy, cBusy, data) {
   return true;
 }
 
-// ===== SCORE (Twoja estetyka) =====
+// ===== SCORE (estetyka) =====
 function score(s) {
   let penalty = 0;
 
@@ -133,25 +127,23 @@ function score(s) {
       const day = s[cls]?.[d] || {};
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      if (hours.length === 0) {
+      if (!hours.length) {
         penalty += 200;
         continue;
       }
 
-      // okienka
       for (let i = 1; i < hours.length; i++) {
-        if (hours[i] !== hours[i-1] + 1) penalty += 500;
+        if (hours[i] !== hours[i-1] + 1) penalty += 800;
       }
 
       const first = Math.min(...hours);
 
-      if (first === 1) penalty -= 40;
-      else penalty += 100;
+      if (first === 1) penalty -= 60;
+      else penalty += 120;
 
-      if (hours.length < 4) penalty += 50;
-      if (hours.length > 7) penalty += 50;
+      if (hours.length < 4) penalty += 60;
+      if (hours.length > 7) penalty += 60;
 
-      // duplikaty ciężkich
       let subjects = {};
 
       hours.forEach(h => {
@@ -170,84 +162,64 @@ function score(s) {
   return -penalty;
 }
 
-// ===== FORCE =====
-function forcePlace(l, schedule, data) {
+// ===== CHAIN MOVE (FIXED) =====
+function tryChainMove(schedule, lesson, data, depth = 6, visited = new Set()) {
+  if (visited.has(lesson.id) || depth <= 0) return false;
+  visited.add(lesson.id);
+
   for (let d of DAYS) {
     for (let h of HOURS) {
-
-      let conflicts = [];
-
-      for (let c of l.classes) {
-        if (schedule[c]?.[d]?.[h]) {
-          conflicts.push(schedule[c][d][h]);
-        }
-      }
-
-      for (let con of conflicts) {
-        for (let cc of con.classes) {
-          delete schedule[cc][d][h];
-        }
-      }
 
       const { tBusy, cBusy } = rebuildBusy(schedule);
 
       if (
-        teacherOk(l.teacher, d, h, tBusy, data) &&
-        classesFree(l.classes, d, h, cBusy)
+        teacherOk(lesson.teacher, d, h, tBusy, data) &&
+        classesFree(lesson.classes, d, h, cBusy)
       ) {
-        for (let c of l.classes) {
-          if (!schedule[c]) schedule[c] = {};
-          if (!schedule[c][d]) schedule[c][d] = {};
-          schedule[c][d][h] = l;
-        }
-        return true;
+        return { d, h };
       }
 
-      // rollback
-      for (let con of conflicts) {
-        for (let cc of con.classes) {
-          if (!schedule[cc]) schedule[cc] = {};
-          if (!schedule[cc][d]) schedule[cc][d] = {};
-          schedule[cc][d][h] = con;
+      let blocker = null;
+
+      for (let c of lesson.classes) {
+        if (schedule[c]?.[d]?.[h]) {
+          blocker = schedule[c][d][h];
+          break;
         }
+      }
+
+      if (!blocker) continue;
+
+      const moved = tryChainMove(schedule, blocker, data, depth-1, visited);
+
+      if (moved) {
+
+        if (!teacherAvailableRaw(blocker.teacher, moved.d, moved.h, data)) {
+          continue;
+        }
+
+        const { tBusy, cBusy } = rebuildBusy(schedule);
+
+        if (
+          !teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) ||
+          !classesFree(blocker.classes, moved.d, moved.h, cBusy)
+        ) continue;
+
+        for (let cc of blocker.classes) {
+          delete schedule[cc][d][h];
+        }
+
+        for (let cc of blocker.classes) {
+          if (!schedule[cc][moved.d]) schedule[cc][moved.d] = {};
+          schedule[cc][moved.d][moved.h] = blocker;
+        }
+
+        return { d, h };
       }
     }
   }
 
   return false;
-}
-
-// ===== CONSTRUCT =====
-function construct(lessons, data) {
-  let s = {};
-
-  for (let l of lessons) {
-    let { tBusy, cBusy } = rebuildBusy(s);
-    let placed = false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-        if (
-          teacherOk(l.teacher, d, h, tBusy, data) &&
-          classesFree(l.classes, d, h, cBusy)
-        ) {
-          if (place(l, d, h, s, tBusy, cBusy, data)) {
-            placed = true;
-            break;
-          }
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed && forcePlace(l, s, data)) placed = true;
-
-    if (!placed) {
-      console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
-    }
-  }
-
-  return s;
 }
 
 // ===== COUNT HOURS =====
@@ -279,35 +251,6 @@ function countMissing(schedule, lessons) {
   return required - placed;
 }
 
-// ===== VALIDATION =====
-function validateAll(schedule, lessons, data) {
-
-  let ok = true;
-
-  // nauczyciele
-  for (let cls in schedule) {
-    for (let d in schedule[cls]) {
-      for (let h in schedule[cls][d]) {
-        const l = schedule[cls][d][h];
-
-        if (!teacherAvailableRaw(l.teacher, d, h, data)) {
-          console.log(`❌ NIEZGODNA DYSPOZYCJA: ${l.teacher} ${d}_${h}`);
-          ok = false;
-        }
-      }
-    }
-  }
-
-  // godziny
-  const missing = countMissing(schedule, lessons);
-  if (missing > 0) {
-    console.log("❌ NIE WSTAWIONO PRZEDMIOTÓW (godziny):", missing);
-    ok = false;
-  }
-
-  if (ok) console.log("✅ PLAN POPRAWNY");
-}
-
 // ===== MAIN =====
 async function generateSchedule(data) {
 
@@ -321,13 +264,23 @@ async function generateSchedule(data) {
 
   while (Date.now() - start < TIME_LIMIT) {
 
-    const shuffled = [...lessons].sort(() => Math.random() - 0.5);
+    let s = {};
 
-    let s = construct(shuffled, data);
+    for (let l of lessons) {
+      if (!place(l, DAYS[Math.floor(Math.random()*5)], HOURS[Math.floor(Math.random()*8)], s, data)) {
+        const moved = tryChainMove(s, l, data, 8);
+        if (moved) {
+          for (let c of l.classes) {
+            if (!s[c]) s[c] = {};
+            if (!s[c][moved.d]) s[c][moved.d] = {};
+            s[c][moved.d][moved.h] = l;
+          }
+        }
+      }
+    }
 
     const missing = countMissing(s, lessons);
-
-    let sc = score(s);
+    const sc = score(s);
 
     console.log("missing:", missing);
 
@@ -340,16 +293,30 @@ async function generateSchedule(data) {
       bestScore = sc;
     }
 
-    if (missing === 0 && sc > -1000) break;
-
-    saveProgress({
-      percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
-      missing,
-      score: sc
-    });
+    if (missing === 0) break;
   }
 
-  validateAll(best, lessons, data);
+  // ===== FINAL VALIDATION =====
+  const missing = countMissing(best, lessons);
+
+  if (missing > 0) {
+    console.log("❌ NIE WSTAWIONO GODZIN:", missing);
+  }
+
+  for (let cls in best) {
+    for (let d in best[cls]) {
+      for (let h in best[cls][d]) {
+        const l = best[cls][d][h];
+        if (!teacherAvailableRaw(l.teacher, d, h, data)) {
+          console.log("❌ NIEZGODNA DYSPOZYCJA:", l.teacher, d, h);
+        }
+      }
+    }
+  }
+
+  if (missing === 0) {
+    console.log("✅ PLAN POPRAWNY");
+  }
 
   return {
     status: "OK",
