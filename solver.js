@@ -39,12 +39,14 @@ function getLessons(data) {
   let out = [];
 
   Object.values(grouped).forEach((g, i) => {
-    for (let h = 0; h < g.hours; h++) {
-      out.push({
-      id: `${i}_${h}_${g.teacher}_${g.subject}_${g.classes.join("-")}`,
-        ...g
-      });
-    }
+   const realHours = g.group ? Math.ceil(g.hours / 2) : g.hours;
+
+for (let h = 0; h < realHours; h++) {
+  out.push({
+    id: `${i}_${h}_${g.teacher}_${g.subject}_${g.classes.join("-")}`,
+    ...g
+  });
+}
   });
 
   // 🔥 SORTOWANIE
