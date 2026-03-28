@@ -118,13 +118,21 @@ function rebuildBusy(schedule) {
 function construct(lessons, data) {
   let s = {}, tBusy = {}, cBusy = {};
 
-  for (let l of lessons) {
+  let queue = [...lessons];
+let attempts = 0;
+
+while (queue.length > 0 && attempts < lessons.length * 3) {
+  const l = queue.shift();
+  attempts++;
     let placedFlag = false;
     let best = null;
     let bestScore = -9999;
 
-    for (let d of DAYS) {
-      for (let h of HOURS) {
+    const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
+const shuffledHours = [...HOURS].sort(() => Math.random() - 0.5);
+
+for (let d of shuffledDays) {
+  for (let h of shuffledHours) {
         if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
         if (!classesFree(l.classes, d, h, cBusy)) continue;
 
@@ -168,7 +176,8 @@ function construct(lessons, data) {
       }
     }
 
-   if (!placedFlag) {
+ if (!placedFlag) {
+  queue.push(l); // 🔁 spróbuj później
   continue;
 }
 
