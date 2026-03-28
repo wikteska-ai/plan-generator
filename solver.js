@@ -684,8 +684,7 @@ if (
   return { d, h };
 }
 }
-    }
-  }
+   
 
   return false;
 }
