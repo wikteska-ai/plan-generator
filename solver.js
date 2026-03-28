@@ -974,22 +974,40 @@ if (missing < 4) depth = 12;
 
 const moved = tryChainMove(s2, l, data, depth);
 
-    if (moved) {
-      const { d, h } = moved;
+   if (moved) {
+  const { d, h } = moved;
 
-      const { tBusy, cBusy } = rebuildBusy(s2);
+  // 🔥 1. SYMULACJA
+  const temp = JSON.parse(JSON.stringify(s2));
 
-      if (
-        teacherOk(l.teacher, d, h, tBusy, data) &&
-        classesFree(l.classes, d, h, cBusy)
-      ) {
-        for (let c of l.classes) {
-          if (!s2[c]) s2[c] = {};
-          if (!s2[c][d]) s2[c][d] = {};
-          s2[c][d][h] = l;
-        }
-      }
-    }
+  for (let c of l.classes) {
+    if (!temp[c]) temp[c] = {};
+    if (!temp[c][d]) temp[c][d] = {};
+    temp[c][d][h] = l;
+  }
+
+  const { tBusy: t1, cBusy: c1 } = rebuildBusy(temp);
+
+  if (
+    !teacherOk(l.teacher, d, h, t1, data) ||
+    !classesFree(l.classes, d, h, c1)
+  ) continue;
+
+  // 🔥 2. REALNY PLAN
+  const { tBusy: t2, cBusy: c2 } = rebuildBusy(s2);
+
+  if (
+    !teacherOk(l.teacher, d, h, t2, data) ||
+    !classesFree(l.classes, d, h, c2)
+  ) continue;
+
+  // ✅ DOPIERO TERAZ WSTAW
+  for (let c of l.classes) {
+    if (!s2[c]) s2[c] = {};
+    if (!s2[c][d]) s2[c][d] = {};
+    s2[c][d][h] = l;
+  }
+}
   }
 
   const newMissing = countMissing(s2, lessons);
