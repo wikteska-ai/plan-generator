@@ -833,8 +833,6 @@ if (
   stagnation > 30 &&
   lastBestMissing > 0 &&
   iter % 5 === 0
-    globalBest && globalBest.missing > 20
-
 ) {
   console.log("🧪 SOFT RESET");
 
