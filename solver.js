@@ -873,8 +873,8 @@ for (let l of [...missingLessons].sort(() => Math.random() - 0.5)) {
   s2 = destroyAroundLesson(s2, l);
 
 // 🔥 tylko czasami rozwal
-if (Math.random() < 0.2) {
-  s2 = randomDestroy(s2, 0.05);
+if (Math.random() < 0.4) {
+  s2 = randomDestroy(s2, 0.15);
 } }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
@@ -891,9 +891,9 @@ const shuffled = [...missingLessons].sort((a, b) => {
 
     let moved = null;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       console.log("🎯 TRY FINAL:", l.subject, l.teacher);
-      moved = tryChainMove(s2, l, data, 6, new Set());
+      moved = tryChainMove(s2, l, data, 10, new Set());
       if (moved) break;
     }
 
@@ -917,6 +917,14 @@ if (!teacherOk(l.teacher, d, h, tBusy, data)) valid = false;
 if (!classesFree(l.classes, d, h, cBusy)) valid = false;
 
 if (!valid) continue;
+     const { tBusy, cBusy } = rebuildBusy(s2);
+
+if (
+  !teacherOk(l.teacher, d, h, tBusy, data) ||
+  !classesFree(l.classes, d, h, cBusy)
+) {
+  continue;
+}
         for (let c of l.classes) {
           if (!s2[c]) s2[c] = {};
           if (!s2[c][d]) s2[c][d] = {};
@@ -924,13 +932,14 @@ if (!valid) continue;
         }
       }
     }
-    const newMissing = countMissing(s2, lessons);
+ 
+  }
+     const newMissing = countMissing(s2, lessons);
 
   if (newMissing < missing) {
     console.log("💥 FINAL PUSH:", newMissing);
     candidate = s2;
     missing = newMissing;
-  }
   }
 }
 
