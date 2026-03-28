@@ -209,8 +209,10 @@ let { tBusy, cBusy } = rebuildBusy(s);
 let attempts = 0;
 
 while (queue.length > 0 && attempts < lessons.length * 3) {
-if (frozen.has(l.id)) continue;
+  const l = queue.shift();
   attempts++;
+
+  if (frozen.has(l.id)) continue;
     let placedFlag = false;
     let best = null;
     let bestScore = -9999;
@@ -376,7 +378,7 @@ if (!lesson) continue;
 
   return schedule;
 }
-function trySwap(schedule, data) {
+function trySwap(schedule, data, frozen = new Set()) {
   const entries = [];
 
   for (let cls in schedule) {
@@ -431,7 +433,7 @@ if (frozen.has(a.lesson.id) || frozen.has(b.lesson.id)) return schedule;
   return schedule;
 }
 // ===== IMPROVE =====
-function improve(s, data, ms) {
+function improve(s, data, ms, frozen = new Set()) {
   let best = JSON.parse(JSON.stringify(s));
   let bestScore = score(best);
 
@@ -862,7 +864,7 @@ frozen = criticalBase.frozen;
 s = construct(shuffled, data, criticalBase.schedule, frozen);
   console.log("AFTER CONSTRUCT");
 }    if (Math.random() < 0.3) {
-  s = trySwap(s, data);
+  s = trySwap(s, data, frozen);
 }
 
 // 🔥 co kilka iteracji rozwal trochę plan
@@ -873,7 +875,7 @@ if (iter % 5 === 0) {
   if (globalBest && globalBest.missing < 8) strength = 0.1;
 
   s = randomDestroy(s, strength, frozen);
-}   let { best, bestScore } = improve(s, data, 8000);
+}   let { best, bestScore } = improve(s, data, 8000, frozen);
     // 🔥 AUTOMATYCZNY SOFT IMPROVE gdy dużo missing
 if (countMissing(best, lessons) > 20) {
   let s2 = JSON.parse(JSON.stringify(best));
@@ -926,7 +928,7 @@ if (missing > 0 && missing <= 20) {
 if (missing <= 10) {
   const before = missing;
 
-  const improved = improve(candidate, data, 3000);
+  const improved = improve(candidate, data, 3000, frozen);
   const after = countMissing(improved.best, lessons);
 
   if (after <= before) {
