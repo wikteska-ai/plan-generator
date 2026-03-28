@@ -635,7 +635,7 @@ function validateSchedule(schedule, data) {
   return true;
 }
 // ===== MULTI RUN =====
-function generateSchedule(data, runs = 20) {
+function generateSchedule(data, runs = 50) {
   let candidates = [];
 
   for (let i = 0; i < runs; i++) {
@@ -666,7 +666,7 @@ function generateSchedule(data, runs = 20) {
 
   candidates.sort((a, b) => b.score - a.score);
 
-  const top = candidates.slice(0, 5);
+  const top = candidates.slice(0, 3);
 
   let best = null;
 
