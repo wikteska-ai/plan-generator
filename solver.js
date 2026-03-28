@@ -122,7 +122,7 @@ function scoreSlot(l, d, h, state) {
     if (hours.length === 0) {
       if (h === 1) score += 10; // idealny start
       if (h === 2) score += 5;  // ok start
-      if (h > 2) score -= 20;   // ❌ nie zaczynaj od 3+
+      if (h > 2) score -= 10;   // ❌ nie zaczynaj od 3+
     }
 
     // 🟢 CIĄGŁOŚĆ (NAJWAŻNIEJSZE)
@@ -146,7 +146,7 @@ function scoreSlot(l, d, h, state) {
 
     // 🟡 NIE ZOSTAWIAJ SAMOTNEJ LEKCJI
     if (hours.length === 1 && Math.abs(hours[0] - h) > 1) {
-      score -= 40;
+      score -= 30;
     }
   }
 
@@ -251,7 +251,7 @@ function score(schedule) {
 
       // ❌ pusty dzień (NIE CHCESZ TEGO)
       if (hours.length === 0) {
-        penalty += 500;
+        penalty += 900;
         continue;
       }
 
@@ -263,7 +263,7 @@ function score(schedule) {
 
       // ❌ ZA MAŁO LEKCJI
       if (hours.length < 4) {
-        penalty += (4 - hours.length) * 120;
+        penalty += (4 - hours.length) * 80;
       }
 
       // ❌ ZA DUŻO LEKCJI
@@ -279,7 +279,7 @@ function score(schedule) {
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
           const gapSize = hours[i] - hours[i-1] - 1;
-          penalty += 300 * gapSize;
+          penalty += 150 * gapSize;
         }
       }
 
@@ -672,8 +672,14 @@ function generateSchedule(data, runs = 50) {
   for (let i = 0; i < runs; i++) {
     console.log("🚀 RUN", i);
 
-    const result = solveOnce(data);
+const result = solveOnce(data);
 
+if (result.placed !== result.total) {
+  console.log("⛔ INVALID:", result.total - result.placed);
+  continue; // 🔥 KLUCZOWE
+}
+
+const sc = score(result.schedule);
     const isValid = result.placed === result.total;
 
     if (isValid) {
