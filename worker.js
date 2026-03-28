@@ -1,28 +1,21 @@
 import IORedis from "ioredis";
-
 import { generateSchedule } from "./solver.js";
 
 console.log("🚀 WORKER START");
 
-// 📦 pobieramy jobId z argumentu (GitHub go przekazuje)
 const jobId = process.argv[2];
-
 console.log("🆔 JOB ID:", jobId);
 
-// 🔌 połączenie z Redis
 const connection = new IORedis(process.env.REDIS_URL, {
   maxRetriesPerRequest: null
 });
 
-// 🔑 klucz joba w BullMQ
 const jobKey = `bull:jobs:${jobId}`;
 
 (async () => {
   try {
-    const { Queue } = await import("bullmq");
     console.log("📥 Pobieram job z Redis...");
 
-    // pobierz dane joba
     const dataRaw = await connection.hget(jobKey, "data");
 
     if (!dataRaw) {
@@ -34,31 +27,15 @@ const jobKey = `bull:jobs:${jobId}`;
 
     console.log("🧠 START JOB", jobId);
 
-    // 🔥 uruchom solver
     const result = await generateSchedule(parsed.data);
 
     console.log("✅ DONE JOB", jobId);
 
-    // 💾 zapisz wynik
+    // 🔥 ZAPIS WYNIKU (TO JEST KLUCZ)
+    await connection.hset(jobKey, "returnvalue", JSON.stringify(result));
+    await connection.hset(jobKey, "finishedOn", Date.now());
 
-
-const queue = new Queue("jobs", {
-  connection
-});
-
-// pobierz job
-const job = await queue.getJob(jobId);
-
-if (!job) {
-  console.log("❌ Job nie istnieje w BullMQ");
-  process.exit(1);
-}
-
-// 🔥 KLUCZOWE
-await job.updateProgress(100);
-await job.moveToCompleted(result, true);
-
-console.log("✅ JOB OZNACZONY JAKO COMPLETED");
+    console.log("✅ ZAPISANO WYNIK DO REDIS");
 
     process.exit(0);
 
