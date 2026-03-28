@@ -154,23 +154,25 @@ for (let d of shuffledDays) {
     }
 
     // NORMAL placement
-    if (best) {
-    
-  // 🔥 USUŃ wszystko z tego slotu (KLUCZOWE)
+   if (best) {
+
+  // 🔥 USUŃ wszystko z tego slotu
   for (let c of l.classes) {
     if (s[c]?.[best.d]?.[best.h]) {
       const old = s[c][best.d][best.h];
 
       for (let cc of old.classes) {
-        if (s[cc]?.[best.d]?.[best.h]) {
-          delete s[cc][best.d][best.h];
-        }
+        delete s[cc][best.d][best.h];
       }
     }
   }
 
   place(l, best.d, best.h, s, tBusy, cBusy, data);
   placedFlag = true;
+
+  // 🔥 KLUCZOWE — NATYCHMIAST aktualizuj busy
+  ({ tBusy, cBusy } = rebuildBusy(s));
+
     } else {
       // FALLBACK
 outer:
@@ -190,8 +192,12 @@ for (let d of DAYS) {
       }
 
       place(l, d, h, s, tBusy, cBusy, data);
-      placedFlag = true;
-      break outer;
+placedFlag = true;
+
+// 🔥 KLUCZOWE — NATYCHMIAST aktualizuj busy
+({ tBusy, cBusy } = rebuildBusy(s));
+
+break outer;
     }
   }
 }
