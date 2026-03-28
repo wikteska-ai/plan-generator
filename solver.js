@@ -836,11 +836,7 @@ if (missing <= 10) {
     missing = after;
   }
 }
-    const teacherErrors2 = validateTeachers(candidate, data);
-
-if (teacherErrors2.length > 0) {
-  continue;
-}
+   
        if (originalMissing > 0 && originalMissing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 console.log("💣 ENTER FINAL PUSH:", missing);
@@ -866,8 +862,11 @@ if (Math.random() < 0.5) {
 }  }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
- for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
 for (let pass = 0; pass < 3; pass++) {
+
+  const shuffled = missingLessons.sort(() => Math.random() - 0.5);
+
+  for (let l of shuffled) {
 
   const shuffled = missingLessons.sort(() => Math.random() - 0.5);
 
@@ -971,6 +970,12 @@ const moved = tryChainMove(s2, l, data, depth);
   stagnation = 0;
 } else {
   stagnation++;
+}
+    const teacherErrors2 = validateTeachers(candidate, data);
+
+if (teacherErrors2.length > 0) {
+  console.log("🚫 INVALID AFTER FIX — skip");
+  continue;
 }
     
 if (
