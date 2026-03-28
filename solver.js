@@ -4,6 +4,17 @@ const TIME_LIMIT = 600000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
+// ===== EXTRA (FIX) =====
+function teacherAvailableRaw(tid, d, h, data) {
+  const t = data.teachers.find(x => x.id === tid);
+  return t && t.availability.includes(d + "_" + h);
+}
+
+function isTightTeacher(l, data) {
+  const t = data.teachers.find(t => t.id === l.teacher);
+  return (t?.availability.length || 0) <= l.hours;
+}
+
 // ===== PROGRESS =====
 function saveProgress(p) {
   try {
@@ -11,7 +22,7 @@ function saveProgress(p) {
   } catch {}
 }
 
-// ===== LESSONS =====
+// ===== LEKCJE =====
 function getLessons(data) {
   let grouped = {};
 
@@ -51,50 +62,34 @@ function getLessons(data) {
     const ta = data.teachers.find(t => t.id === a.teacher);
     const tb = data.teachers.find(t => t.id === b.teacher);
 
-    const tightA = a.hours / Math.max(ta?.availability.length || 1, 1);
-    const tightB = b.hours / Math.max(tb?.availability.length || 1, 1);
+    const availA = ta?.availability.length || 0;
+    const availB = tb?.availability.length || 0;
 
-    return tightB - tightA;
+    const tightA = a.hours / Math.max(availA, 1);
+    const tightB = b.hours / Math.max(availB, 1);
+
+    if (tightA !== tightB) return tightB - tightA;
+    if (a.group && !b.group) return -1;
+    if (!a.group && b.group) return 1;
+
+    return Math.random() - 0.5;
   });
 
   return out;
 }
 
-// ===== BUSY =====
-function rebuildBusy(schedule) {
-  let tBusy = {}, cBusy = {};
-
-  for (let c in schedule) {
-    for (let d in schedule[c]) {
-      for (let h in schedule[c][d]) {
-        const l = schedule[c][d][h];
-        tBusy[l.teacher+"_"+d+"_"+h] = true;
-        cBusy[c+"_"+d+"_"+h] = true;
-      }
-    }
-  }
-
-  return { tBusy, cBusy };
-}
-
 // ===== CHECK =====
-function teacherAvailableRaw(tid, d, h, data) {
-  const t = data.teachers.find(x => x.id === tid);
-  return t && t.availability.includes(d + "_" + h);
-}
-
 function teacherOk(tid, d, h, tBusy, data) {
-  return teacherAvailableRaw(tid, d, h, data) &&
-    !tBusy[tid+"_"+d+"_"+h];
+  const t = data.teachers.find(x => x.id === tid);
+  return t && t.availability.includes(d + "_" + h) && !tBusy[tid + "_" + d + "_" + h];
 }
 
 function classesFree(classes, d, h, cBusy) {
-  return classes.every(c => !cBusy[c+"_"+d+"_"+h]);
+  return classes.every(c => !cBusy[c + "_" + d + "_" + h]);
 }
 
 // ===== PLACE =====
 function place(l, d, h, s, tBusy, cBusy, data) {
-
   if (!teacherOk(l.teacher, d, h, tBusy, data)) return false;
 
   if (l.block === 2) {
@@ -106,21 +101,22 @@ function place(l, d, h, s, tBusy, cBusy, data) {
     ) return false;
   }
 
-  tBusy[l.teacher+"_"+d+"_"+h] = true;
+  tBusy[l.teacher + "_" + d + "_" + h] = true;
 
   for (let c of l.classes) {
-    cBusy[c+"_"+d+"_"+h] = true;
+    cBusy[c + "_" + d + "_" + h] = true;
 
     if (!s[c]) s[c] = {};
     if (!s[c][d]) s[c][d] = {};
+
     s[c][d][h] = l;
   }
 
   if (l.block === 2) {
-    tBusy[l.teacher+"_"+d+"_"+(h+1)] = true;
+    tBusy[l.teacher + "_" + d + "_" + (h+1)] = true;
 
     for (let c of l.classes) {
-      cBusy[c+"_"+d+"_"+(h+1)] = true;
+      cBusy[c + "_" + d + "_" + (h+1)] = true;
       s[c][d][h+1] = l;
     }
   }
@@ -128,39 +124,29 @@ function place(l, d, h, s, tBusy, cBusy, data) {
   return true;
 }
 
-// ===== COUNT (FIX GODZIN) =====
-function countMissing(schedule, lessons) {
-  let placed = 0;
-  let required = 0;
+// ===== BUSY =====
+function rebuildBusy(schedule) {
+  let tBusy = {};
+  let cBusy = {};
 
-  for (let l of lessons) {
-    required += l.block === 2 ? 2 : 1;
-  }
-
-  const seen = new Set();
-
-  for (let cls in schedule) {
-    for (let d in schedule[cls]) {
-      for (let h in schedule[cls][d]) {
-
-        const l = schedule[cls][d][h];
-        const key = l.id + "_" + d;
-
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        placed += l.block === 2 ? 2 : 1;
+  for (let c in schedule) {
+    for (let d in schedule[c]) {
+      for (let h in schedule[c][d]) {
+        const l = schedule[c][d][h];
+        tBusy[l.teacher + "_" + d + "_" + h] = true;
+        cBusy[c + "_" + d + "_" + h] = true;
       }
     }
   }
 
-  return required - placed;
+  return { tBusy, cBusy };
 }
 
 // ===== CHAIN MOVE (FIXED) =====
-function tryChainMove(schedule, lesson, data, depth = 8, visited = new Set()) {
-  if (visited.has(lesson.id) || depth <= 0) return false;
+function tryChainMove(schedule, lesson, data, depth = 6, visited = new Set()) {
+  if (visited.has(lesson.id)) return false;
   visited.add(lesson.id);
+  if (depth <= 0) return false;
 
   for (let d of DAYS) {
     for (let h of HOURS) {
@@ -217,52 +203,36 @@ function tryChainMove(schedule, lesson, data, depth = 8, visited = new Set()) {
   return false;
 }
 
-// ===== CONSTRUCT =====
-function construct(lessons, data) {
-  let s = {}, tBusy = {}, cBusy = {};
+// ===== COUNT MISSING (FIX) =====
+function countMissing(schedule, lessons) {
+  let placed = 0;
+  let required = 0;
 
   for (let l of lessons) {
-
-    let placed = false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-
-        if (
-          teacherOk(l.teacher, d, h, tBusy, data) &&
-          classesFree(l.classes, d, h, cBusy)
-        ) {
-          if (place(l, d, h, s, tBusy, cBusy, data)) {
-            placed = true;
-            break;
-          }
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed) {
-      const moved = tryChainMove(s, l, data);
-      if (moved) {
-        const { d, h } = moved;
-        place(l, d, h, s, tBusy, cBusy, data);
-        placed = true;
-      }
-    }
-
-    if (!placed) {
-      console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
-    }
-
-    ({ tBusy, cBusy } = rebuildBusy(s));
+    required += l.block === 2 ? 2 : 1;
   }
 
-  return s;
+  const seen = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        const key = l.id + "_" + d;
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        placed += l.block === 2 ? 2 : 1;
+      }
+    }
+  }
+
+  return required - placed;
 }
 
 // ===== MAIN =====
 async function generateSchedule(data) {
-
   let lessons = getLessons(data);
 
   let best = null;
@@ -272,9 +242,10 @@ async function generateSchedule(data) {
 
   while (Date.now() - start < TIME_LIMIT) {
 
-    const s = construct(lessons, data);
+    let s = {};
+    s = repairMissing(construct(lessons, data), lessons, data);
 
-    const missing = countMissing(s, lessons);
+    let missing = countMissing(s, lessons);
 
     console.log("missing:", missing);
 
@@ -288,10 +259,16 @@ async function generateSchedule(data) {
 
   // ===== FINAL CLOSING =====
   if (bestMissing > 0 && bestMissing <= 5) {
-    console.log("💣 FINAL DOMYKANIE");
 
     for (let l of lessons) {
-      const moved = tryChainMove(best, l, data, 12);
+
+      let moved = tryChainMove(best, l, data, 12, new Set());
+
+      if (!moved) {
+        best = destroyAroundLesson(best, l);
+        moved = tryChainMove(best, l, data, 12, new Set());
+      }
+
       if (moved) {
         const { d, h } = moved;
         const { tBusy, cBusy } = rebuildBusy(best);
@@ -300,7 +277,11 @@ async function generateSchedule(data) {
           teacherOk(l.teacher, d, h, tBusy, data) &&
           classesFree(l.classes, d, h, cBusy)
         ) {
-          place(l, d, h, best, tBusy, cBusy, data);
+          for (let c of l.classes) {
+            if (!best[c]) best[c] = {};
+            if (!best[c][d]) best[c][d] = {};
+            best[c][d][h] = l;
+          }
         }
       }
     }
