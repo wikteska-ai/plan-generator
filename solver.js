@@ -41,13 +41,12 @@ function getLessons(data) {
 
     for (let h = 0; h < realHours; h++) {
       out.push({
-        id: `${i}_${h}_${g.teacher}_${g.subject}`,
+        id: `${i}_${h}_${g.teacher}_${g.subject}_${g.classes.join("-")}`,
         ...g
       });
     }
   });
 
-  // 🔥 sort ciasności
   out.sort((a, b) => {
     const ta = data.teachers.find(t => t.id === a.teacher);
     const tb = data.teachers.find(t => t.id === b.teacher);
@@ -107,21 +106,23 @@ function place(l, d, h, s, tBusy, cBusy, data) {
     ) return false;
   }
 
+  tBusy[l.teacher+"_"+d+"_"+h] = true;
+
   for (let c of l.classes) {
+    cBusy[c+"_"+d+"_"+h] = true;
+
     if (!s[c]) s[c] = {};
     if (!s[c][d]) s[c][d] = {};
     s[c][d][h] = l;
-    cBusy[c+"_"+d+"_"+h] = true;
   }
 
-  tBusy[l.teacher+"_"+d+"_"+h] = true;
-
   if (l.block === 2) {
-    for (let c of l.classes) {
-      s[c][d][h+1] = l;
-      cBusy[c+"_"+d+"_"+(h+1)] = true;
-    }
     tBusy[l.teacher+"_"+d+"_"+(h+1)] = true;
+
+    for (let c of l.classes) {
+      cBusy[c+"_"+d+"_"+(h+1)] = true;
+      s[c][d][h+1] = l;
+    }
   }
 
   return true;
