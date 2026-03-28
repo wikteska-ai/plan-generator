@@ -166,7 +166,8 @@ function solveOnce(data) {
   const lessons = sortLessons(buildLessons(data), data);
   const state = createState();
 console.log("=== KOLEJNOŚĆ LEKCJI ===");
-
+console.log("📊 TOTAL LESSONS:", lessons.length);
+  
 lessons.slice(0, 10).forEach(l => {
   const t = data.teachers.find(x => x.id === l.teacher);
   console.log(
@@ -187,6 +188,31 @@ lessons.slice(0, 10).forEach(l => {
       console.log("❌ MISS:", l.subject, l.teacher, l.classes);
     }
   }
+  console.log(
+  "➡️ placed:", placed,
+  "/", lessons.length,
+  "missing:", lessons.length - placed
+);
+
+// 🔍 lista brakujących lekcji
+if (placed < lessons.length) {
+  const placedIds = new Set();
+
+  for (let cls in state.schedule) {
+    for (let d in state.schedule[cls]) {
+      for (let h in state.schedule[cls][d]) {
+        placedIds.add(state.schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  const missing = lessons.filter(l => !placedIds.has(l.id));
+
+  console.log("❌ MISSING LESSONS:");
+  missing.forEach(l =>
+    console.log(l.subject, l.teacher, l.classes)
+  );
+}
 
   return {
     schedule: state.schedule,
