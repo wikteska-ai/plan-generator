@@ -676,3 +676,29 @@ async function generateSchedule(data) {
 
 // ===== EXPORT =====
 export { generateSchedule };
+function countMissing(schedule, lessons) {
+  let placed = 0;
+  let required = 0;
+
+  for (let l of lessons) {
+    required += l.block === 2 ? 2 : 1;
+  }
+
+  const seen = new Set();
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+        const key = l.id + "_" + d;
+
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        placed += l.block === 2 ? 2 : 1;
+      }
+    }
+  }
+
+  return required - placed;
+}
