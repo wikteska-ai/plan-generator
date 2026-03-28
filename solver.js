@@ -797,6 +797,8 @@ let missing = countMissing(candidate, lessons);
     
 console.log("🧠 ORIGINAL:", originalMissing, "NOW:", missing);
     // 🔥 FIX 4 — TUTAJ
+
+
 if (missing <= 3) {
   console.log("🧊 FREEZE MODE:", missing);
 
@@ -845,7 +847,12 @@ if (missing <= 10) {
    
        if (originalMissing > 0 && originalMissing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
+         
 console.log("💣 ENTER FINAL PUSH:", missing);
+         if (missing === 0) {
+  console.log("🏁 SKIP FINAL PUSH — already perfect");
+  continue;
+}
   // 🔍 znajdź brakujące lekcje
   const placedIds = new Set();
 
@@ -857,8 +864,9 @@ console.log("💣 ENTER FINAL PUSH:", missing);
     }
   }
 
-  const missingLessons = lessons.filter(l => !placedIds.has(l.id));
-
+const missingLessons = lessons
+  .filter(l => !placedIds.has(l.id))
+  .slice(0, 3);
   // 🔥 1. usuń DUŻO miejsca wokół nich
   for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
 s2 = destroyAroundLesson(s2, l);
@@ -871,8 +879,8 @@ if (Math.random() < 0.2) {
   // 🔥 2. spróbuj chainMove z dużą głębokością
 for (let pass = 0; pass < 2; pass++) {
 
-  const shuffled = missingLessons.sort((a, b) => {
-    const ta = data.teachers.find(t => t.id === a.teacher);
+const shuffled = [...missingLessons].sort((a, b) => {
+  const ta = data.teachers.find(t => t.id === a.teacher);
     const tb = data.teachers.find(t => t.id === b.teacher);
 
     return (ta?.availability.length || 0) - (tb?.availability.length || 0);
@@ -888,15 +896,26 @@ for (let pass = 0; pass < 2; pass++) {
       if (moved) break;
     }
 
-    if (moved) {
-      const { d, h } = moved;
+   if (moved) {
+  const { d, h } = moved;
 
-      const { tBusy, cBusy } = rebuildBusy(s2);
+  const temp = JSON.parse(JSON.stringify(s2));
 
-      if (
-        teacherOk(l.teacher, d, h, tBusy, data) &&
-        classesFree(l.classes, d, h, cBusy)
-      ) {
+// 🔥 symuluj wstawienie
+for (let c of l.classes) {
+  if (!temp[c]) temp[c] = {};
+  if (!temp[c][d]) temp[c][d] = {};
+  temp[c][d][h] = l;
+}
+
+const { tBusy, cBusy } = rebuildBusy(temp);
+
+let valid = true;
+
+if (!teacherOk(l.teacher, d, h, tBusy, data)) valid = false;
+if (!classesFree(l.classes, d, h, cBusy)) valid = false;
+
+if (!valid) continue;
         for (let c of l.classes) {
           if (!s2[c]) s2[c] = {};
           if (!s2[c][d]) s2[c][d] = {};
@@ -981,8 +1000,13 @@ const moved = tryChainMove(s2, l, data, depth);
     const teacherErrors2 = validateTeachers(candidate, data);
 
 if (teacherErrors2.length > 0) {
-  console.log("🚫 INVALID AFTER FIX — skip");
-  continue;
+  console.log("⚠️ INVALID AFTER FIX — revert");
+
+  candidate = best;
+  missing = countMissing(candidate, lessons);
+
+} else {
+  // OK
 }
     
 if (
