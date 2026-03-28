@@ -869,8 +869,8 @@ const missingLessons = lessons
   .filter(l => !placedIds.has(l.id))
   .slice(0, 3);
   // 🔥 1. usuń DUŻO miejsca wokół nich
-  for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
-s2 = destroyAroundLesson(s2, l);
+for (let l of [...missingLessons].sort(() => Math.random() - 0.5)) {
+  s2 = destroyAroundLesson(s2, l);
 
 // 🔥 tylko czasami rozwal
 if (Math.random() < 0.2) {
@@ -936,7 +936,7 @@ if (!valid) continue;
   }
 }}
     // 🔥 FINAL FIX MODE
-if (missing > 0 && missing <= 5) {
+if (missing > 3 && missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 
   // 🔥 usuń tylko problematyczne lekcje
@@ -1025,14 +1025,14 @@ if (
   console.log("🔥 BEST:", "missing:", missing, "score:", bestScore);
 }
    if (globalBest && globalBest.missing <= 1 && missing > globalBest.missing) {
-  continue;
+  console.log("⏭️ SKIP — gorsze niż best");
 }
 
    saveProgress({
   percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
   iter,
   score: globalBest?.score || globalScore
-});
+});}
 
 if (
   stagnation > 10 &&
