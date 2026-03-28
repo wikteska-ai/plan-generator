@@ -1,7 +1,6 @@
 import IORedis from "ioredis";
 
 import { generateSchedule } from "./solver.js";
-import { Queue } from "bullmq";
 
 console.log("🚀 WORKER START");
 
@@ -20,6 +19,7 @@ const jobKey = `bull:jobs:${jobId}`;
 
 (async () => {
   try {
+    const { Queue } = await import("bullmq");
     console.log("📥 Pobieram job z Redis...");
 
     // pobierz dane joba
