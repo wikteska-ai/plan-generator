@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 600000;
+const TIME_LIMIT = 1200000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
@@ -503,8 +503,11 @@ function tryChainMove(schedule, lesson, data, depth = 6, visited = new Set()) {
 visited.add(lesson.id);
   if (depth <= 0) return false;
 
-  for (let d of DAYS) {
-    for (let h of HOURS) {
+  const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
+const shuffledHours = [...HOURS].sort(() => Math.random() - 0.5);
+
+for (let d of shuffledDays) {
+  for (let h of shuffledHours) {
 
       const { tBusy, cBusy } = rebuildBusy(schedule);
 
@@ -790,7 +793,9 @@ if (countMissing(best, lessons) > 20) {
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
-    console.log("📊 MISSING BEFORE FIX:", missing);
+    const originalMissing = missing; // 🔥 KLUCZ
+    
+console.log("🧠 ORIGINAL:", originalMissing, "NOW:", missing);
     // 🔥 FIX 4 — TUTAJ
 if (missing <= 3) {
   console.log("🚀 FORCE CONTINUE LOW MISSING:", missing);
@@ -836,7 +841,7 @@ if (missing <= 10) {
 if (teacherErrors2.length > 0) {
   continue;
 }
-        if (missing > 0 && missing <= 5) {
+       if (originalMissing > 0 && originalMissing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
 console.log("💣 ENTER FINAL PUSH:", missing);
   // 🔍 znajdź brakujące lekcje
@@ -854,19 +859,28 @@ console.log("💣 ENTER FINAL PUSH:", missing);
 
   // 🔥 1. usuń DUŻO miejsca wokół nich
   for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
-    s2 = destroyAroundLesson(s2, l);
-  }
+s2 = destroyAroundLesson(s2, l);
+
+if (Math.random() < 0.5) {
+  s2 = randomDestroy(s2, 0.1);
+}  }
 
   // 🔥 2. spróbuj chainMove z dużą głębokością
  for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
-let moved = null;
+for (let pass = 0; pass < 3; pass++) {
 
-// 🔥 próbuj kilka razy (różne ścieżki)
-for (let attempt = 0; attempt < 5; attempt++) {
-  console.log("🎯 TRY FINAL:", l.subject, l.teacher);
-  moved = tryChainMove(s2, l, data, 12, new Set());
-  if (moved) break;
-}
+  const shuffled = missingLessons.sort(() => Math.random() - 0.5);
+
+  for (let l of shuffled) {
+
+    let moved = null;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      console.log("🎯 TRY FINAL:", l.subject, l.teacher);
+      moved = tryChainMove(s2, l, data, 12, new Set());
+      if (moved) break;
+    }
+
     if (moved) {
       const { d, h } = moved;
 
@@ -883,6 +897,8 @@ for (let attempt = 0; attempt < 5; attempt++) {
         }
       }
     }
+  }
+}
   }
 
   const newMissing = countMissing(s2, lessons);
