@@ -790,6 +790,7 @@ if (countMissing(best, lessons) > 20) {
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
+    console.log("📊 MISSING BEFORE FIX:", missing);
     // 🔥 FIX 4 — TUTAJ
 if (
   globalBest &&
@@ -801,14 +802,32 @@ if (
 
 // 🔥 KOŃCÓWKA — repair
 if (missing > 0 && missing <= 20) {
-  candidate = repairMissing(JSON.parse(JSON.stringify(candidate)), lessons, data);
-  missing = countMissing(candidate, lessons);
+  const before = missing;
+
+  const repaired = repairMissing(
+    JSON.parse(JSON.stringify(candidate)),
+    lessons,
+    data
+  );
+
+  const after = countMissing(repaired, lessons);
+
+  if (after <= before) {
+    candidate = repaired;
+    missing = after;
+  }
 }
     // 🔥 FIX 4 — DOŁÓŻ IMPROVE NA KOŃCU
 if (missing <= 10) {
+  const before = missing;
+
   const improved = improve(candidate, data, 3000);
-  candidate = improved.best;
-  missing = countMissing(candidate, lessons);
+  const after = countMissing(improved.best, lessons);
+
+  if (after <= before) {
+    candidate = improved.best;
+    missing = after;
+  }
 }
     const teacherErrors2 = validateTeachers(candidate, data);
 
