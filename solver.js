@@ -42,17 +42,18 @@ function buildLessons(data) {
 // ===== DIFFICULTY =====
 function lessonDifficulty(l, data) {
   const t = data.teachers.find(t => t.id === l.teacher);
-
   const avail = t?.availability.length || 0;
 
-  // 🔥 NAJWAŻNIEJSZE: dostępność (małe = trudne)
   let difficulty = avail * 10;
 
-  // 🔥 grupy ważne, ale NIE ważniejsze niż brak slotów
-  if (l.group) difficulty -= 5;
+  // 🔥 NOWE: liczba klas (ważne!)
+  difficulty -= l.classes.length * 5;
 
-  // 🔥 wiele klas trochę trudniejsze
-  difficulty -= (l.classes.length - 1) * 2;
+  // 🔥 NOWE: grupy
+  if (l.group) difficulty -= 10;
+
+  // 🔥 NOWE: rzadkie przedmioty (mało godzin = trudniejsze)
+  if (l.hours <= 1) difficulty -= 10;
 
   return difficulty;
 }
@@ -147,6 +148,7 @@ function scoreSlot(l, d, h, state) {
     // 🟡 NIE ZOSTAWIAJ SAMOTNEJ LEKCJI
     if (hours.length === 1 && Math.abs(hours[0] - h) > 1) {
       score -= 30;
+      
     }
   }
 
@@ -169,7 +171,7 @@ function findBestSlot(l, state, data) {
 
       const sc = scoreSlot(l, d, h, state);
 
-    if (sc > bestScore || Math.random() < 0.2) {
+    if (sc > bestScore || Math.random() < 0.3) {
         bestScore = sc;
         best = { d, h };
       }
