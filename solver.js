@@ -237,14 +237,61 @@ break outer;
 }
     }
 
- if (!placedFlag) {
-  console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
-  queue.push(l);
+if (!placedFlag) {
+
+  l._tries = (l._tries || 0) + 1;
+
+  // 🔥 log tylko raz
+  if (!l._logged) {
+    console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
+    l._logged = true;
+  }
+
+  // 🔥 max 3 próby → potem NIE wrzucamy z powrotem
+  if (l._tries < 3) {
+    queue.push(l);
+  }
+
   continue;
 }
 
     ({ tBusy, cBusy } = rebuildBusy(s));
   }
+  // 🔥 LAST TRY — spróbuj jeszcze raz wstawić brakujące
+for (let l of lessons) {
+
+  const placed = new Set();
+
+  for (let c in s) {
+    for (let d in s[c]) {
+      for (let h in s[c][d]) {
+        placed.add(s[c][d][h].id);
+      }
+    }
+  }
+
+  if (placed.has(l.id)) continue;
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      const { tBusy, cBusy } = rebuildBusy(s);
+
+      if (
+        teacherOk(l.teacher, d, h, tBusy, data) &&
+        classesFree(l.classes, d, h, cBusy)
+      ) {
+        for (let c of l.classes) {
+          if (!s[c]) s[c] = {};
+          if (!s[c][d]) s[c][d] = {};
+          s[c][d][h] = l;
+        }
+
+        break;
+      }
+    }
+  }
+}
 
   return s;
 }
