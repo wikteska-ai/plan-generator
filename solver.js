@@ -917,11 +917,10 @@ if (!teacherOk(l.teacher, d, h, tBusy, data)) valid = false;
 if (!classesFree(l.classes, d, h, cBusy)) valid = false;
 
 if (!valid) continue;
-     const { tBusy, cBusy } = rebuildBusy(s2);
-
+const { tBusy: realT, cBusy: realC } = rebuildBusy(s2);
 if (
-  !teacherOk(l.teacher, d, h, tBusy, data) ||
-  !classesFree(l.classes, d, h, cBusy)
+  !teacherOk(l.teacher, d, h, realT, data) ||
+  !classesFree(l.classes, d, h, realC)
 ) {
   continue;
 }
