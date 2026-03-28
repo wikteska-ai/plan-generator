@@ -397,8 +397,7 @@ let rebuilt, tBusy, cBusy;
 
     // TARGETED REPAIR
     if (Math.random() < 0.7) {
-      const classes = Object.keys(next);
-
+const classes = Object.keys(next || {});
       for (let c of classes) {
         const days = Object.keys(next[c] || {});
 
@@ -413,8 +412,8 @@ let rebuilt, tBusy, cBusy;
 
             if (curr !== prev + 1) {
 const lesson = next[c]?.[d]?.[curr];
-              if (!lesson) continue;
-
+              
+if (!lesson || !lesson.classes) continue;
               if (lesson.classes.length > 1) continue;
 
               const target = prev + 1;
@@ -439,8 +438,11 @@ if (!ok) continue;
 
               if (!ok) continue;
 
-              delete next[c][d][curr];
-              next[c][d][target] = lesson;
+             if (!next[c]) next[c] = {};
+if (!next[c][d]) next[c][d] = {};
+
+delete next[c][d][curr];
+next[c][d][target] = lesson;
               rebuilt = rebuildBusy(next);
 tBusy = rebuilt.tBusy;
 cBusy = rebuilt.cBusy;
