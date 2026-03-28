@@ -111,41 +111,46 @@ function place(l, d, h, state) {
   }
 }
 
-// ===== SLOT SCORE =====
 function scoreSlot(l, d, h, state) {
   let score = 0;
-
-  // 🎯 środek dnia najlepszy
-  if (h >= 2 && h <= 6) score += 5;
-  if (h === 1) score += 5;
-  if (h === 8) score -= 2;
-  for (let c of l.classes) {
-  const day = state.schedule[c]?.[d] || {};
-  const hours = Object.keys(day).map(Number);
-
-  if (hours.length === 0 && h === 1) {
-    score += 6; // 🔥 bonus za start dnia od 1
-  }
-}
-  // ❌ OKIENKA (MEGA KARA)
-    for (let i = 1; i < hours.length; i++) {
-      if (hours[i] !== hours[i-1] + 1) {
-        penalty += 100; // 🔥 było 20
-      }
-    }
 
   for (let c of l.classes) {
     const day = state.schedule[c]?.[d] || {};
     const hours = Object.keys(day).map(Number);
 
+    // 🟢 START DNIA
+    if (hours.length === 0) {
+      if (h === 1) score += 10; // idealny start
+      if (h === 2) score += 5;  // ok start
+      if (h > 2) score -= 20;   // ❌ nie zaczynaj od 3+
+    }
 
+    // 🟢 CIĄGŁOŚĆ (NAJWAŻNIEJSZE)
+    if (hours.includes(h - 1)) score += 10;
+    if (hours.includes(h + 1)) score += 10;
 
-    // bonus za ciągłość
-    if (hours.includes(h - 1)) score += 5;
-    if (hours.includes(h + 1)) score += 5;
+    // 🔴 TWORZENIE OKIENKA (bardzo ważne)
+    if (hours.includes(h - 2) && !hours.includes(h - 1)) {
+      score -= 30;
+    }
+    if (hours.includes(h + 2) && !hours.includes(h + 1)) {
+      score -= 30;
+    }
+
+    // 🟡 ROZMIAR DNIA
+    const newSize = hours.length + 1;
+
+    if (newSize < 4) score += 5;        // dociągamy do minimum
+    if (newSize > 7) score -= 10;       // miękka kara
+    if (newSize > 8) score -= 30;       // twarda kara
+
+    // 🟡 NIE ZOSTAWIAJ SAMOTNEJ LEKCJI
+    if (hours.length === 1 && Math.abs(hours[0] - h) > 1) {
+      score -= 40;
+    }
   }
 
-  // grupy ważniejsze
+  // 🟣 grupy lekko ważniejsze
   if (l.group) score += 5;
 
   return score;
@@ -240,41 +245,62 @@ function score(schedule) {
 
   for (let cls in schedule) {
     for (let d of DAYS) {
+
       const day = schedule[cls]?.[d] || {};
       const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
 
-      if (hours.length === 0) continue;
-
-      for (let i = 1; i < hours.length; i++) {
-        if (hours.length === 0) {
-  penalty += 100;
-  continue;
-}
-       if (hours[i] !== hours[i-1] + 1) {
-  const gapSize = hours[i] - hours[i-1] - 1;
-
-  penalty += 40 * gapSize; // 🔥 mocna kara
-}
-        const first = hours[0];
-
-if (first >= 3) penalty += 30; // bardzo źle
-if (first === 2) penalty += 5; // lekka kara
-        if (hours.length === 1) penalty += 60;
-if (hours.length === 2) penalty += 30;
-        if (hours.length < 4) {
-  penalty += (4 - hours.length) * 15;
-}
-        if (
-  hours.length >= 4 &&
-  hours.length <= 7 &&
-  hours.every((h, i) => i === 0 || h === hours[i-1] + 1)
-) {
-  penalty -= 5; // 🔥 nagroda
-}
-        
+      // ❌ pusty dzień (NIE CHCESZ TEGO)
+      if (hours.length === 0) {
+        penalty += 500;
+        continue;
       }
 
-      if (hours.length > 7) penalty += 10;
+      // ❌ START DNIA
+      const first = hours[0];
+
+      if (first > 2) penalty += 200; // bardzo źle
+      if (first === 2) penalty += 10; // lekko źle
+
+      // ❌ ZA MAŁO LEKCJI
+      if (hours.length < 4) {
+        penalty += (4 - hours.length) * 120;
+      }
+
+      // ❌ ZA DUŻO LEKCJI
+      if (hours.length > 7) {
+        penalty += (hours.length - 7) * 40;
+      }
+
+      if (hours.length > 8) {
+        penalty += 200;
+      }
+
+      // ❌ OKIENKA (NAJWAŻNIEJSZE)
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+          const gapSize = hours[i] - hours[i-1] - 1;
+          penalty += 300 * gapSize;
+        }
+      }
+
+      // 🟢 BONUS ZA IDEALNY DZIEŃ
+      let isContinuous = true;
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+          isContinuous = false;
+          break;
+        }
+      }
+
+      if (
+        isContinuous &&
+        hours.length >= 4 &&
+        hours.length <= 7 &&
+        first <= 2
+      ) {
+        penalty -= 50;
+      }
     }
   }
 
