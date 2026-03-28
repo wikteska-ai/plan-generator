@@ -96,10 +96,7 @@ function place(l, d, h, s, tBusy, cBusy, data) {
   if (l.block === 2) {
     if (h >= 8) return false;
 
-    if (
-      !teacherOk(l.teacher, d, h+1, tBusy, data) ||
-      !classesFree(l.classes, d, h+1, cBusy)
-    ) return false;
+   if (!teacherOk(l.teacher, d, h+1, tBusy, data)) return false;
   }
 
   // SLOT 1
@@ -165,6 +162,15 @@ for (let d of shuffledDays) {
   for (let h of shuffledHours) {
         if (!teacherOk(l.teacher, d, h, tBusy, data)) continue;
 if (!classesFree(l.classes, d, h, cBusy)) continue;
+    // 🔥 BLOCK 2 (np. WF) — NIE PRÓBUJ NIEMOŻLIWYCH SLOTÓW
+if (l.block === 2) {
+  if (h >= 8) continue;
+
+  if (
+    !teacherOk(l.teacher, d, h+1, tBusy, data) ||
+    !classesFree(l.classes, d, h+1, cBusy)
+  ) continue;
+}
         let score = 0;
     const teacher = data.teachers.find(t => t.id === l.teacher);
 const avail = teacher?.availability || [];
@@ -232,7 +238,8 @@ break outer;
     }
 
  if (!placedFlag) {
-  queue.push(l); // 🔁 spróbuj później
+  console.log("❌ NIE WSTAWIONO:", l.subject, l.teacher);
+  queue.push(l);
   continue;
 }
 
