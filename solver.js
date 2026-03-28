@@ -178,7 +178,34 @@ function findBestSlot(l, state, data) {
 
   return best;
 }
+function canPlace(l, d, h, schedule, data) {
+  const state = buildStateFromSchedule(schedule);
 
+  return (
+    teacherOk(l.teacher, d, h, state, data) &&
+    classesOk(l.classes, d, h, state)
+  );
+}
+
+function placeLesson(l, d, h, schedule) {
+  for (let c of l.classes) {
+    if (!schedule[c]) schedule[c] = {};
+    if (!schedule[c][d]) schedule[c][d] = {};
+    schedule[c][d][h] = l;
+  }
+}
+
+function removeLesson(l, schedule) {
+  for (let c of l.classes) {
+    for (let d in schedule[c]) {
+      for (let h in schedule[c][d]) {
+        if (schedule[c][d][h].id === l.id) {
+          delete schedule[c][d][h];
+        }
+      }
+    }
+  }
+}
 // ===== SOLVE =====
 function solveOnce(data) {
   const lessons = sortLessons(buildLessons(data), data);
@@ -232,10 +259,20 @@ if (placed < lessons.length) {
   );
 }
 
- return {
+return {
   schedule: state.schedule,
   placed,
-  total: lessons.length
+  total: lessons.length,
+  missingLessons: lessons.filter(l => {
+    for (let cls in state.schedule) {
+      for (let d in state.schedule[cls]) {
+        for (let h in state.schedule[cls][d]) {
+          if (state.schedule[cls][d][h].id === l.id) return false;
+        }
+      }
+    }
+    return true;
+  })
 };
 }
 
@@ -482,6 +519,94 @@ function buildStateFromSchedule(schedule) {
 
   return state;
 }
+function repairSchedule(result, data) {
+  const missing = result.missingLessons;
+
+  for (let lesson of missing) {
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h = 1; h <= 8; h++) {
+
+        if (canPlace(lesson, d, h, result.schedule)) {
+          placeLesson(lesson, d, h, result.schedule);
+          result.placed++;
+          placed = true;
+          break;
+        }
+
+        // 🔥 SPRÓBUJ WYMIANY
+        const cls = lesson.classes[0];
+        const existing = result.schedule[cls]?.[d]?.[h];
+
+        if (existing) {
+          removeLesson(existing, result.schedule);
+
+          if (canPlace(lesson, d, h, result.schedule)) {
+            placeLesson(lesson, d, h, result.schedule);
+
+            // spróbuj wstawić starą gdzie indziej
+            if (!tryReinsert(existing, result.schedule)) {
+              // rollback jeśli się nie udało
+              removeLesson(lesson, result.schedule);
+              placeLesson(existing, d, h, result.schedule);
+            } else {
+              result.placed++;
+              placed = true;
+              break;
+            }
+          } else {
+            // rollback
+            placeLesson(existing, d, h, result.schedule);
+          }
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("💀 NIE DA SIĘ NAPRAWIĆ:", lesson.name);
+    }
+  }
+}
+function tryReinsert(lesson, schedule) {
+  for (let d of DAYS) {
+    for (let h = 1; h <= 8; h++) {
+      if (canPlace(lesson, d, h, schedule)) {
+        placeLesson(lesson, d, h, schedule);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function normalizeSchedule(schedule) {
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+      const day = schedule[cls]?.[d] || {};
+
+      let hours = Object.keys(day)
+        .map(Number)
+        .sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+
+          const lesson = day[hours[i]];
+
+          // spróbuj przesunąć w dół
+          for (let h = hours[i-1] + 1; h < hours[i]; h++) {
+            if (canPlace(lesson, d, h, schedule)) {
+              removeLesson(lesson, schedule);
+              placeLesson(lesson, d, h, schedule);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
 function fixHardGaps(schedule, data) {
   const state = buildStateFromSchedule(schedule);
 
@@ -628,11 +753,11 @@ if (Math.random() < 0.7) {
     }
   
     if (Math.random() < 0.4) {
-  schedule = fixHardGaps(schedule, data);
+  schedule = fixHardGaps(current, data);
 }
 
 if (Math.random() < 0.4) {
-  schedule = fixGapsBySwap(schedule, data);
+  schedule = fixGapsBySwap(current, data);
 }
   }
 
@@ -674,12 +799,20 @@ function generateSchedule(data, runs = 50) {
 
 const result = solveOnce(data);
 
-if (result.placed !== result.total) {
-  console.log("⛔ INVALID:", result.total - result.placed);
-  continue; // 🔥 KLUCZOWE
-}
+    // 🧩 NOWE: napraw brakujące lekcje
+  if (result.placed !== result.total) {
+    repairSchedule(result, data);
+  }
 
-const sc = score(result.schedule);
+  // ❗ po naprawie sprawdź jeszcze raz
+  if (result.placed !== result.total) {
+    console.log("⛔ INVALID:", result.total - result.placed);
+    continue;
+  }
+
+  // 🧹 NOWE: usuń okienka
+  normalizeSchedule(result.schedule);
+
     const isValid = result.placed === result.total;
 
     if (isValid) {
