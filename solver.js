@@ -49,20 +49,27 @@ function getLessons(data) {
 
   // 🔥 SORTOWANIE
  out.sort((a, b) => {
+  const ta = data.teachers.find(t => t.id === a.teacher);
+  const tb = data.teachers.find(t => t.id === b.teacher);
+
+  const availA = ta?.availability.length || 0;
+  const availB = tb?.availability.length || 0;
+
+  // 🔥 KLUCZ — ciasność
+  const tightA = a.hours / Math.max(availA, 1);
+  const tightB = b.hours / Math.max(availB, 1);
+
+  // 🔥 1. najpierw najbardziej ciasne
+  if (tightA !== tightB) return tightB - tightA;
+
+  // 🔥 2. potem grupy (WF itd.)
   if (a.group && !b.group) return -1;
   if (!a.group && b.group) return 1;
 
-  const teacherA = data.teachers.find(t => t.id === a.teacher);
-  const teacherB = data.teachers.find(t => t.id === b.teacher);
-
-  const availA = teacherA?.availability.length || 0;
-  const availB = teacherB?.availability.length || 0;
-
-  const difficultyA = availA / a.hours;
-  const difficultyB = availB / b.hours;
-
-  return difficultyA - difficultyB;
+  // 🔥 3. lekka losowość
+  return Math.random() - 0.5;
 });
+  console.log("FIRST 10:", out.slice(0, 10).map(l => l.teacher));
 
   return out;
 }
