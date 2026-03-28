@@ -432,7 +432,31 @@ if (Math.random() < 0.7) {
 
   return best;
 }
+function validateSchedule(schedule, data) {
+  const lessonCount = {};
 
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+
+        const l = schedule[cls][d][h];
+        lessonCount[l.id] = (lessonCount[l.id] || 0) + 1;
+      }
+    }
+  }
+
+  // policz ile powinno być
+  const expected = buildLessons(data).length;
+
+  const actual = Object.keys(lessonCount).length;
+
+  if (actual !== expected) {
+    console.log("🚨 ZGUBIONE / DUPLIKATY LEKCJI");
+    return false;
+  }
+
+  return true;
+}
 // ===== MULTI RUN =====
 function generateSchedule(data, runs = 10) {
   let best = null;
@@ -452,8 +476,11 @@ if (isValid) {
 
   sc = score(improved);
 
+if (validateSchedule(improved, data)) {
   result.schedule = improved;
-
+} else {
+  console.log("⚠️ IMPROVE ODRZUCONE (integrity fail)");
+}
   console.log("➡️ placed:", result.placed, "score:", sc);
 } else {
   console.log("⛔ INVALID (missing):", result.total - result.placed);
