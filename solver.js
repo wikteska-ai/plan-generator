@@ -155,8 +155,22 @@ for (let d of shuffledDays) {
 
     // NORMAL placement
     if (best) {
-      place(l, best.d, best.h, s, tBusy, cBusy, data);
-      placedFlag = true;
+    
+  // 🔥 USUŃ wszystko z tego slotu (KLUCZOWE)
+  for (let c of l.classes) {
+    if (s[c]?.[best.d]?.[best.h]) {
+      const old = s[c][best.d][best.h];
+
+      for (let cc of old.classes) {
+        if (s[cc]?.[best.d]?.[best.h]) {
+          delete s[cc][best.d][best.h];
+        }
+      }
+    }
+  }
+
+  place(l, best.d, best.h, s, tBusy, cBusy, data);
+  placedFlag = true;
     } else {
       // FALLBACK
       outer:
