@@ -134,7 +134,7 @@ function construct(lessons, data) {
 
         if (l.group) score += 5;
 
-        if (score > bestScore || Math.random() < 0.6) {
+        if (score > bestScore || Math.random() < 0.3) {
   bestScore = score;
   best = { d, h };
 }
@@ -390,8 +390,8 @@ if (Math.random() < 0.7) {
 }  if (Math.random() < 0.3) {
   next = trySwap(next, data);
 }
-  if (Math.random() < 0.2) {
-  next = randomDestroy(next, 0.1);
+  if (Math.random() < 0.1) {
+  next = randomDestroy(next, 0.05);
 }
 let rebuilt, tBusy, cBusy;
 
@@ -728,6 +728,10 @@ if (iter % 5 === 0) {
 
 let candidate = best;
 let missing = countMissing(candidate, lessons);
+    // 🔥 FIX 4 — TUTAJ
+if (globalBest && missing > globalBest.missing) {
+  continue;
+}
 
 // 🔥 KOŃCÓWKA — repair
 if (missing > 0 && missing <= 6) {
@@ -826,9 +830,11 @@ if (
 });
 
 if (
-  stagnation > 10 &&
+  stagnation > 30 &&
   lastBestMissing > 0 &&
   iter % 5 === 0
+    globalBest && globalBest.missing > 20
+
 ) {
   console.log("🧪 SOFT RESET");
 
