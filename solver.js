@@ -42,17 +42,28 @@ function buildLessons(data) {
 // ===== DIFFICULTY =====
 function lessonDifficulty(l, data) {
   const t = data.teachers.find(t => t.id === l.teacher);
-  return t?.availability.length || 0;
-}
 
+  const avail = t?.availability.length || 0;
+
+  // 🔥 ważne: każda "lekcja 1h" ma znaczenie
+  // więc traktujemy każdą jako osobny byt
+  return avail;
+}
 // ===== SORT =====
 function sortLessons(lessons, data) {
   return lessons.sort((a, b) => {
-    // grupy najpierw
+
+    const da = lessonDifficulty(a, data);
+    const db = lessonDifficulty(b, data);
+
+    // 🔥 1. NAJTRUDNIEJSZE (mało slotów) NAJPIERW
+    if (da !== db) return da - db;
+
+    // 🔥 2. potem grupy (bo trudniejsze logistycznie)
     if (a.group && !b.group) return -1;
     if (!a.group && b.group) return 1;
 
-    return lessonDifficulty(a, data) - lessonDifficulty(b, data);
+    return 0;
   });
 }
 
@@ -147,7 +158,16 @@ function findBestSlot(l, state, data) {
 function solveOnce(data) {
   const lessons = sortLessons(buildLessons(data), data);
   const state = createState();
+console.log("=== KOLEJNOŚĆ LEKCJI ===");
 
+lessons.slice(0, 10).forEach(l => {
+  const t = data.teachers.find(x => x.id === l.teacher);
+  console.log(
+    l.teacher,
+    "avail:", t?.availability.length,
+    "group:", l.group
+  );
+});
   let placed = 0;
 
   for (let l of lessons) {
