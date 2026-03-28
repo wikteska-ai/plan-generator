@@ -565,8 +565,12 @@ function repairSchedule(result, data) {
     }
 
     if (!placed) {
-      console.log("💀 NIE DA SIĘ NAPRAWIĆ:", lesson.name);
-    }
+console.log(
+  "💀 NIE DA SIĘ NAPRAWIĆ:",
+  lesson.subject,
+  lesson.teacher,
+  lesson.classes
+);    }
   }
 }
 function tryReinsert(lesson, schedule, data) {
@@ -580,7 +584,7 @@ function tryReinsert(lesson, schedule, data) {
   }
   return false;
 }
-function normalizeSchedule(schedule) {
+function normalizeSchedule(schedule, data) {
   for (let cls in schedule) {
     for (let d of DAYS) {
       const day = schedule[cls]?.[d] || {};
@@ -811,7 +815,7 @@ const result = solveOnce(data);
   }
 
   // 🧹 NOWE: usuń okienka
-  normalizeSchedule(result.schedule);
+  normalizeSchedule(result.schedule, data);
 
     const isValid = result.placed === result.total;
 
