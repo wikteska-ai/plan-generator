@@ -117,8 +117,16 @@ function scoreSlot(l, d, h, state) {
 
   // 🎯 środek dnia najlepszy
   if (h >= 2 && h <= 6) score += 5;
-  if (h === 1) score += 2;
+  if (h === 1) score += 5;
   if (h === 8) score -= 2;
+  for (let c of l.classes) {
+  const day = state.schedule[c]?.[d] || {};
+  const hours = Object.keys(day).map(Number);
+
+  if (hours.length === 0 && h === 1) {
+    score += 6; // 🔥 bonus za start dnia od 1
+  }
+}
 
   for (let c of l.classes) {
     const day = state.schedule[c]?.[d] || {};
