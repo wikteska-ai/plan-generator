@@ -214,10 +214,11 @@ if (placed < lessons.length) {
   );
 }
 
-  return {
-    schedule: state.schedule,
-    placed
-  };
+ return {
+  schedule: state.schedule,
+  placed,
+  total: lessons.length
+};
 }
 
 // ===== SCORE =====
@@ -288,7 +289,12 @@ if (teacherErrors.length === 0) {
   teacherErrors.forEach(e => console.log(e));
 }
 
-    if (!best || sc > best.score) {
+const isValid = result.placed === result.total;
+
+if (
+  isValid &&
+  (!best || sc > best.score)
+) {
       best = {
         schedule: result.schedule,
         score: sc,
