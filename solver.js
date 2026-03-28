@@ -815,6 +815,63 @@ if (missing <= 10) {
 if (teacherErrors2.length > 0) {
   continue;
 }
+        if (missing > 0 && missing <= 5) {
+  let s2 = JSON.parse(JSON.stringify(candidate));
+console.log("💣 ENTER FINAL PUSH:", missing);
+  // 🔍 znajdź brakujące lekcje
+  const placedIds = new Set();
+
+  for (let cls in s2) {
+    for (let d in s2[cls]) {
+      for (let h in s2[cls][d]) {
+        placedIds.add(s2[cls][d][h].id);
+      }
+    }
+  }
+
+  const missingLessons = lessons.filter(l => !placedIds.has(l.id));
+
+  // 🔥 1. usuń DUŻO miejsca wokół nich
+  for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
+    s2 = destroyAroundLesson(s2, l);
+  }
+
+  // 🔥 2. spróbuj chainMove z dużą głębokością
+ for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
+let moved = null;
+
+// 🔥 próbuj kilka razy (różne ścieżki)
+for (let attempt = 0; attempt < 5; attempt++) {
+  console.log("🎯 TRY FINAL:", l.subject, l.teacher);
+  moved = tryChainMove(s2, l, data, 12, new Set());
+  if (moved) break;
+}
+    if (moved) {
+      const { d, h } = moved;
+
+      const { tBusy, cBusy } = rebuildBusy(s2);
+
+      if (
+        teacherOk(l.teacher, d, h, tBusy, data) &&
+        classesFree(l.classes, d, h, cBusy)
+      ) {
+        for (let c of l.classes) {
+          if (!s2[c]) s2[c] = {};
+          if (!s2[c][d]) s2[c][d] = {};
+          s2[c][d][h] = l;
+        }
+      }
+    }
+  }
+
+  const newMissing = countMissing(s2, lessons);
+
+  if (newMissing < missing) {
+    console.log("💥 FINAL PUSH:", newMissing);
+    candidate = s2;
+    missing = newMissing;
+  }
+}
     // 🔥 FINAL FIX MODE
 if (missing > 0 && missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
@@ -871,63 +928,7 @@ const moved = tryChainMove(s2, l, data, depth);
     missing = newMissing;
   }
 }
-    if (missing > 0 && missing <= 3) {
-  let s2 = JSON.parse(JSON.stringify(candidate));
 
-  // 🔍 znajdź brakujące lekcje
-  const placedIds = new Set();
-
-  for (let cls in s2) {
-    for (let d in s2[cls]) {
-      for (let h in s2[cls][d]) {
-        placedIds.add(s2[cls][d][h].id);
-      }
-    }
-  }
-
-  const missingLessons = lessons.filter(l => !placedIds.has(l.id));
-
-  // 🔥 1. usuń DUŻO miejsca wokół nich
-  for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
-    s2 = destroyAroundLesson(s2, l);
-  }
-
-  // 🔥 2. spróbuj chainMove z dużą głębokością
- for (let l of missingLessons.sort(() => Math.random() - 0.5)) {
-let moved = null;
-
-// 🔥 próbuj kilka razy (różne ścieżki)
-for (let attempt = 0; attempt < 5; attempt++) {
-  console.log("🎯 TRY FINAL:", l.subject, l.teacher);
-  moved = tryChainMove(s2, l, data, 12, new Set());
-  if (moved) break;
-}
-    if (moved) {
-      const { d, h } = moved;
-
-      const { tBusy, cBusy } = rebuildBusy(s2);
-
-      if (
-        teacherOk(l.teacher, d, h, tBusy, data) &&
-        classesFree(l.classes, d, h, cBusy)
-      ) {
-        for (let c of l.classes) {
-          if (!s2[c]) s2[c] = {};
-          if (!s2[c][d]) s2[c][d] = {};
-          s2[c][d][h] = l;
-        }
-      }
-    }
-  }
-
-  const newMissing = countMissing(s2, lessons);
-
-  if (newMissing < missing) {
-    console.log("💥 FINAL PUSH:", newMissing);
-    candidate = s2;
-    missing = newMissing;
-  }
-}
     if (missing < lastBestMissing) {
   lastBestMissing = missing;
   stagnation = 0;
