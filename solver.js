@@ -791,7 +791,11 @@ if (countMissing(best, lessons) > 20) {
 let candidate = best;
 let missing = countMissing(candidate, lessons);
     // 🔥 FIX 4 — TUTAJ
-if (globalBest && missing > globalBest.missing) {
+if (
+  globalBest &&
+  missing > globalBest.missing &&
+  Math.random() > 0.3
+) {
   continue;
 }
 
@@ -875,8 +879,9 @@ const moved = tryChainMove(s2, l, data, depth);
 }
     
 if (
-  !globalBest ||
+ !globalBest ||
   missing < globalBest.missing ||
+  (missing === globalBest.missing && Math.random() < 0.2) ||
   (missing === 0 && globalBest.missing === 0 && bestScore > globalBest.score)
 ) {
   globalBest = {
