@@ -38,8 +38,25 @@ const jobKey = `bull:jobs:${jobId}`;
     console.log("✅ DONE JOB", jobId);
 
     // 💾 zapisz wynik
-    await connection.hset(jobKey, "returnvalue", JSON.stringify(result));
-    await connection.hset(jobKey, "finishedOn", Date.now());
+import { Queue } from "bullmq";
+
+const queue = new Queue("jobs", {
+  connection
+});
+
+// pobierz job
+const job = await queue.getJob(jobId);
+
+if (!job) {
+  console.log("❌ Job nie istnieje w BullMQ");
+  process.exit(1);
+}
+
+// 🔥 KLUCZOWE
+await job.updateProgress(100);
+await job.moveToCompleted(result, true);
+
+console.log("✅ JOB OZNACZONY JAKO COMPLETED");
 
     process.exit(0);
 
