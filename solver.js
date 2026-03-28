@@ -173,19 +173,28 @@ for (let d of shuffledDays) {
   placedFlag = true;
     } else {
       // FALLBACK
-      outer:
-      for (let d of DAYS) {
-        for (let h of HOURS) {
-          if (
-            teacherOk(l.teacher, d, h, tBusy, data) &&
-            classesFree(l.classes, d, h, cBusy)
-          ) {
-            place(l, d, h, s, tBusy, cBusy, data);
-            placedFlag = true;
-            break outer;
+outer:
+for (let d of DAYS) {
+  for (let h of HOURS) {
+    if (teacherOk(l.teacher, d, h, tBusy, data)) {
+
+      // 🔥 usuń co tam siedzi
+      for (let c of l.classes) {
+        if (s[c]?.[d]?.[h]) {
+          const old = s[c][d][h];
+
+          for (let cc of old.classes) {
+            delete s[cc][d][h];
           }
         }
       }
+
+      place(l, d, h, s, tBusy, cBusy, data);
+      placedFlag = true;
+      break outer;
+    }
+  }
+}
     }
 
  if (!placedFlag) {
