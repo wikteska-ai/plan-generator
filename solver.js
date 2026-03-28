@@ -469,64 +469,58 @@ function validateSchedule(schedule, data) {
 }
 // ===== MULTI RUN =====
 function generateSchedule(data, runs = 20) {
-  let best = null;
-let candidates = [];
-for (let i = 0; i < runs; i++) {
-  console.log("🚀 RUN", i);
+  let candidates = [];
 
-  const result = solveOnce(data);
+  for (let i = 0; i < runs; i++) {
+    console.log("🚀 RUN", i);
 
-  const isValid = result.placed === result.total;
+    const result = solveOnce(data);
 
-  if (isValid) {
-    const sc = score(result.schedule);
+    const isValid = result.placed === result.total;
 
-    candidates.push({
-      schedule: result.schedule,
-      score: sc
-    });
+    if (isValid) {
+      const sc = score(result.schedule);
 
-    console.log("📦 candidate:", sc);
-  } else {
-    console.log("⛔ INVALID:", result.total - result.placed);
+      candidates.push({
+        schedule: result.schedule,
+        score: sc
+      });
+
+      console.log("📦 candidate:", sc);
+    } else {
+      console.log("⛔ INVALID:", result.total - result.placed);
+    }
   }
-}
+
   if (candidates.length === 0) {
-  console.log("🚨 BRAK POPRAWNYCH PLANÓW");
-  return null;
-}
+    console.log("🚨 BRAK POPRAWNYCH PLANÓW");
+    return null;
+  }
+
   candidates.sort((a, b) => b.score - a.score);
+
   const top = candidates.slice(0, 5);
+
   let best = null;
 
-for (let c of top) {
-  console.log("🧪 IMPROVE START:", c.score);
+  for (let c of top) {
+    console.log("🧪 IMPROVE START:", c.score);
 
-  const improved = improve(c.schedule, data, 1500);
-  const sc = score(improved);
+    const improved = improve(c.schedule, data, 1500);
+    const sc = score(improved);
 
-  console.log("✨ IMPROVED:", sc);
+    console.log("✨ IMPROVED:", sc);
 
-  if (!best || sc > best.score) {
-    best = {
-      schedule: improved,
-      score: sc
-    };
+    if (!best || sc > best.score) {
+      best = {
+        schedule: improved,
+        score: sc
+      };
 
-    console.log("🔥 NEW BEST:", sc);
+      console.log("🔥 NEW BEST:", sc);
+    }
   }
-}
 
- if (!best) {
-  console.log("🚨 BRAK POPRAWNEGO ROZWIĄZANIA");
-  return {
-    status: "FAIL",
-    schedule: null,
-    score: null
-  };
+  return best;
 }
-
-return best;
-}
-
 export { generateSchedule };
