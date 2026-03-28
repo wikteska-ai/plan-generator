@@ -284,7 +284,8 @@ function tryFixGap(schedule, data) {
 
   if (gaps.length === 0) return null;
 
-const gap = gaps[0]; // bierz najgorszą dziurę
+const topN = Math.min(5, gaps.length);
+const gap = gaps[Math.floor(Math.random() * topN)];
   const entries = [];
 
   for (let cls in schedule) {
