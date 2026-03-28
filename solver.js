@@ -1,6 +1,6 @@
 import fs from "fs";
 
-const TIME_LIMIT = 900000;
+const TIME_LIMIT = 600000;
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
 
@@ -538,22 +538,45 @@ const moved = tryChainMove(schedule, blocker, data, depth - 1, visited);
   const teacher = data.teachers.find(t => t.id === blocker.teacher);
 
 if (
- teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
+  teacherOk(blocker.teacher, moved.d, moved.h, tBusy, data) &&
   classesFree(blocker.classes, moved.d, moved.h, cBusy)
 ) {
-    // usuń blocker
-    for (let cc of blocker.classes) {
-      delete schedule[cc][d][h];
-    }
+  // 🔥 1. SYMULACJA CAŁEGO RUCHU
+  const temp = JSON.parse(JSON.stringify(schedule));
 
-    // wstaw blocker gdzie indziej
-    for (let cc of blocker.classes) {
-      if (!schedule[cc][moved.d]) schedule[cc][moved.d] = {};
-      schedule[cc][moved.d][moved.h] = blocker;
-    }
-
-    return { d, h };
+  // usuń blocker
+  for (let cc of blocker.classes) {
+    delete temp[cc][d][h];
   }
+
+  // wstaw blocker gdzie indziej
+  for (let cc of blocker.classes) {
+    if (!temp[cc][moved.d]) temp[cc][moved.d] = {};
+    temp[cc][moved.d][moved.h] = blocker;
+  }
+
+  const { tBusy: t2, cBusy: c2 } = rebuildBusy(temp);
+
+  // 🔒 FINALNY CHECK
+  if (
+    !teacherOk(blocker.teacher, moved.d, moved.h, t2, data) ||
+    !classesFree(blocker.classes, moved.d, moved.h, c2)
+  ) {
+    continue;
+  }
+
+  // ✅ DOPIERO TERAZ ZMIENIAJ PRAWDZIWY PLAN
+  for (let cc of blocker.classes) {
+    delete schedule[cc][d][h];
+  }
+
+  for (let cc of blocker.classes) {
+    if (!schedule[cc][moved.d]) schedule[cc][moved.d] = {};
+    schedule[cc][moved.d][moved.h] = blocker;
+  }
+
+  return { d, h };
+}
 }
     }
   }
