@@ -846,13 +846,14 @@ if (missing <= 10) {
 }
    
        if (originalMissing > 0 && originalMissing <= 5) {
-  let s2 = JSON.parse(JSON.stringify(candidate));
+if (missing === 0) {
+    console.log("🏁 SKIP FINAL PUSH — already perfect");
+
+  } else {
+         let s2 = JSON.parse(JSON.stringify(candidate));
          
 console.log("💣 ENTER FINAL PUSH:", missing);
-         if (missing === 0) {
-  console.log("🏁 SKIP FINAL PUSH — already perfect");
-  continue;
-}
+     
   // 🔍 znajdź brakujące lekcje
   const placedIds = new Set();
 
@@ -933,7 +934,7 @@ if (!valid) continue;
     candidate = s2;
     missing = newMissing;
   }
-}
+}}
     // 🔥 FINAL FIX MODE
 if (missing > 0 && missing <= 5) {
   let s2 = JSON.parse(JSON.stringify(candidate));
