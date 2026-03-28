@@ -460,7 +460,7 @@ if (after < before && Math.random() > 0.3) continue;
 
     if (
       sc > currentScore ||
-(Math.random() < (isGood ? 0.1 : 0.25))
+(Math.random() < (isGood ? 0.1 : 0.25)))
      {
       current = next;
       currentScore = sc;
