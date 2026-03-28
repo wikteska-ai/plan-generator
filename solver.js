@@ -1026,13 +1026,14 @@ if (
 }
    if (globalBest && globalBest.missing <= 1 && missing > globalBest.missing) {
   console.log("⏭️ SKIP — gorsze niż best");
+     continue;
 }
 
    saveProgress({
   percent: Math.floor(((Date.now()-start)/TIME_LIMIT)*100),
   iter,
   score: globalBest?.score || globalScore
-});}
+});
 
 if (
   stagnation > 10 &&
