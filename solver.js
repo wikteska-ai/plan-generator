@@ -346,6 +346,26 @@ function score(schedule) {
 
   return -penalty;
 }
+function isValidSchedule(schedule, data) {
+  const state = buildStateFromSchedule(schedule);
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+
+        if (
+          !teacherOk(l.teacher, d, Number(h), state, data) ||
+          !classesOk(l.classes, d, Number(h), state)
+        ) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
 // ===== GAP DETECTION =====
 function findGaps(schedule) {
   const gaps = [];
@@ -907,7 +927,7 @@ const result = solveOnce(data);
   for (let c of top) {
     console.log("🧪 IMPROVE START:", c.score);
 
-    const improved = improve(c.schedule, data, 1500);
+    const improved = improve(c.schedule, data, 3000);
     const sc = score(improved);
 
     console.log("✨ IMPROVED:", sc);
