@@ -968,7 +968,10 @@ if (r2 < 0.4) {
       }
     }
 
-    if (sc > currentScore) {
+    if (
+  sc > currentScore ||
+  sc > currentScore - 50
+) {
       current = next;
       currentScore = sc;
 
