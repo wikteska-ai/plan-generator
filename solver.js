@@ -380,6 +380,61 @@ function findGaps(schedule) {
 
   return gaps;
 }
+function findWorstProblem(schedule) {
+  const gaps = findGaps(schedule);
+
+  if (gaps.length > 0) {
+    return { type: "gap", data: gaps[0] }; // największa dziura
+  }
+
+  // fallback: losowy dzień (jak nie ma gapów)
+  const classes = Object.keys(schedule);
+  const cls = classes[Math.floor(Math.random() * classes.length)];
+  const d = DAYS[Math.floor(Math.random() * DAYS.length)];
+
+  return { type: "day", data: { cls, d } };
+}
+function fixGapSmart(schedule, gap, data) {
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+      }
+    }
+  }
+
+  // 🔥 próbujemy kilka kandydatów (nie jeden!)
+  for (let i = 0; i < 10; i++) {
+    const candidate = entries[Math.floor(Math.random() * entries.length)];
+
+    // 🔒 nie ruszaj często grup
+    if (candidate.lesson.group && Math.random() < 0.7) continue;
+
+    const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+    removeLesson(candidate.lesson, newSchedule);
+
+    if (canPlace(candidate.lesson, gap.d, gap.h, newSchedule, data)) {
+      placeLesson(candidate.lesson, gap.d, gap.h, newSchedule);
+      return newSchedule;
+    }
+  }
+
+  return null;
+}
+function generateNeighbor(schedule, data) {
+  const problem = findWorstProblem(schedule);
+
+  if (problem.type === "gap") {
+    const fixed = fixGapSmart(schedule, problem.data, data);
+    if (fixed) return fixed;
+  }
+
+  // fallback
+  return trySwap(schedule, data);
+}
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
   const gaps = findGaps(schedule);
@@ -729,46 +784,48 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 1000) {
-  let best = JSON.parse(JSON.stringify(schedule));
-  let bestScore = score(best);
+function improve(schedule, data, iterations = 4000) {
+  let current = JSON.parse(JSON.stringify(schedule));
+  let currentScore = score(current);
 
-  let current = best;
-  let currentScore = bestScore;
+  let best = JSON.parse(JSON.stringify(schedule));
+  let bestScore = currentScore;
+
+  let T = 80;
+  const cooling = 0.995;
 
   for (let i = 0; i < iterations; i++) {
-let next;
 
-// 🎯 najpierw próbujemy naprawić dziurę
-if (Math.random() < 0.7) {
-  next = tryFixGap(current, data);
-} else {
-  next = trySwap(current, data);
-}
-    if (!next) continue;
+    const next = generateNeighbor(current, data);
 
-    const sc = score(next);
+    if (!next || !isValidSchedule(next, data)) continue;
 
-    if (sc > currentScore) {
+    const nextScore = score(next);
+    const delta = nextScore - currentScore;
+
+    // 🔥 SA decyzja
+    if (
+      delta > 0 ||
+      Math.random() < Math.exp(delta / T)
+    ) {
       current = next;
-      currentScore = sc;
-
-      if (sc > bestScore) {
-        best = JSON.parse(JSON.stringify(next));
-        bestScore = sc;
-      }
+      currentScore = nextScore;
     }
-  
-    if (Math.random() < 0.4) {
-  schedule = fixHardGaps(current, data);
-}
 
-if (Math.random() < 0.4) {
-  schedule = fixGapsBySwap(current, data);
-}
+    // 🏆 best
+    if (currentScore > bestScore) {
+      best = JSON.parse(JSON.stringify(current));
+      bestScore = currentScore;
+    }
+
+    // ❄️ cooling
+    T *= cooling;
+
+    // 🔥 lekkie „reheating”
+    if (i % 1000 === 0) T += 10;
   }
 
-  console.log("✨ IMPROVED:", bestScore);
+  console.log("🔥 FINAL BEST:", bestScore);
 
   return best;
 }
