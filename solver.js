@@ -753,15 +753,26 @@ function improve(schedule, data, iterations = 1000) {
 let next;
 
 // 🎯 najpierw próbujemy naprawić dziurę
-if (Math.random() < 0.7) {
+if (Math.random() < 0.8) {
   next = tryFixGap(current, data);
 } else {
   next = trySwap(current, data);
 }
     if (!next) continue;
 
-    const sc = score(next);
+let sc = score(next);
 
+// 🔥 DOUBLE MOVE (drugi krok naprawy)
+const next2 = tryFixGap(next, data);
+
+if (next2) {
+  const sc2 = score(next2);
+
+  if (sc2 > sc) {
+    next = next2;
+    sc = sc2;
+  }
+}
     if (sc > currentScore) {
       current = next;
       currentScore = sc;
