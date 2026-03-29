@@ -835,7 +835,7 @@ if (Math.random() < 0.5) {
   next2 = tryFixGap(next, data);
 } else {
   next2 = compressDay(next, data);
-}    if (next2) {
+}    if (next2 && isValidSchedule(next2, data)) {
       const sc2 = score(next2);
       if (sc2 > sc) {
         next = next2;
