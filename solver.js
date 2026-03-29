@@ -75,6 +75,24 @@ function sortLessons(lessons, data) {
   });
 }
 
+function countGaps(schedule) {
+  let total = 0;
+
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+          total += hours[i] - hours[i-1] - 1;
+        }
+      }
+    }
+  }
+
+  return total;
+}
 // ===== STATE =====
 function createState() {
   return {
@@ -325,6 +343,8 @@ if (gapSize === 2) penalty += 500; // 💣 kluczowe!
 if (gapSize >= 3) penalty += 900;
         }
       }
+      const totalGaps = countGaps(schedule);
+penalty += totalGaps * 120; // 🔥 KLUCZ
 
       // 🟢 BONUS ZA IDEALNY DZIEŃ
       let isContinuous = true;
