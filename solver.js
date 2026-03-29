@@ -1047,7 +1047,7 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 1000) {
+function improve(schedule, data, iterations = 2000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
 
