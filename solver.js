@@ -937,20 +937,22 @@ if (r2 < 0.4) {
     }
 
   const rFix = Math.random();
+    if (i > iterations * 0.5) {
 
-if (rFix < 0.4) {
+
+if (rFix < 0.15) {
   const fixed1 = fixHardGaps(current, data);
   if (fixed1) {
     current = fixed1;
     currentScore = score(current);
   }
-} else if (rFix < 0.8) {
+} else if (rFix < 0.3) {
   const fixed2 = fixGapsBySwap(current, data);
   if (fixed2) {
     current = fixed2;
     currentScore = score(current);
   }
-}
+}}
   }
 
   console.log("✨ IMPROVED:", bestScore);
