@@ -415,36 +415,39 @@ function findWorstProblem(schedule) {
   return { type: "day", data: { cls, d } };
 }
 function fixGapSmart(schedule, gap, data) {
-  const entries = [];
+  const candidates = [];
 
+  // 🔥 zbierz tylko lekcje które mogą potencjalnie wejść w gap
   for (let cls in schedule) {
     for (let d in schedule[cls]) {
       for (let h in schedule[cls][d]) {
-        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+
+        const lesson = schedule[cls][d][h];
+
+        // 🔒 pomijaj grupy rzadziej
+        if (lesson.group && Math.random() < 0.5) continue;
+
+        // 🔥 SPRAWDŹ zanim usuniesz!
+        if (canPlace(lesson, gap.d, gap.h, schedule, data)) {
+          candidates.push({ cls, d, h, lesson });
+        }
       }
     }
   }
 
-  // 🔥 próbujemy kilka kandydatów (nie jeden!)
-  for (let i = 0; i < 50; i++) {
-    const candidate = entries[Math.floor(Math.random() * entries.length)];
+  if (candidates.length === 0) return null;
 
-    // 🔒 nie ruszaj często grup
-    if (candidate.lesson.group && Math.random() < 0.3) continue;
+  // 🎯 wybierz sensowną lekcję
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
 
-    const newSchedule = JSON.parse(JSON.stringify(schedule));
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
 
-    removeLesson(candidate.lesson, newSchedule);
+  removeLesson(pick.lesson, newSchedule);
+  placeLesson(pick.lesson, gap.d, gap.h, newSchedule);
 
-    if (canPlace(candidate.lesson, gap.d, gap.h, newSchedule, data)) {
-      placeLesson(candidate.lesson, gap.d, gap.h, newSchedule);
-      return newSchedule;
-    }
-  }
-
-  return null;
+  return newSchedule;
 }
-function generateNeighbor(schedule, data) {
+functionfunction generateNeighbor(schedule, data) {
   const problem = findWorstProblem(schedule);
 
   if (problem.type === "gap") {
@@ -452,12 +455,13 @@ function generateNeighbor(schedule, data) {
     if (fixed) return fixed;
   }
 
-  // fallback
-const swap = trySwap(schedule, data);
-if (swap) return swap;
+  // 🔥 fallback 1
+  const swap = trySwap(schedule, data);
+  if (swap) return swap;
 
-// 🔥 fallback 2: spróbuj zwykłego gap fixa
-return tryFixGap(schedule, data);}
+  // 🔥 fallback 2
+  return tryFixGap(schedule, data);
+}
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
   const gaps = findGaps(schedule);
