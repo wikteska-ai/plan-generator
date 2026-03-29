@@ -786,65 +786,61 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 2000) {
-  let current = JSON.parse(JSON.stringify(schedule));
-  let currentScore = score(current);
-
+function improve(schedule, data, iterations = 1500) {
   let best = JSON.parse(JSON.stringify(schedule));
-  let bestScore = currentScore;
+  let bestScore = score(best);
 
-  let T = 200;
-  const cooling = 0.995;
+  let current = best;
+  let currentScore = bestScore;
 
   for (let i = 0; i < iterations; i++) {
 
-    let next;
+    let next = null;
 
     const r = Math.random();
 
-    // 🎯 ruchy
+    // 🎯 1. agresywne zamykanie gapów
     if (r < 0.5) {
       next = tryFixGap(current, data);
-    } else if (r < 0.8) {
+    }
+
+    // 🔄 2. swap
+    else if (r < 0.75) {
       next = trySwap(current, data);
-    } else {
+    }
+
+    // 🔥 3. DUŻY RUCH (killer)
+    else {
       next = compressDay(current, data);
     }
 
     if (!next) continue;
 
-    // 🔥 DRUGI RUCH (ważne!)
-    if (Math.random() < 0.4) {
+    let sc = score(next);
+
+    // 🔥 DOUBLE MOVE (KLUCZ)
+    if (Math.random() < 0.6) {
       const next2 = compressDay(next, data);
-      if (next2) next = next2;
+
+      if (next2) {
+        const sc2 = score(next2);
+
+        if (sc2 > sc) {
+          next = next2;
+          sc = sc2;
+        }
+      }
     }
 
-    if (!isValidSchedule(next, data)) continue;
-
-    const nextScore = score(next);
-    const delta = nextScore - currentScore;
-
-    // 🔥 KLUCZ: acceptance (Simulated Annealing)
-    if (
-      delta > 0 ||
-      Math.random() < Math.exp(delta / T)
-    ) {
+    // ✅ TYLKO LEPSZE
+    if (sc > currentScore) {
       current = next;
-      currentScore = nextScore;
-    }
+      currentScore = sc;
 
-    // 🏆 BEST
-    if (currentScore > bestScore) {
-      best = JSON.parse(JSON.stringify(current));
-      bestScore = currentScore;
-    }
-
-    // ❄️ cooling
-    T *= cooling;
-
-    // 🔥 lekkie reheating (żeby się nie zablokował)
-    if (i % 500 === 0) {
-      T += 20;
+      if (sc > bestScore) {
+        best = JSON.parse(JSON.stringify(current));
+        bestScore = sc;
+      }
     }
   }
 
