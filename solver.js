@@ -484,6 +484,45 @@ function compressWholeDaySafe(schedule, data) {
 
   return schedule;
 }
+function rebuildOneDay(schedule, data) {
+  const classes = Object.keys(schedule);
+  const cls = classes[Math.floor(Math.random() * classes.length)];
+  const d = DAYS[Math.floor(Math.random() * DAYS.length)];
+
+  const day = schedule[cls]?.[d];
+  if (!day) return null;
+
+  const lessons = Object.values(day);
+  if (lessons.length <= 2) return null;
+
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+  // 🔥 usuń cały dzień tej klasy
+  for (let h in newSchedule[cls][d]) {
+    delete newSchedule[cls][d][h];
+  }
+
+  // 🔥 spróbuj wstawić od nowa
+  for (let lesson of lessons) {
+    let placed = false;
+
+    for (let h = 1; h <= 8; h++) {
+      if (canPlace(lesson, d, h, newSchedule, data)) {
+        placeLesson(lesson, d, h, newSchedule);
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) return null; // nie udało się odbudować
+  }
+
+  if (isValidSchedule(newSchedule, data)) {
+    return newSchedule;
+  }
+
+  return null;
+}
 function rebuildDay(schedule, data) {
   const target = findWorstDay(schedule);
   if (!target) return null;
@@ -1080,13 +1119,17 @@ function improve(schedule, data, iterations = 2000) {
     // 🎯 najpierw próbujemy naprawić dziurę
 const r = Math.random();
 
-if (r < 0.5) {
-  next = fixBiggestGap(current, data); // 🔥 NOWE
+if (r < 0.35) {
+  next = fixBiggestGap(current, data);
+} else if (r < 0.55) {
+  next = trySwap(current, data);
 } else if (r < 0.75) {
   next = tryFixGap(current, data);
-} else {
-  next = trySwap(current, data);
+}  else {
+  next = rebuildOneDay(current, data); // 🔥 NOWE
 }
+    
+  
 
     if (!next) continue;
 
