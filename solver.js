@@ -454,6 +454,48 @@ function findGaps(schedule) {
 
   return gaps;
 }
+function fixBiggestGap(schedule, data) {
+  const gaps = findGaps(schedule);
+  if (gaps.length === 0) return null;
+
+  const gap = gaps[0]; // największy
+
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({
+          cls,
+          d,
+          h: Number(h),
+          lesson: schedule[cls][d][h]
+        });
+      }
+    }
+  }
+
+  // 🔥 próbuj wiele razy (klucz!)
+  for (let i = 0; i < 20; i++) {
+    const candidate = entries[Math.floor(Math.random() * entries.length)];
+
+    if (!candidate.lesson) continue;
+
+    const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+    removeLesson(candidate.lesson, newSchedule);
+
+    if (canPlace(candidate.lesson, gap.d, gap.h, newSchedule, data)) {
+      placeLesson(candidate.lesson, gap.d, gap.h, newSchedule);
+
+      if (isValidSchedule(newSchedule, data)) {
+        return newSchedule;
+      }
+    }
+  }
+
+  return null;
+}
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
   const gaps = findGaps(schedule);
@@ -891,14 +933,14 @@ function improve(schedule, data, iterations = 1000) {
     let next;
 
     // 🎯 najpierw próbujemy naprawić dziurę
-   const r = Math.random();
+const r = Math.random();
 
-if (r < 0.6) {
+if (r < 0.5) {
+  next = fixBiggestGap(current, data); // 🔥 NOWE
+} else if (r < 0.75) {
   next = tryFixGap(current, data);
-} else if (r < 0.85) {
-  next = trySwap(current, data);
 } else {
-  next = rebuildDay(current, data); // 🔥 NOWY RUCH
+  next = trySwap(current, data);
 }
 
     if (!next) continue;
