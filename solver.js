@@ -428,9 +428,12 @@ function fixGapSmart(schedule, gap, data) {
         if (lesson.group && Math.random() < 0.5) continue;
 
         // 🔥 SPRAWDŹ zanim usuniesz!
-        if (canPlace(lesson, gap.d, gap.h, schedule, data)) {
-          candidates.push({ cls, d, h, lesson });
-        }
+       const temp = JSON.parse(JSON.stringify(schedule));
+removeLesson(lesson, temp);
+
+if (canPlace(lesson, gap.d, gap.h, temp, data)) {
+  candidates.push({ cls, d, h, lesson });
+} 
       }
     }
   }
@@ -447,7 +450,7 @@ function fixGapSmart(schedule, gap, data) {
 
   return newSchedule;
 }
-functionfunction generateNeighbor(schedule, data) {
+function generateNeighbor(schedule, data) {
   const problem = findWorstProblem(schedule);
 
   if (problem.type === "gap") {
