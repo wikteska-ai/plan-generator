@@ -535,6 +535,26 @@ function buildStateFromSchedule(schedule) {
 
   return state;
 }
+function isValidSchedule(schedule, data) {
+  const state = buildStateFromSchedule(schedule);
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        const l = schedule[cls][d][h];
+
+        if (
+          !teacherOk(l.teacher, d, Number(h), state, data) ||
+          !classesOk(l.classes, d, Number(h), state)
+        ) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
 function repairSchedule(result, data) {
   const missing = result.missingLessons;
 
