@@ -627,6 +627,50 @@ function normalizeSchedule(schedule, data) {
     }
   }
 }
+function compressDay(schedule, data) {
+  let newSchedule = JSON.parse(JSON.stringify(schedule));
+
+  for (let cls in newSchedule) {
+    for (let d of DAYS) {
+
+      const day = newSchedule[cls]?.[d] || {};
+      let hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hours.length <= 1) continue;
+
+      let target = Math.min(...hours);
+
+      for (let h of hours) {
+        const lesson = day[h];
+
+        if (h === target) {
+          target++;
+          continue;
+        }
+
+        for (let newH = target; newH < h; newH++) {
+
+          if (canPlace(lesson, d, newH, newSchedule, data)) {
+
+            removeLesson(lesson, newSchedule);
+            placeLesson(lesson, d, newH, newSchedule);
+
+            break;
+          }
+        }
+
+        target++;
+      }
+    }
+  }
+
+  // 🔒 KLUCZOWE — zabezpieczenie
+  if (isValidSchedule(newSchedule, data)) {
+    return newSchedule;
+  }
+
+  return schedule; // rollback jeśli coś się popsuło
+}
 function fixHardGaps(schedule, data) {
   const state = buildStateFromSchedule(schedule);
 
@@ -742,54 +786,66 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 1000) {
-  let best = JSON.parse(JSON.stringify(schedule));
-  let bestScore = score(best);
+function improve(schedule, data, iterations = 2000) {
+  let current = JSON.parse(JSON.stringify(schedule));
+  let currentScore = score(current);
 
-  let current = best;
-  let currentScore = bestScore;
+  let best = JSON.parse(JSON.stringify(schedule));
+  let bestScore = currentScore;
+
+  let T = 200;
+  const cooling = 0.995;
 
   for (let i = 0; i < iterations; i++) {
-let next;
 
-// 🎯 najpierw próbujemy naprawić dziurę
-if (Math.random() < 0.8) {
-  next = tryFixGap(current, data);
-} else {
-  next = trySwap(current, data);
-}
+    let next;
+
+    const r = Math.random();
+
+    // 🎯 ruchy
+    if (r < 0.5) {
+      next = tryFixGap(current, data);
+    } else if (r < 0.8) {
+      next = trySwap(current, data);
+    } else {
+      next = compressDay(current, data);
+    }
+
     if (!next) continue;
 
-let sc = score(next);
-
-// 🔥 DOUBLE MOVE (drugi krok naprawy)
-const next2 = tryFixGap(next, data);
-
-if (next2) {
-  const sc2 = score(next2);
-
-  if (sc2 > sc) {
-    next = next2;
-    sc = sc2;
-  }
-}
-    if (sc > currentScore) {
-      current = next;
-      currentScore = sc;
-
-      if (sc > bestScore) {
-        best = JSON.parse(JSON.stringify(next));
-        bestScore = sc;
-      }
-    }
-  
+    // 🔥 DRUGI RUCH (ważne!)
     if (Math.random() < 0.4) {
-  schedule = fixHardGaps(current, data);
-}
+      const next2 = compressDay(next, data);
+      if (next2) next = next2;
+    }
 
-if (Math.random() < 0.4) {
-  schedule = fixGapsBySwap(current, data);
-}
+    if (!isValidSchedule(next, data)) continue;
+
+    const nextScore = score(next);
+    const delta = nextScore - currentScore;
+
+    // 🔥 KLUCZ: acceptance (Simulated Annealing)
+    if (
+      delta > 0 ||
+      Math.random() < Math.exp(delta / T)
+    ) {
+      current = next;
+      currentScore = nextScore;
+    }
+
+    // 🏆 BEST
+    if (currentScore > bestScore) {
+      best = JSON.parse(JSON.stringify(current));
+      bestScore = currentScore;
+    }
+
+    // ❄️ cooling
+    T *= cooling;
+
+    // 🔥 lekkie reheating (żeby się nie zablokował)
+    if (i % 500 === 0) {
+      T += 20;
+    }
   }
 
   console.log("✨ IMPROVED:", bestScore);
