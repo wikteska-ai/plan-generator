@@ -1115,7 +1115,7 @@ if (r2 < 0.4) {
 
     if (
   sc > currentScore ||
-  sc > currentScore - 80
+  sc > currentScore - 200
 ) {
       current = next;
       currentScore = sc;
