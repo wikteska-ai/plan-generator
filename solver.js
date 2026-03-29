@@ -984,7 +984,7 @@ function validateSchedule(schedule, data) {
   return true;
 }
 // ===== MULTI RUN =====
-function generateSchedule(data, runs = 200) {
+function generateSchedule(data, runs = 500) {
   let candidates = [];
 
   for (let i = 0; i < runs; i++) {
