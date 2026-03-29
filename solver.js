@@ -159,6 +159,7 @@ function place(l, d, h, state) {
 
   return score;
 }
+
 // ===== FIND BEST SLOT =====
 function findBestSlot(l, state, data) {
   let best = null;
@@ -346,6 +347,79 @@ function score(schedule) {
 
   return -penalty;
 }
+function findWorstDay(schedule) {
+  let worst = null;
+  let worstScore = -Infinity;
+
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hours.length === 0) continue;
+
+      let penalty = 0;
+
+      // okienka
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+          penalty += 100;
+        }
+      }
+
+      // start dnia
+      if (hours[0] > 2) penalty += 50;
+
+      if (penalty > worstScore) {
+        worstScore = penalty;
+        worst = { cls, d };
+      }
+    }
+  }
+
+  return worst;
+}
+function rebuildDay(schedule, data) {
+  const target = findWorstDay(schedule);
+  if (!target) return null;
+
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+  const lessons = [];
+
+  // 🔥 zbierz lekcje
+  for (let h in newSchedule[target.cls][target.d]) {
+    lessons.push(newSchedule[target.cls][target.d][h]);
+  }
+
+  // 🔥 usuń dzień
+  delete newSchedule[target.cls][target.d];
+
+  // 🔥 sortuj (ważne — trudniejsze najpierw)
+  lessons.sort((a, b) => b.classes.length - a.classes.length);
+
+  // 🔥 próbuj wstawiać od początku dnia
+  for (let h = 1; h <= 8; h++) {
+    for (let i = 0; i < lessons.length; i++) {
+      const l = lessons[i];
+
+      if (canPlace(l, target.d, h, newSchedule, data)) {
+        placeLesson(l, target.d, h, newSchedule);
+        lessons.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  // 🔒 KLUCZ: sprawdzenie globalne
+  if (lessons.length === 0 && isValidSchedule(newSchedule, data)) {
+    return newSchedule;
+  }
+
+  return null; // rollback jeśli coś nie wyszło
+}
+
 // ===== GAP DETECTION =====
 function findGaps(schedule) {
   const gaps = [];
@@ -817,11 +891,15 @@ function improve(schedule, data, iterations = 1000) {
     let next;
 
     // 🎯 najpierw próbujemy naprawić dziurę
-    if (Math.random() < 0.8) {
-      next = tryFixGap(current, data);
-    } else {
-      next = trySwap(current, data);
-    }
+   const r = Math.random();
+
+if (r < 0.6) {
+  next = tryFixGap(current, data);
+} else if (r < 0.85) {
+  next = trySwap(current, data);
+} else {
+  next = rebuildDay(current, data); // 🔥 NOWY RUCH
+}
 
     if (!next) continue;
 
@@ -831,11 +909,16 @@ function improve(schedule, data, iterations = 1000) {
 let next2;
 
 // 50% gap, 50% kompresja
-if (Math.random() < 0.5) {
+const r2 = Math.random();
+
+if (r2 < 0.4) {
   next2 = tryFixGap(next, data);
-} else {
+} else if (r2 < 0.8) {
   next2 = compressDay(next, data);
-}    if (next2 && isValidSchedule(next2, data)) {
+} else {
+  next2 = rebuildDay(next, data); // 🔥 też tu!
+}
+    if (next2 && isValidSchedule(next2, data)) {
       const sc2 = score(next2);
       if (sc2 > sc) {
         next = next2;
@@ -854,11 +937,13 @@ if (Math.random() < 0.5) {
     }
 
     if (Math.random() < 0.4) {
-      schedule = fixHardGaps(current, data);
+      current = fixHardGaps(current, data) || current;
+currentScore = score(current);
     }
 
     if (Math.random() < 0.4) {
-      schedule = fixGapsBySwap(current, data);
+       current = fixGapsBySwap(current, data); || current;
+currentScore = score(current);
     }
   }
 
