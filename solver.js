@@ -449,6 +449,47 @@ function findWorstDay(schedule) {
 
   return worst;
 }
+function slideLesson(schedule, data) {
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({
+          cls,
+          d,
+          h: Number(h),
+          lesson: schedule[cls][d][h]
+        });
+      }
+    }
+  }
+
+  const pick = entries[Math.floor(Math.random() * entries.length)];
+  if (!pick) return null;
+
+  const directions = [-1, 1];
+
+  for (let dir of directions) {
+    const newH = pick.h + dir;
+
+    if (newH < 1 || newH > 8) continue;
+
+    const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+    removeLesson(pick.lesson, newSchedule);
+
+    if (canPlace(pick.lesson, pick.d, newH, newSchedule, data)) {
+      placeLesson(pick.lesson, pick.d, newH, newSchedule);
+
+      if (isValidSchedule(newSchedule, data)) {
+        return newSchedule;
+      }
+    }
+  }
+
+  return null;
+}
 function compressWholeDaySafe(schedule, data) {
   for (let cls in schedule) {
     for (let d of DAYS) {
@@ -1185,6 +1226,8 @@ if (r < 0.25) {
   next = fixBiggestGap(current, data);
 } else if (r < 0.45) {
   next = trySwap(current, data);
+  } else if (r < 0.55) {
+  next = slideLesson(current, data); // 🔥 NOWE
 } else if (r < 0.65) {
   next = tryFixGap(current, data);
 }  else if (r < 0.85) {
