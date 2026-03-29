@@ -1209,7 +1209,7 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 2000) {
+function improve(schedule, data, iterations = 3000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
 
@@ -1324,7 +1324,7 @@ function validateSchedule(schedule, data) {
   return true;
 }
 // ===== MULTI RUN =====
-function generateSchedule(data, runs = 500) {
+function generateSchedule(data, runs = 700) {
   let candidates = [];
 
   for (let i = 0; i < runs; i++) {
@@ -1369,7 +1369,7 @@ const result = solveOnce(data);
 
   candidates.sort((a, b) => b.score - a.score);
 
-  const top = candidates.slice(0, 10);
+  const top = candidates.slice(0, 20);
 
   let best = null;
 
