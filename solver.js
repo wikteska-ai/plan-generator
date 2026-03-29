@@ -344,7 +344,7 @@ if (gapSize >= 3) penalty += 900;
         }
       }
       const totalGaps = countGaps(schedule);
-penalty += totalGaps * 120; // 🔥 KLUCZ
+penalty += totalGaps * totalGaps * 10;
 
       // 🟢 BONUS ZA IDEALNY DZIEŃ
       let isContinuous = true;
