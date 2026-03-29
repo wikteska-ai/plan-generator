@@ -510,6 +510,47 @@ function fixBiggestGap(schedule, data) {
 
   return null;
 }
+function eliminateGapsHard(schedule, data) {
+  let improved = true;
+
+  while (improved) {
+    improved = false;
+
+    const gaps = findGaps(schedule);
+
+    for (let gap of gaps) {
+
+      for (let cls in schedule) {
+        for (let d in schedule[cls]) {
+          for (let h in schedule[cls][d]) {
+
+            const lesson = schedule[cls][d][h];
+
+            const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+            removeLesson(lesson, newSchedule);
+
+            if (canPlace(lesson, gap.d, gap.h, newSchedule, data)) {
+              placeLesson(lesson, gap.d, gap.h, newSchedule);
+
+              if (isValidSchedule(newSchedule, data)) {
+                schedule = newSchedule;
+                improved = true;
+                break;
+              }
+            }
+          }
+          if (improved) break;
+        }
+        if (improved) break;
+      }
+
+      if (improved) break;
+    }
+  }
+
+  return schedule;
+}
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
   const gaps = findGaps(schedule);
@@ -1095,14 +1136,17 @@ const result = solveOnce(data);
   for (let c of top) {
     console.log("🧪 IMPROVE START:", c.score);
 
-    const improved = improve(c.schedule, data, 1500);
-    const sc = score(improved);
+    const improved = improve(c.schedule, data, 2500);
+    // 🔥 NOWE — finalne czyszczenie
+const cleaned = eliminateGapsHard(improved, data);
+
+const sc = score(cleaned);
 
     console.log("✨ IMPROVED:", sc);
 
     if (!best || sc > best.score) {
       best = {
-        schedule: improved,
+        schedule: cleaned,
         score: sc
       };
 
