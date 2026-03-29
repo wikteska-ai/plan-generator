@@ -426,11 +426,11 @@ function fixGapSmart(schedule, gap, data) {
   }
 
   // 🔥 próbujemy kilka kandydatów (nie jeden!)
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 50; i++) {
     const candidate = entries[Math.floor(Math.random() * entries.length)];
 
     // 🔒 nie ruszaj często grup
-    if (candidate.lesson.group && Math.random() < 0.7) continue;
+    if (candidate.lesson.group && Math.random() < 0.3) continue;
 
     const newSchedule = JSON.parse(JSON.stringify(schedule));
 
@@ -453,8 +453,11 @@ function generateNeighbor(schedule, data) {
   }
 
   // fallback
-  return trySwap(schedule, data);
-}
+const swap = trySwap(schedule, data);
+if (swap) return swap;
+
+// 🔥 fallback 2: spróbuj zwykłego gap fixa
+return tryFixGap(schedule, data);}
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
   const gaps = findGaps(schedule);
@@ -811,7 +814,7 @@ function improve(schedule, data, iterations = 4000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = currentScore;
 
-  let T = 80;
+  let T = 150;
   const cooling = 0.995;
 
   for (let i = 0; i < iterations; i++) {
