@@ -292,7 +292,7 @@ function score(schedule) {
 
       // ❌ pusty dzień (NIE CHCESZ TEGO)
       if (hours.length === 0) {
-        penalty += 900;
+        penalty += 1000;
         continue;
       }
 
@@ -304,7 +304,7 @@ function score(schedule) {
 
       // ❌ ZA MAŁO LEKCJI
       if (hours.length < 4) {
-        penalty += (4 - hours.length) * 80;
+        penalty += (4 - hours.length) * 130;
       }
 
       // ❌ ZA DUŻO LEKCJI
@@ -320,7 +320,7 @@ function score(schedule) {
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
           const gapSize = hours[i] - hours[i-1] - 1;
-          penalty += 300 * gapSize;
+          penalty += 180 * gapSize;
         }
       }
 
@@ -333,6 +333,20 @@ function score(schedule) {
           break;
         }
       }
+      if (hours.length > 0) {
+  let hasGap = false;
+
+  for (let i = 1; i < hours.length; i++) {
+    if (hours[i] !== hours[i-1] + 1) {
+      hasGap = true;
+      break;
+    }
+  }
+
+  if (!hasGap) {
+    penalty -= 120; // 🔥 bonus za brak okienek
+  }
+}
 
       if (
         isContinuous &&
@@ -970,7 +984,7 @@ if (r2 < 0.4) {
 
     if (
   sc > currentScore ||
-  sc > currentScore - 50
+  sc > currentScore - 80
 ) {
       current = next;
       currentScore = sc;
