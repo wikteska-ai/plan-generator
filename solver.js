@@ -1221,6 +1221,9 @@ if (isValidSchedule(compressed, data)) {
 cleaned = eliminateGapsHard(cleaned, data);
 
 const sc = score(cleaned);
+    if (!validateSchedule(cleaned, data)) {
+  console.log("🚨 INVALID FINAL PLAN");
+}
 
     console.log("✨ IMPROVED:", sc);
 
