@@ -363,6 +363,39 @@ if (gapSize >= 3) penalty += 900;
 
   return -penalty;
 }
+function eliminateDoubleGaps(schedule, data) {
+  const gaps = findGaps(schedule).filter(g => g.size >= 2);
+
+  for (let gap of gaps) {
+
+    // 🔥 próbujemy kilka razy
+    for (let i = 0; i < 30; i++) {
+
+      for (let cls in schedule) {
+        for (let d in schedule[cls]) {
+          for (let h in schedule[cls][d]) {
+
+            const lesson = schedule[cls][d][h];
+            const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+            removeLesson(lesson, newSchedule);
+
+            if (canPlace(lesson, gap.d, gap.h, newSchedule, data)) {
+              placeLesson(lesson, gap.d, gap.h, newSchedule);
+
+              if (isValidSchedule(newSchedule, data)) {
+                return newSchedule; // 🔥 od razu bierzemy
+              }
+            }
+          }
+        }
+      }
+
+    }
+  }
+
+  return schedule;
+}
 function findWorstDay(schedule) {
   let worst = null;
   let worstScore = -Infinity;
@@ -1183,6 +1216,7 @@ const compressed = compressWholeDaySafe(cleaned, data);
 if (isValidSchedule(compressed, data)) {
   cleaned = compressed;
 }
+    cleaned = eliminateDoubleGaps(cleaned, data);
     // 🔥 czyszczenie 2 (po kompresji!)
 cleaned = eliminateGapsHard(cleaned, data);
 
