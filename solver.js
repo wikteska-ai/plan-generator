@@ -112,52 +112,53 @@ function place(l, d, h, state) {
   }
 }
 
-function scoreSlot(l, d, h, state) {
+ function scoreSlot(l, d, h, state) {
   let score = 0;
 
   for (let c of l.classes) {
     const day = state.schedule[c]?.[d] || {};
     const hours = Object.keys(day).map(Number);
 
-    // 🟢 START DNIA
+    // 🟢 START DNIA (lżej!)
     if (hours.length === 0) {
-      if (h === 1) score += 10; // idealny start
-      if (h === 2) score += 5;  // ok start
-      if (h > 2) score -= 10;   // ❌ nie zaczynaj od 3+
+      if (h === 1) score += 6;
+      if (h === 2) score += 3;
+      if (h > 3) score -= 5;
     }
 
-    // 🟢 CIĄGŁOŚĆ (NAJWAŻNIEJSZE)
-    if (hours.includes(h - 1)) score += 10;
-    if (hours.includes(h + 1)) score += 10;
+    // 🟢 CIĄGŁOŚĆ (lżej)
+    if (hours.includes(h - 1)) score += 6;
+    if (hours.includes(h + 1)) score += 6;
 
-    // 🔴 TWORZENIE OKIENKA (bardzo ważne)
+    // 🔴 OKIENKA (DUŻO LŻEJ)
     if (hours.includes(h - 2) && !hours.includes(h - 1)) {
-      score -= 30;
+      score -= 10;
     }
     if (hours.includes(h + 2) && !hours.includes(h + 1)) {
-      score -= 30;
+      score -= 10;
     }
 
     // 🟡 ROZMIAR DNIA
     const newSize = hours.length + 1;
 
-    if (newSize < 4) score += 5;        // dociągamy do minimum
-    if (newSize > 7) score -= 10;       // miękka kara
-    if (newSize > 8) score -= 30;       // twarda kara
+    if (newSize < 4) score += 3;
+    if (newSize > 7) score -= 5;
+    if (newSize > 8) score -= 15;
 
-    // 🟡 NIE ZOSTAWIAJ SAMOTNEJ LEKCJI
+    // 🟡 SAMOTNA LEKCJA (lżej!)
     if (hours.length === 1 && Math.abs(hours[0] - h) > 1) {
-      score -= 30;
-      
+      score -= 8;
     }
   }
 
-  // 🟣 grupy lekko ważniejsze
-  if (l.group) score += 5;
+  // 🟣 grupy
+  if (l.group) score += 4;
+
+  // 🔥 NOWE: lekka preferencja wcześniejszych godzin
+  score += (9 - h) * 0.8;
 
   return score;
 }
-
 // ===== FIND BEST SLOT =====
 function findBestSlot(l, state, data) {
   let best = null;
