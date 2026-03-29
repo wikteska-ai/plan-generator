@@ -1220,10 +1220,12 @@ if (isValidSchedule(compressed, data)) {
     // 🔥 czyszczenie 2 (po kompresji!)
 cleaned = eliminateGapsHard(cleaned, data);
 
-const sc = score(cleaned);
-    if (!validateSchedule(cleaned, data)) {
-  console.log("🚨 INVALID FINAL PLAN");
+if (!validateSchedule(cleaned, data)) {
+  console.log("🚨 INVALID PLAN — pomijam");
+  continue;
 }
+
+const sc = score(cleaned);
 
     console.log("✨ IMPROVED:", sc);
 
