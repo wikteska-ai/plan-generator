@@ -320,7 +320,7 @@ function score(schedule) {
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
           const gapSize = hours[i] - hours[i-1] - 1;
-          penalty += 150 * gapSize;
+          penalty += 300 * gapSize;
         }
       }
 
