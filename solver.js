@@ -394,6 +394,41 @@ function findWorstDay(schedule) {
 
   return worst;
 }
+function compressWholeDaySafe(schedule, data) {
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      if (hours.length <= 1) continue;
+
+      // 🔥 próbujemy przesunąć WSZYSTKO do początku
+      for (let i = 0; i < hours.length; i++) {
+        const targetHour = i + 1;
+        const currentHour = hours[i];
+
+        if (currentHour === targetHour) continue;
+
+        const lesson = day[currentHour];
+
+        const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+        removeLesson(lesson, newSchedule);
+
+        if (canPlace(lesson, d, targetHour, newSchedule, data)) {
+          placeLesson(lesson, d, targetHour, newSchedule);
+
+          if (isValidSchedule(newSchedule, data)) {
+            schedule = newSchedule;
+          }
+        }
+      }
+    }
+  }
+
+  return schedule;
+}
 function rebuildDay(schedule, data) {
   const target = findWorstDay(schedule);
   if (!target) return null;
@@ -1138,7 +1173,16 @@ const result = solveOnce(data);
 
     const improved = improve(c.schedule, data, 2500);
     // 🔥 NOWE — finalne czyszczenie
-const cleaned = eliminateGapsHard(improved, data);
+let cleaned = eliminateGapsHard(improved, data);
+
+// 🔥 NOWE — KOMPAKCJA DNIA
+const compressed = compressWholeDaySafe(cleaned, data);
+
+if (isValidSchedule(compressed, data)) {
+  cleaned = compressed;
+}
+    // 🔥 czyszczenie 2 (po kompresji!)
+cleaned = eliminateGapsHard(cleaned, data);
 
 const sc = score(cleaned);
 
