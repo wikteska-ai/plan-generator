@@ -936,15 +936,21 @@ if (r2 < 0.4) {
       }
     }
 
-    if (Math.random() < 0.4) {
-      current = fixHardGaps(current, data) || current;
-currentScore = score(current);
-    }
+  const rFix = Math.random();
 
-    if (Math.random() < 0.4) {
-       current = fixGapsBySwap(current, data); || current;
-currentScore = score(current);
-    }
+if (rFix < 0.4) {
+  const fixed1 = fixHardGaps(current, data);
+  if (fixed1) {
+    current = fixed1;
+    currentScore = score(current);
+  }
+} else if (rFix < 0.8) {
+  const fixed2 = fixGapsBySwap(current, data);
+  if (fixed2) {
+    current = fixed2;
+    currentScore = score(current);
+  }
+}
   }
 
   console.log("✨ IMPROVED:", bestScore);
