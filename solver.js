@@ -523,6 +523,68 @@ function rebuildOneDay(schedule, data) {
 
   return null;
 }
+function rebuildWorstDay(schedule, data) {
+  let worst = null;
+  let worstScore = -1;
+
+  // 🔥 znajdź najgorszy dzień
+  for (let cls in schedule) {
+    for (let d of DAYS) {
+
+      const day = schedule[cls]?.[d] || {};
+      const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+      let gaps = 0;
+
+      for (let i = 1; i < hours.length; i++) {
+        if (hours[i] !== hours[i-1] + 1) {
+          gaps += hours[i] - hours[i-1] - 1;
+        }
+      }
+
+      if (gaps > worstScore) {
+        worstScore = gaps;
+        worst = { cls, d };
+      }
+    }
+  }
+
+  if (!worst || worstScore === 0) return null;
+
+  const { cls, d } = worst;
+
+  const lessons = Object.values(schedule[cls][d] || {});
+  if (lessons.length <= 2) return null;
+
+  const newSchedule = JSON.parse(JSON.stringify(schedule));
+
+  // 🔥 usuń cały dzień
+  newSchedule[cls][d] = {};
+
+  // 🔥 spróbuj ułożyć bez dziur
+  let hour = 1;
+
+  for (let lesson of lessons) {
+    let placed = false;
+
+    for (let h = hour; h <= 8; h++) {
+      if (canPlace(lesson, d, h, newSchedule, data)) {
+        placeLesson(lesson, d, h, newSchedule);
+        hour = h + 1;
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) return null;
+  }
+
+  if (isValidSchedule(newSchedule, data)) {
+    return newSchedule;
+  }
+
+  return null;
+}
 function rebuildDay(schedule, data) {
   const target = findWorstDay(schedule);
   if (!target) return null;
@@ -1119,14 +1181,16 @@ function improve(schedule, data, iterations = 2000) {
     // 🎯 najpierw próbujemy naprawić dziurę
 const r = Math.random();
 
-if (r < 0.35) {
+if (r < 0.25) {
   next = fixBiggestGap(current, data);
-} else if (r < 0.55) {
+} else if (r < 0.45) {
   next = trySwap(current, data);
-} else if (r < 0.75) {
+} else if (r < 0.65) {
   next = tryFixGap(current, data);
-}  else {
+}  else if (r < 0.85) {
   next = rebuildOneDay(current, data); // 🔥 NOWE
+} else {
+  next = rebuildWorstDay(current, data); // 💣 NOWY KLUCZ
 }
     
   
