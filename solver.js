@@ -806,7 +806,7 @@ function fixGapsBySwap(schedule, data) {
 
   return schedule;
 }
-function improve(schedule, data, iterations = 1500) {
+function improve(schedule, data, iterations = 1000) {
   let best = JSON.parse(JSON.stringify(schedule));
   let bestScore = score(best);
 
@@ -814,58 +814,55 @@ function improve(schedule, data, iterations = 1500) {
   let currentScore = bestScore;
 
   for (let i = 0; i < iterations; i++) {
+    let next;
 
-    let next = null;
-
-    const r = Math.random();
-
-    // 🎯 1. agresywne zamykanie gapów
-    if (r < 0.5) {
+    // 🎯 najpierw próbujemy naprawić dziurę
+    if (Math.random() < 0.8) {
       next = tryFixGap(current, data);
-    }
-
-    // 🔄 2. swap
-    else if (r < 0.75) {
+    } else {
       next = trySwap(current, data);
-    }
-
-    // 🔥 3. DUŻY RUCH (killer)
-    else {
-      next = compressDay(current, data);
     }
 
     if (!next) continue;
 
     let sc = score(next);
 
-    // 🔥 DOUBLE MOVE (KLUCZ)
-    if (Math.random() < 0.6) {
-      const next2 = compressDay(next, data);
+    // 🔥 DOUBLE MOVE (drugi krok naprawy)
+let next2;
 
-      if (next2) {
-        const sc2 = score(next2);
-
-        if (sc2 > sc) {
-          next = next2;
-          sc = sc2;
-        }
+// 50% gap, 50% kompresja
+if (Math.random() < 0.5) {
+  next2 = tryFixGap(next, data);
+} else {
+  next2 = compressDay(next, data);
+}    if (next2) {
+      const sc2 = score(next2);
+      if (sc2 > sc) {
+        next = next2;
+        sc = sc2;
       }
     }
 
-    // ✅ TYLKO LEPSZE
     if (sc > currentScore) {
       current = next;
       currentScore = sc;
 
       if (sc > bestScore) {
-        best = JSON.parse(JSON.stringify(current));
+        best = JSON.parse(JSON.stringify(next));
         bestScore = sc;
       }
+    }
+
+    if (Math.random() < 0.4) {
+      schedule = fixHardGaps(current, data);
+    }
+
+    if (Math.random() < 0.4) {
+      schedule = fixGapsBySwap(current, data);
     }
   }
 
   console.log("✨ IMPROVED:", bestScore);
-
   return best;
 }
 function validateSchedule(schedule, data) {
