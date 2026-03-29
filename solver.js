@@ -320,7 +320,9 @@ function score(schedule) {
       for (let i = 1; i < hours.length; i++) {
         if (hours[i] !== hours[i-1] + 1) {
           const gapSize = hours[i] - hours[i-1] - 1;
-          penalty += 180 * gapSize;
+         if (gapSize === 1) penalty += 180;
+if (gapSize === 2) penalty += 500; // 💣 kluczowe!
+if (gapSize >= 3) penalty += 900;
         }
       }
 
