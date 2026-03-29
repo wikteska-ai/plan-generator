@@ -415,55 +415,77 @@ function findWorstProblem(schedule) {
   return { type: "day", data: { cls, d } };
 }
 function fixGapSmart(schedule, gap, data) {
-  const candidates = [];
+  const entries = [];
 
-  // 🔥 zbierz tylko lekcje które mogą potencjalnie wejść w gap
   for (let cls in schedule) {
     for (let d in schedule[cls]) {
       for (let h in schedule[cls][d]) {
-
-        const lesson = schedule[cls][d][h];
-
-        // 🔒 pomijaj grupy rzadziej
-        if (lesson.group && Math.random() < 0.5) continue;
-
-        // 🔥 SPRAWDŹ zanim usuniesz!
-       const temp = JSON.parse(JSON.stringify(schedule));
-removeLesson(lesson, temp);
-
-if (canPlace(lesson, gap.d, gap.h, temp, data)) {
-  candidates.push({ cls, d, h, lesson });
-} 
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
       }
     }
   }
 
-  if (candidates.length === 0) return null;
+  // 🔥 tylko 30 prób (ważne dla wydajności)
+  for (let i = 0; i < 30; i++) {
+    const pick = entries[Math.floor(Math.random() * entries.length)];
 
-  // 🎯 wybierz sensowną lekcję
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const temp = JSON.parse(JSON.stringify(schedule));
 
-  const newSchedule = JSON.parse(JSON.stringify(schedule));
+    removeLesson(pick.lesson, temp);
 
-  removeLesson(pick.lesson, newSchedule);
-  placeLesson(pick.lesson, gap.d, gap.h, newSchedule);
+    if (canPlace(pick.lesson, gap.d, gap.h, temp, data)) {
+      placeLesson(pick.lesson, gap.d, gap.h, temp);
+      return temp;
+    }
+  }
 
-  return newSchedule;
+  return null;
+}
+function swapIntoGap(schedule, gap, data) {
+  const entries = [];
+
+  for (let cls in schedule) {
+    for (let d in schedule[cls]) {
+      for (let h in schedule[cls][d]) {
+        entries.push({ cls, d, h, lesson: schedule[cls][d][h] });
+      }
+    }
+  }
+
+  for (let i = 0; i < 30; i++) {
+    const a = entries[Math.floor(Math.random() * entries.length)];
+    const temp = JSON.parse(JSON.stringify(schedule));
+
+    const lessonA = a.lesson;
+
+    // usuń A
+    removeLesson(lessonA, temp);
+
+    // spróbuj A → gap
+    if (!canPlace(lessonA, gap.d, gap.h, temp, data)) continue;
+
+    placeLesson(lessonA, gap.d, gap.h, temp);
+
+    return temp;
+  }
+
+  return null;
 }
 function generateNeighbor(schedule, data) {
   const problem = findWorstProblem(schedule);
 
   if (problem.type === "gap") {
-    const fixed = fixGapSmart(schedule, problem.data, data);
-    if (fixed) return fixed;
+    const move1 = fixGapSmart(schedule, problem.data, data);
+    if (move1) return move1;
+
+    const move2 = swapIntoGap(schedule, problem.data, data);
+    if (move2) return move2;
   }
 
-  // 🔥 fallback 1
   const swap = trySwap(schedule, data);
   if (swap) return swap;
 
-  // 🔥 fallback 2
-  return tryFixGap(schedule, data);
+  return null;
 }
 // ===== GAP FIX =====
 function tryFixGap(schedule, data) {
