@@ -344,7 +344,7 @@ if (gapSize >= 3) penalty += 900;
         }
       }
       const totalGaps = countGaps(schedule);
-penalty += totalGaps * totalGaps * 10;
+penalty += totalGaps * 10;
 
       // 🟢 BONUS ZA IDEALNY DZIEŃ
       let isContinuous = true;
@@ -366,7 +366,7 @@ penalty += totalGaps * totalGaps * 10;
   }
 
   if (!hasGap) {
-    penalty -= 120; // 🔥 bonus za brak okienek
+    penalty -= 320; // 🔥 bonus za brak okienek
   }
 }
 
@@ -1115,7 +1115,7 @@ if (r2 < 0.4) {
 
     if (
   sc > currentScore ||
-  sc > currentScore - 200
+  sc > currentScore - 500
 ) {
       current = next;
       currentScore = sc;
