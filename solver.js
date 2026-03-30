@@ -26,29 +26,77 @@ function buildLessons(data) {
 function teacherAvailabilityPercent(t) {
   return t.availability.length / 40;
 }
+function getTeacherStats(data) {
+  const load = {};
+  const availability = {};
 
+  data.teachers.forEach(t => {
+    availability[t.id] = t.availability.length;
+  });
+
+  data.lessons.forEach(l => {
+    load[l.teacher] = (load[l.teacher] || 0) + l.hours;
+  });
+
+  return { load, availability };
+}
 // ===== SPLIT GROUPS =====
 function splitGroups(lessons, data) {
   const g1 = [];
   const g2 = [];
   const g3 = [];
 
-  lessons.forEach(l => {
-    const t = data.teachers.find(x => x.id === l.teacher);
-    const perc = teacherAvailabilityPercent(t);
+  const { load, availability } = getTeacherStats(data);
 
-    if (perc < 0.1 || l.group) {
+  lessons.forEach(l => {
+    const teacherLoad = load[l.teacher] || 0;
+    const teacherAvail = availability[l.teacher] || 1;
+
+    // 🔥 realny "ścisk"
+    const ratio = teacherLoad / teacherAvail;
+
+    // 🔥 KLUCZOWA LOGIKA
+    if (ratio >= 1 || l.group) {
+      l._groupLevel = "G1";
       g1.push(l);
-    } else if (perc < 0.6) {
+
+    } else if (ratio >= 0.5) {
+      l._groupLevel = "G2";
       g2.push(l);
+
     } else {
+      l._groupLevel = "G3";
       g3.push(l);
     }
+
+    console.log(
+      l.teacher,
+      "load:", teacherLoad,
+      "avail:", teacherAvail,
+      "ratio:", ratio.toFixed(2),
+      "→", l._groupLevel
+    );
   });
 
-  console.log("📦 G1:", g1.length, "G2:", g2.length, "G3:", g3.length);
-
   return { g1, g2, g3 };
+}
+function sortGroup(group, data) {
+  const { load, availability } = getTeacherStats(data);
+
+  return group.sort((a, b) => {
+    const ra = (load[a.teacher] || 0) / (availability[a.teacher] || 1);
+    const rb = (load[b.teacher] || 0) / (availability[b.teacher] || 1);
+
+    // 🔥 1. bardziej przeciążeni pierwsi
+    if (ra !== rb) return rb - ra;
+
+    // 🔥 2. grupy wcześniej
+    if (a.group && !b.group) return -1;
+    if (!a.group && b.group) return 1;
+
+    return 0;
+  });
+}
 }
 
 // ===== STATE =====
@@ -67,18 +115,45 @@ function canPlace(l, d, h, state, data) {
 
   if (!t.availability.includes(d + "_" + h)) return false;
 
-  if (state.teacherBusy[l.teacher + "_" + d + "_" + h]) return false;
+  const key = d + "_" + h;
+  const tKey = l.teacher + "_" + key;
 
+  const busy = state.teacherBusy[tKey] || [];
+
+  // 🔴 jeśli lekcja NIE ma grupy → nauczyciel musi być wolny
+  if (!l.group) {
+    if (busy.length > 0) return false;
+  }
+
+  // 🔵 jeśli lekcja MA grupę
+  if (l.group) {
+    for (let existing of busy) {
+
+      // jeśli istniejąca lekcja bez grupy → konflikt
+      if (!existing.group) return false;
+
+      // jeśli różne grupy → konflikt
+      if (existing.group !== l.group) return false;
+    }
+  }
+
+  // klasy jak wcześniej
   if (state.classBusy[l.class + "_" + d + "_" + h]) return false;
 
   return true;
 }
-
 // ===== PLACE =====
 function place(l, d, h, state) {
   const key = d + "_" + h;
+  const tKey = l.teacher + "_" + key;
 
-  state.teacherBusy[l.teacher + "_" + key] = true;
+  // 🔥 teacherBusy jako lista
+  if (!state.teacherBusy[tKey]) {
+    state.teacherBusy[tKey] = [];
+  }
+
+  state.teacherBusy[tKey].push(l);
+
   state.classBusy[l.class + "_" + key] = true;
 
   if (!state.schedule[l.class]) state.schedule[l.class] = {};
@@ -151,8 +226,11 @@ function runOnce(data, startIndex) {
   console.log("\n🚀 RUN START:", startIndex);
 
   const lessons = buildLessons(data);
-  const { g1, g2, g3 } = splitGroups(lessons, data);
+let { g1, g2, g3 } = splitGroups(lessons, data);
 
+g1 = sortGroup(g1, data);
+g2 = sortGroup(g2, data);
+g3 = sortGroup(g3, data);
   const state = createState();
   const order = buildOrder(startIndex);
 
