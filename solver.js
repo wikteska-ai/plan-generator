@@ -782,10 +782,13 @@ g3 = sortGroup(g3, data);
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
   safePlaceG1Missing(state, lessons, data);
-cleanSwapG1(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
   forcePlaceG1Missing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
+  cleanSwapG1(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
+
+  
   runStep(g2, state, data, order, "G2");
   runStep(g3, state, data, order, "G3");
     tryFillGaps(state, lessons, data);
