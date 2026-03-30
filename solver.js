@@ -22,7 +22,7 @@ function buildLessons(data) {
   return out;
 }
 function forcePlaceG1Missing(state, lessons, data) {
-  console.log("🔥 FORCE G1 START");
+  console.log("🔥 FORCE G1 START (GROUP AWARE)");
 
   const missing = lessons.filter(l =>
     !state.used.has(l.id) && l._groupLevel === "G1"
@@ -37,43 +37,66 @@ function forcePlaceG1Missing(state, lessons, data) {
 
         const c = M.class;
 
-        // 🔒 tylko sprawdzamy dostępność nauczyciela
         const t = data.teachers.find(x => x.id === M.teacher);
         if (!t.availability.includes(d + "_" + h)) continue;
 
-        // 🔍 sprawdzamy czy slot wolny dla klasy
         if (state.classBusy[c + "_" + d + "_" + h]) continue;
 
-        // 🔍 czy nauczyciel zajęty
         const tKey = M.teacher + "_" + d + "_" + h;
         const busy = state.teacherBusy[tKey] || [];
 
-        let canReplaceAll = true;
+        let toRemove = [];
+
+        let blocked = false;
 
         for (let existing of busy) {
 
-          // ❌ NIE ruszamy grup
+          // 🔥 jeśli grupa → zbierz CAŁĄ grupę
           if (existing.group) {
-            canReplaceAll = false;
-            break;
+
+            const groupLessons = [];
+
+            for (let cls in state.schedule) {
+              for (let dd in state.schedule[cls]) {
+                for (let hh in state.schedule[cls][dd]) {
+
+                  const l = state.schedule[cls][dd][hh];
+
+                  if (
+                    l.teacher === existing.teacher &&
+                    l.group === existing.group &&
+                    dd === d &&
+                    Number(hh) === h
+                  ) {
+                    groupLessons.push(l);
+                  }
+                }
+              }
+            }
+
+            toRemove.push(...groupLessons);
+
+          } else {
+            toRemove.push(existing);
           }
         }
 
-        if (!canReplaceAll) continue;
+        if (blocked) continue;
 
-        // 🔥 usuwamy konflikty
-        for (let existing of busy) {
+        // 🔥 usuwamy wszystko naraz
+        for (let r of toRemove) {
           console.log(
-            "💣 REMOVE CONFLICT:",
-            existing.subject,
-            existing.teacher
+            "💣 REMOVE:",
+            r.subject,
+            "| T:", r.teacher,
+            "| G:", r.group
           );
 
-          removeLesson(existing, state);
-          state.used.delete(existing.id);
+          removeLesson(r, state);
+          state.used.delete(r.id);
         }
 
-        // 🔥 wstawiamy G1
+        // 🔥 wstawiamy M
         place(M, d, h, state);
         state.used.add(M.id);
 
