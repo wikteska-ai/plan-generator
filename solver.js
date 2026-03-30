@@ -21,6 +21,47 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function findStrictSlot(lesson, state, data, skipD, skipH) {
+  const t = data.teachers.find(x => x.id === lesson.teacher);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      // pomijamy slot gdzie właśnie coś wstawiliśmy
+      if (d === skipD && h === skipH) continue;
+
+      // 🔒 dostępność nauczyciela
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      let ok = true;
+
+      // 🔥 sprawdzamy cały plan
+      for (let cls in state.schedule) {
+        const l = state.schedule[cls]?.[d]?.[h];
+
+        if (!l) continue;
+
+        // nauczyciel zajęty
+        if (l.teacher === lesson.teacher) {
+          ok = false;
+          break;
+        }
+
+        // klasa zajęta
+        if (String(cls) === String(lesson.class)) {
+          ok = false;
+          break;
+        }
+      }
+
+      if (ok) {
+        return { d, h }; // ✅ znaleziony slot
+      }
+    }
+  }
+
+  return null; // ❌ brak miejsca
+}
 function canReinsertStrict(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
 
