@@ -21,6 +21,111 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function forcePlaceG1Missing(state, lessons, data) {
+  console.log("🔥 FORCE G1 START");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) && l._groupLevel === "G1"
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const c = M.class;
+
+        // 🔒 tylko sprawdzamy dostępność nauczyciela
+        const t = data.teachers.find(x => x.id === M.teacher);
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        // 🔍 sprawdzamy czy slot wolny dla klasy
+        if (state.classBusy[c + "_" + d + "_" + h]) continue;
+
+        // 🔍 czy nauczyciel zajęty
+        const tKey = M.teacher + "_" + d + "_" + h;
+        const busy = state.teacherBusy[tKey] || [];
+
+        let canReplaceAll = true;
+
+        for (let existing of busy) {
+
+          // ❌ NIE ruszamy grup
+          if (existing.group) {
+            canReplaceAll = false;
+            break;
+          }
+        }
+
+        if (!canReplaceAll) continue;
+
+        // 🔥 usuwamy konflikty
+        for (let existing of busy) {
+          console.log(
+            "💣 REMOVE CONFLICT:",
+            existing.subject,
+            existing.teacher
+          );
+
+          removeLesson(existing, state);
+          state.used.delete(existing.id);
+        }
+
+        // 🔥 wstawiamy G1
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🔥 FORCE PLACE:", M.subject, c, d, h);
+
+        placed = true;
+        break;
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ STILL G1 MISSING:", M.subject, M.teacher);
+    }
+  }
+}
+function safePlaceG1Missing(state, lessons, data) {
+  console.log("🟢 SAFE G1 START");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) && l._groupLevel === "G1"
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const c = M.class;
+
+        // 🔒 tylko poprawne miejsce
+        if (canPlace(M, d, h, state, data)) {
+
+          console.log("✅ SAFE PLACE:", M.subject, c, d, h);
+
+          place(M, d, h, state);
+          state.used.add(M.id);
+
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ SAFE FAIL:", M.subject, M.teacher);
+    }
+  }
+}
 function tryInsertMissing(state, lessons, data) {
   console.log("🧩 INSERT MISSING START");
 
@@ -482,6 +587,9 @@ g3 = sortGroup(g3, data);
   const order = buildOrder(startIndex);
 
   runStep(g1, state, data, order, "G1");
+  // 🔥 NOWE ETAPY
+forcePlaceG1Missing(state, lessons, data);
+safePlaceG1Missing(state, lessons, data);
   runStep(g2, state, data, order, "G2");
   runStep(g3, state, data, order, "G3");
     tryFillGaps(state, lessons, data);
