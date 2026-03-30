@@ -161,11 +161,24 @@ function runOnce(data, startIndex) {
   runStep(g3, state, data, order, "G3");
 
   const gaps = countGaps(state.schedule);
+  const missingLessons = lessons.filter(l => !state.used.has(l.id));
   const missing = lessons.length - state.used.size;
 
   console.log("📉 GAPS:", gaps);
   console.log("❌ MISSING:", missing);
+if (missing > 0) {
+  console.log("🚨 MISSING LESSONS:");
 
+  missingLessons.forEach(l => {
+    console.log(
+      " -",
+      l.subject,
+      "| T:", l.teacher,
+      "| C:", l.class,
+      l.group ? "| G:" + l.group : ""
+    );
+  });
+}
   return { gaps, missing };
 }
 
