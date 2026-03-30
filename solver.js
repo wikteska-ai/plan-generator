@@ -528,9 +528,9 @@ function tryPlaceWholeGroup(state, lessons, data) {
 function forceGroupIntoSingles(state, lessons, data) {
   console.log("🟣 FORCE GROUP INTO SINGLES (CLEAN)");
 
-  const missing = lessons.filter(l =>
-    !state.used.has(l.id) && l.group
-  );
+const missing = getRealMissing(lessons, state)
+  .filter(l => l.group);
+
 
   for (let M of missing) {
 
