@@ -24,37 +24,37 @@ function buildLessons(data) {
 function canReinsertStrict(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
 
+  let found = false;
+
   for (let d of DAYS) {
     for (let h of HOURS) {
 
-      // pomijamy slot który rozwalamy
       if (d === skipD && h === skipH) continue;
-
-      // 🔒 dostępność nauczyciela
       if (!t.availability.includes(d + "_" + h)) continue;
 
-      // 🔒 sprawdzamy schedule (NIE busy!)
       let teacherBusy = false;
       let classBusy = false;
 
       for (let cls in state.schedule) {
         const l = state.schedule[cls]?.[d]?.[h];
-
         if (!l) continue;
 
         if (l.teacher === lesson.teacher) teacherBusy = true;
-        if (cls == lesson.class) classBusy = true;
+
+        // 🔥 FIX: porównanie jako string
+        if (String(cls) === String(lesson.class)) {
+          classBusy = true;
+        }
       }
 
-      if (teacherBusy) continue;
-      if (classBusy) continue;
-
-      // ✅ MAMY REALNY SLOT
-      return true;
+      if (!teacherBusy && !classBusy) {
+        found = true;
+      }
     }
   }
 
-  return false;
+  // 🔥 KLUCZ: MUSI ISTNIEĆ PRZYNAJMNIEJ 1 SLOT
+  return found;
 }
 function findReinsertSlot(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
