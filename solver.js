@@ -138,12 +138,25 @@ function fillGapsWithG3(state, lessons, data) {
       // 🔥 TERAZ DOPIERO DZIAŁAMY
 
       // 1️⃣ usuwamy konflikty
-      for (let r of toRemove) {
-        console.log("💣 REMOVE (conflict):", r.subject, r.teacher);
+     for (let r of toRemove) {
 
-        removeLesson(r, state);
-        state.used.delete(r.id);
-      }
+  const slot = findStrictSlot(r, state, data, d, h);
+
+  if (!slot) {
+    // zabezpieczenie — nie powinno się zdarzyć
+    console.log("💀 NO SLOT AFTER REMOVE:", r.subject);
+    continue;
+  }
+
+  removeLesson(r, state);
+  state.used.delete(r.id);
+
+  // 🔥 OD RAZU WSTAWIAMY
+  place(r, slot.d, slot.h, state);
+  state.used.add(r.id);
+
+  console.log("🔁 REINSERT:", r.subject, slot.d, slot.h);
+}
 
       // 2️⃣ wstawiamy M
       place(M, d, h, state);
