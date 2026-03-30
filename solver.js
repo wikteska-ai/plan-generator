@@ -43,8 +43,13 @@ function cleanSwapG1(state, lessons, data) {
         if (!t.availability.includes(d + "_" + h)) continue;
 
         // 🔒 2. brak konfliktu nauczyciela
-        const tKey = M.teacher + "_" + d + "_" + h;
-        if (state.teacherBusy[tKey]) continue;
+    const tKey = M.teacher + "_" + d + "_" + h;
+const busy = state.teacherBusy[tKey] || [];
+
+if (busy.length > 0) {
+  // 🔥 nauczyciel już coś ma → konflikt → pomijamy
+  continue;
+}
 
         const existing = state.schedule[c]?.[d]?.[h];
 
