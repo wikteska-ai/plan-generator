@@ -24,10 +24,10 @@ function buildLessons(data) {
 
 // ===== AVAILABILITY % =====
 function teacherAvailabilityPercent(t) {
-  return t.availability.length / 40; // 5 dni * 8h = 40
+  return t.availability.length / 40;
 }
 
-// ===== GROUPING =====
+// ===== SPLIT GROUPS =====
 function splitGroups(lessons, data) {
   const g1 = [];
   const g2 = [];
@@ -39,12 +39,14 @@ function splitGroups(lessons, data) {
 
     if (perc < 0.1 || l.group) {
       g1.push(l);
-    } else if (perc < 0.6 || l.group) {
+    } else if (perc < 0.6) {
       g2.push(l);
     } else {
       g3.push(l);
     }
   });
+
+  console.log("📦 G1:", g1.length, "G2:", g2.length, "G3:", g3.length);
 
   return { g1, g2, g3 };
 }
@@ -106,40 +108,58 @@ function countGaps(schedule) {
   return total;
 }
 
-// ===== SLOT ORDER =====
+// ===== BUILD ORDER (godzina → klasa → dzień) =====
 function buildOrder(startIndex) {
   const slots = [];
 
-  // 🔥 NAJPIERW GODZINA (rząd)
   for (let h of HOURS) {
-
-    // 🔥 potem klasy
     for (let c = 0; c <= 8; c++) {
-
-      // 🔥 potem dni tygodnia
       for (let d of DAYS) {
         slots.push({ c, d, h });
       }
     }
   }
 
-  // 🔁 rotacja startu (Twoje 45 wariantów)
   return [...slots.slice(startIndex), ...slots.slice(0, startIndex)];
 }
+
+// ===== RUN STEP =====
+function runStep(group, state, data, order, label) {
+  console.log("➡️ STEP:", label);
+
+  for (let slot of order) {
+    const { c, d, h } = slot;
+
+    if (state.classBusy[c + "_" + d + "_" + h]) continue;
+
+    const candidates = group.filter(l =>
+      !state.used.has(l.id) &&
+      l.class === c &&
+      canPlace(l, d, h, state, data)
+    );
+
+    console.log("🔍", label, "SLOT", c, d, h, "→", candidates.length);
+
+    if (candidates.length > 0) {
+      const l = candidates[0];
+      place(l, d, h, state);
+    }
+  }
+}
+
 // ===== ONE RUN =====
 function runOnce(data, startIndex) {
+  console.log("\n🚀 RUN START:", startIndex);
+
   const lessons = buildLessons(data);
   const { g1, g2, g3 } = splitGroups(lessons, data);
 
   const state = createState();
   const order = buildOrder(startIndex);
 
-  console.log("🚀 START RUN:", startIndex);
-
-  // 3 kroki
-  runStep(g1, state, data, order);
-  runStep(g2, state, data, order);
-  runStep(g3, state, data, order);
+  runStep(g1, state, data, order, "G1");
+  runStep(g2, state, data, order, "G2");
+  runStep(g3, state, data, order, "G3");
 
   const gaps = countGaps(state.schedule);
   const missing = lessons.length - state.used.size;
@@ -151,21 +171,20 @@ function runOnce(data, startIndex) {
 }
 
 // ===== MAIN =====
-function generate(data) {
+function generateSchedule(data) {
   const results = [];
 
-  // 🔥 45 startów (1 godzina * 5 dni * 9 klas)
+  // 🔥 45 startów (pierwszy rząd)
   for (let i = 0; i < 45; i++) {
     const res = runOnce(data, i);
     results.push(res);
   }
 
-  console.log("✅ DONE");
+  console.log("\n✅ DONE");
   console.log("📊 WYNIKI:");
 
   results.forEach((r, i) => {
-    console.log(i, "→ gaps:", r.gaps, "missing:", r.missing);
+    console.log("RUN", i, "→ gaps:", r.gaps, "missing:", r.missing);
   });
 }
-
 export { generate as generateSchedule };
