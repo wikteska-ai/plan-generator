@@ -1088,6 +1088,8 @@ forceGroupIntoSingles(state, lessons, data);
   aggressiveInsertG1Singles(state, lessons, data);
     tryFillGaps(state, lessons, data);
      tryInsertMissing3(state, lessons, data);
+    tryFillGaps(state, lessons, data);   
+  tryInsertMissing2(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
