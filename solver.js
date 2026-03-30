@@ -21,6 +21,28 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function findReinsertSlot(lesson, state, data, skipD, skipH) {
+  const t = data.teachers.find(x => x.id === lesson.teacher);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      if (d === skipD && h === skipH) continue;
+
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const tKey = lesson.teacher + "_" + d + "_" + h;
+      const busy = state.teacherBusy[tKey] || [];
+
+      if (busy.length > 0) continue;
+      if (state.classBusy[lesson.class + "_" + d + "_" + h]) continue;
+
+      return { d, h };
+    }
+  }
+
+  return null;
+}
 function fillGapsWithG3(state, lessons, data) {
   console.log("🟡 FILL GAPS G3 START");
 
@@ -58,10 +80,12 @@ function fillGapsWithG3(state, lessons, data) {
         }
 
         // 🔒 czy konflikt ma gdzie pójść
-        if (!hasAlternativeSlot(l, state, data, d, h)) {
-          canUse = false;
-          break;
-        }
+const slot = findReinsertSlot(l, state, data, d, h);
+
+if (!slot) {
+  console.log("⛔ NO REAL SLOT:", l.subject, l.teacher);
+  continue;
+}
 
         toRemove.push(l);
       }
