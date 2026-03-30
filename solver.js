@@ -187,4 +187,4 @@ function generateSchedule(data) {
     console.log("RUN", i, "→ gaps:", r.gaps, "missing:", r.missing);
   });
 }
-export { generate as generateSchedule };
+export { generateSchedule };
