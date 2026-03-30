@@ -21,6 +21,104 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function aggressiveInsertG1Singles(state, lessons, data) {
+  console.log("🔴 AGGRESSIVE G1 SINGLES START");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) &&
+    l._groupLevel === "G1" &&
+    !l.group
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const c = M.class;
+
+        const t = data.teachers.find(x => x.id === M.teacher);
+
+        // 🔒 tylko dostępność
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        // 👉 1️⃣ usuń co było w tej klasie
+        const existing = state.schedule[c]?.[d]?.[h];
+
+        if (existing) {
+          console.log("🔁 REMOVE (slot):", existing.subject, existing.teacher);
+
+          removeLesson(existing, state);
+          state.used.delete(existing.id);
+        }
+
+        // 👉 2️⃣ wstawiamy M
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🔴 INSERT:", M.subject, c, d, h);
+
+        // 👉 3️⃣ sprawdzamy konflikty nauczyciela
+        const tKey = M.teacher + "_" + d + "_" + h;
+        const busy = state.teacherBusy[tKey] || [];
+
+        let toRemove = [];
+
+        for (let l of busy) {
+
+          // ❌ NIE ruszamy tej co właśnie wstawiliśmy
+          if (l.id === M.id) continue;
+
+          // 🔥 jeśli grupa → usuń całą grupę w tym slocie
+          if (l.group) {
+
+            for (let cls in state.schedule) {
+              for (let dd in state.schedule[cls]) {
+                for (let hh in state.schedule[cls][dd]) {
+
+                  const x = state.schedule[cls][dd][hh];
+
+                  if (
+                    x.teacher === l.teacher &&
+                    x.group === l.group &&
+                    dd === d &&
+                    Number(hh) === h
+                  ) {
+                    toRemove.push(x);
+                  }
+                }
+              }
+            }
+
+          } else {
+            toRemove.push(l);
+          }
+        }
+
+        // 🔥 deduplikacja
+        toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
+
+        // 🔥 usuwamy konflikty
+        for (let r of toRemove) {
+          console.log("💣 REMOVE (conflict):", r.subject, r.teacher);
+
+          removeLesson(r, state);
+          state.used.delete(r.id);
+        }
+
+        placed = true;
+        break;
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ AGGRESSIVE FAIL:", M.subject, M.teacher);
+    }
+  }
+}
 function tryPlaceWholeGroup(state, lessons, data) {
   console.log("🟢 TRY PLACE WHOLE GROUP");
 
@@ -949,10 +1047,10 @@ forceGroupIntoSingles(state, lessons, data);
   runStep(g3, state, data, order, "G3");
     tryFillGaps(state, lessons, data);
   tryInsertMissing(state, lessons, data);
+      tryFillGaps(state, lessons, data);
+  aggressiveInsertG1Singles(state, lessons, data);
     tryFillGaps(state, lessons, data);
-  tryInsertMissing2(state, lessons, data);
-    tryFillGaps(state, lessons, data);
-   tryInsertMissing3(state, lessons, data);
+     tryInsertMissing3(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
