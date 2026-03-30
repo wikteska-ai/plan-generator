@@ -27,21 +27,29 @@ function canReinsertStrict(lesson, state, data, skipD, skipH) {
   for (let d of DAYS) {
     for (let h of HOURS) {
 
-      // pomijamy slot który właśnie ruszamy
+      // pomijamy slot który rozwalamy
       if (d === skipD && h === skipH) continue;
 
       // 🔒 dostępność nauczyciela
       if (!t.availability.includes(d + "_" + h)) continue;
 
-      const tKey = lesson.teacher + "_" + d + "_" + h;
+      // 🔒 sprawdzamy schedule (NIE busy!)
+      let teacherBusy = false;
+      let classBusy = false;
 
-      // 🔒 nauczyciel musi być wolny
-      if ((state.teacherBusy[tKey] || []).length > 0) continue;
+      for (let cls in state.schedule) {
+        const l = state.schedule[cls]?.[d]?.[h];
 
-      // 🔒 klasa musi być wolna
-      if (state.classBusy[lesson.class + "_" + d + "_" + h]) continue;
+        if (!l) continue;
 
-      // ✅ mamy idealny slot
+        if (l.teacher === lesson.teacher) teacherBusy = true;
+        if (cls == lesson.class) classBusy = true;
+      }
+
+      if (teacherBusy) continue;
+      if (classBusy) continue;
+
+      // ✅ MAMY REALNY SLOT
       return true;
     }
   }
