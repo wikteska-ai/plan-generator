@@ -80,7 +80,7 @@ if (existing) {
 
   // ❌ G1 nie ruszamy
   if (existing._groupLevel === "G1") continue;
-}
+
           if (existing._groupLevel === "G2") continue;
 }
 
