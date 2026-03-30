@@ -33,12 +33,10 @@ function tryInsertMissing(state, lessons, data) {
     for (let d of DAYS) {
       for (let h of HOURS) {
 
-        // 🔴 musi być ta sama klasa
         const c = M.class;
 
-        // 🔍 czy można wstawić bez ruszania niczego
+        // 🟢 1. bezpośrednie wstawienie
         if (canPlace(M, d, h, state, data)) {
-
           console.log("✅ DIRECT INSERT:", M.subject, c, d, h);
 
           place(M, d, h, state);
@@ -48,10 +46,18 @@ function tryInsertMissing(state, lessons, data) {
           break;
         }
 
-        // 🔄 próbujemy wyrzucić istniejącą lekcję
+        // 🔄 2. próba replace
         const existing = state.schedule[c]?.[d]?.[h];
 
         if (existing) {
+
+          // ❌ WARUNKI BLOKUJĄCE
+          if (
+            existing.teacher === M.teacher ||        // ten sam nauczyciel
+            existing.group                          // ma grupę
+          ) {
+            continue; // 🔥 pomijamy ten slot
+          }
 
           // 🔥 tymczasowo usuń
           removeLesson(existing, state);
@@ -62,13 +68,14 @@ function tryInsertMissing(state, lessons, data) {
               "🔁 REPLACE:",
               M.subject,
               "→", c, d, h,
-              "| OUT:", existing.subject
+              "| OUT:", existing.subject,
+              existing.teacher
             );
 
             place(M, d, h, state);
             state.used.add(M.id);
 
-            // ❗ existing wraca do missing
+            // 🔥 wyrzucona wraca do missing
             state.used.delete(existing.id);
 
             placed = true;
@@ -83,7 +90,12 @@ function tryInsertMissing(state, lessons, data) {
     }
 
     if (!placed) {
-      console.log("❌ STILL MISSING:", M.subject, M.teacher, M.class);
+      console.log(
+        "❌ STILL MISSING:",
+        M.subject,
+        M.teacher,
+        M.class
+      );
     }
   }
 }
