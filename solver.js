@@ -25,8 +25,7 @@ function fillGapsWithG3(state, lessons, data) {
   console.log("🟡 FILL GAPS G3 START");
 
   const missing = lessons.filter(l =>
-    !state.used.has(l.id) &&
-    l._groupLevel === "G3"
+    !state.used.has(l.id)
   );
 
   for (let M of missing) {
