@@ -27,6 +27,7 @@ function aggressiveInsertG1Singles(state, lessons, data) {
   const missing = lessons.filter(l =>
     !state.used.has(l.id) &&
     l._groupLevel === "G1" &&
+     l._groupLevel === "G2" &&
     !l.group
   );
 
