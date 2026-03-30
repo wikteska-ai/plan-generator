@@ -21,6 +21,100 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function fillGapsWithG3(state, lessons, data) {
+  console.log("🟡 FILL GAPS G3 START");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) &&
+    l._groupLevel === "G3"
+  );
+
+  for (let M of missing) {
+
+    const t = data.teachers.find(x => x.id === M.teacher);
+    let placed = false;
+
+    // 🔍 znajdź gapy tej klasy
+    const gaps = findClassGaps(state.schedule, M.class);
+
+    for (let gap of gaps) {
+      const { d, h } = gap;
+
+      // 🔒 dostępność nauczyciela
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const tKey = M.teacher + "_" + d + "_" + h;
+      const busy = state.teacherBusy[tKey] || [];
+
+      let canUse = true;
+      let toRemove = [];
+
+      // 🔍 sprawdzamy konflikty nauczyciela
+      for (let l of busy) {
+
+        // ❌ nie ruszamy G1
+        if (l._groupLevel === "G1") {
+          canUse = false;
+          break;
+        }
+
+        // 🔒 czy konflikt ma gdzie pójść
+        if (!hasAlternativeSlot(l, state, data, d, h)) {
+          canUse = false;
+          break;
+        }
+
+        toRemove.push(l);
+      }
+
+      if (!canUse) continue;
+
+      // 🔥 WSTAWIAMY
+      place(M, d, h, state);
+      state.used.add(M.id);
+
+      console.log("🟡 GAP INSERT:", M.subject, M.class, d, h);
+
+      // 🔥 USUWAMY konflikty
+      for (let r of toRemove) {
+        console.log("💣 REMOVE (conflict):", r.subject, r.teacher);
+
+        removeLesson(r, state);
+        state.used.delete(r.id);
+      }
+
+      placed = true;
+      break;
+    }
+
+    if (!placed) {
+      console.log("❌ GAP FAIL:", M.subject, M.teacher);
+    }
+  }
+}
+function findClassGaps(schedule, cls) {
+  const gaps = [];
+
+  for (let d of DAYS) {
+    const day = schedule[cls]?.[d] || {};
+    const hours = Object.keys(day).map(Number).sort((a,b)=>a-b);
+
+    if (hours.length === 0) continue;
+
+    for (let i = 1; i < hours.length; i++) {
+      const prev = hours[i-1];
+      const curr = hours[i];
+
+      if (curr > prev + 1) {
+        for (let h = prev + 1; h < curr; h++) {
+          gaps.push({ d, h });
+        }
+      }
+    }
+  }
+
+  return gaps;
+}
 function hasAlternativeSlot(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
 
@@ -1090,6 +1184,8 @@ forceGroupIntoSingles(state, lessons, data);
      tryInsertMissing3(state, lessons, data);
     tryFillGaps(state, lessons, data);   
   tryInsertMissing2(state, lessons, data);
+    tryFillGaps(state, lessons, data);
+  fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
