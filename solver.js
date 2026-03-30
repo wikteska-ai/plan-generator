@@ -677,6 +677,9 @@ function generateSchedule(data) {
   // 🔥 FINALNY PLAN
   console.log("\n📅 FINAL SCHEDULE:");
 
-  return best.schedule;
+  return {
+    schedule: best.schedule,
+    score: -best.gaps - best.missing * 1000 // prosta heurystyka
+  };
 }
 export { generateSchedule };
