@@ -90,7 +90,6 @@ function fillGapsWithG3(state, lessons, data) {
     const t = data.teachers.find(x => x.id === M.teacher);
     let placed = false;
 
-    // 🔍 znajdź gapy tej klasy
     const gaps = findClassGaps(state.schedule, M.class);
 
     for (let gap of gaps) {
@@ -105,7 +104,7 @@ function fillGapsWithG3(state, lessons, data) {
       let canUse = true;
       let toRemove = [];
 
-      // 🔍 sprawdzamy konflikty nauczyciela
+      // 🔍 sprawdzamy konflikty (TEN SAM nauczyciel)
       for (let l of busy) {
 
         // ❌ nie ruszamy G1
@@ -114,36 +113,38 @@ function fillGapsWithG3(state, lessons, data) {
           break;
         }
 
-        // 🔒 czy konflikt ma gdzie pójść
-if (!canReinsertStrict(l, state, data, d, h)) {
-  console.log(
-    "⛔ BLOCK REMOVE (no strict slot):",
-    l.subject,
-    l.teacher
-  );
-
-  canUse = false;
-  break;
-}
+        // 🔒 KLUCZ: czy ta lekcja ma GDZIE WRÓCIĆ
+        if (!canReinsertStrict(l, state, data, d, h)) {
+          console.log(
+            "⛔ SKIP GAP (no slot for conflict):",
+            l.subject,
+            l.teacher
+          );
+          canUse = false;
+          break;
+        }
 
         toRemove.push(l);
       }
 
+      // ❌ jeśli choć jeden konflikt nie ma gdzie iść → pomijamy GAP
       if (!canUse) continue;
 
-      // 🔥 WSTAWIAMY
-      place(M, d, h, state);
-      state.used.add(M.id);
+      // 🔥 TERAZ DOPIERO DZIAŁAMY
 
-      console.log("🟡 GAP INSERT:", M.subject, M.class, d, h);
-
-      // 🔥 USUWAMY konflikty
+      // 1️⃣ usuwamy konflikty
       for (let r of toRemove) {
         console.log("💣 REMOVE (conflict):", r.subject, r.teacher);
 
         removeLesson(r, state);
         state.used.delete(r.id);
       }
+
+      // 2️⃣ wstawiamy M
+      place(M, d, h, state);
+      state.used.add(M.id);
+
+      console.log("🟡 GAP INSERT:", M.subject, M.class, d, h);
 
       placed = true;
       break;
