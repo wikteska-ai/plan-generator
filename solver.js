@@ -110,40 +110,22 @@ function countGaps(schedule) {
 function buildOrder(startIndex) {
   const slots = [];
 
+  // 🔥 NAJPIERW GODZINA (rząd)
   for (let h of HOURS) {
-    for (let d of DAYS) {
-      for (let c = 0; c <= 8; c++) {
+
+    // 🔥 potem klasy
+    for (let c = 0; c <= 8; c++) {
+
+      // 🔥 potem dni tygodnia
+      for (let d of DAYS) {
         slots.push({ c, d, h });
       }
     }
   }
 
-  // 🔥 rotacja startu
+  // 🔁 rotacja startu (Twoje 45 wariantów)
   return [...slots.slice(startIndex), ...slots.slice(0, startIndex)];
 }
-
-// ===== STEP =====
-function runStep(group, state, data, order) {
-  for (let slot of order) {
-    const { c, d, h } = slot;
-
-    if (state.classBusy[c + "_" + d + "_" + h]) continue;
-
-    const candidates = group.filter(l =>
-      !state.used.has(l.id) &&
-      l.class === c &&
-      canPlace(l, d, h, state, data)
-    );
-
-    console.log("🔍 SLOT", c, d, h, "→", candidates.length);
-
-    if (candidates.length > 0) {
-      const l = candidates[0]; // 🔥 bierze pierwszą
-      place(l, d, h, state);
-    }
-  }
-}
-
 // ===== ONE RUN =====
 function runOnce(data, startIndex) {
   const lessons = buildLessons(data);
