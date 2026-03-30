@@ -46,6 +46,15 @@ function aggressiveInsertG1Singles(state, lessons, data) {
 
         // 👉 1️⃣ usuń co było w tej klasie
         const existing = state.schedule[c]?.[d]?.[h];
+        // 🔒 NIE nadpisuj jeśli:
+if (existing) {
+
+  // ❌ ten sam nauczyciel
+  if (existing.teacher === M.teacher) continue;
+
+  // ❌ G1 nie ruszamy
+  if (existing._groupLevel === "G1") continue;
+}
 
         if (existing) {
           console.log("🔁 REMOVE (slot):", existing.subject, existing.teacher);
