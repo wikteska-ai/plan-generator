@@ -138,7 +138,6 @@ function runStep(group, state, data, order, label) {
       canPlace(l, d, h, state, data)
     );
 
-    console.log("🔍", label, "SLOT", c, d, h, "→", candidates.length);
 
     if (candidates.length > 0) {
       const l = candidates[0];
