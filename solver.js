@@ -21,6 +21,73 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function validateFinal(state, lessons, data) {
+  console.log("\n🧪 FINAL VALIDATION START");
+
+  let ok = true;
+
+  // ===== 1. WSZYSTKIE LEKCJE WSTAWIONE =====
+  const missing = lessons.filter(l => !state.used.has(l.id));
+
+  if (missing.length > 0) {
+    console.log("❌ MISSING LESSONS:", missing.length);
+
+    missing.forEach(l => {
+      console.log(
+        " -",
+        l.subject,
+        "| T:", l.teacher,
+        "| C:", l.class,
+        l.group ? "| G:" + l.group : ""
+      );
+    });
+
+    ok = false;
+  } else {
+    console.log("✅ ALL LESSONS PLACED");
+  }
+
+  // ===== 2. KONFLIKTY NAUCZYCIELI =====
+  const teacherMap = {};
+
+  for (let cls in state.schedule) {
+    for (let d in state.schedule[cls]) {
+      for (let h in state.schedule[cls][d]) {
+
+        const l = state.schedule[cls][d][h];
+        const key = l.teacher + "_" + d + "_" + h;
+
+        if (!teacherMap[key]) {
+          teacherMap[key] = [];
+        }
+
+        teacherMap[key].push(l);
+      }
+    }
+  }
+
+  for (let key in teacherMap) {
+    const lessonsAtSlot = teacherMap[key];
+
+    if (lessonsAtSlot.length > 1) {
+      console.log("❌ TEACHER CONFLICT:", key);
+
+      lessonsAtSlot.forEach(l =>
+        console.log("   ", l.subject, l.class)
+      );
+
+      ok = false;
+    }
+  }
+
+  if (ok) {
+    console.log("🟢 PLAN VALID");
+  } else {
+    console.log("🔴 PLAN INVALID");
+  }
+
+  console.log("🧪 FINAL VALIDATION END\n");
+}
 function findStrictSlot(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
 
@@ -1309,6 +1376,8 @@ forceGroupIntoSingles(state, lessons, data);
     tryFillGaps(state, lessons, data);
   fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
+
+  validateFinal(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
   const missingLessons = lessons.filter(l => !state.used.has(l.id));
