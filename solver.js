@@ -21,6 +21,33 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function canReinsertStrict(lesson, state, data, skipD, skipH) {
+  const t = data.teachers.find(x => x.id === lesson.teacher);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      // pomijamy slot który właśnie ruszamy
+      if (d === skipD && h === skipH) continue;
+
+      // 🔒 dostępność nauczyciela
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const tKey = lesson.teacher + "_" + d + "_" + h;
+
+      // 🔒 nauczyciel musi być wolny
+      if ((state.teacherBusy[tKey] || []).length > 0) continue;
+
+      // 🔒 klasa musi być wolna
+      if (state.classBusy[lesson.class + "_" + d + "_" + h]) continue;
+
+      // ✅ mamy idealny slot
+      return true;
+    }
+  }
+
+  return false;
+}
 function findReinsertSlot(lesson, state, data, skipD, skipH) {
   const t = data.teachers.find(x => x.id === lesson.teacher);
 
@@ -80,10 +107,12 @@ function fillGapsWithG3(state, lessons, data) {
         }
 
         // 🔒 czy konflikt ma gdzie pójść
-const slot = findReinsertSlot(l, state, data, d, h);
-
-if (!slot) {
-  console.log("⛔ NO REAL SLOT:", l.subject, l.teacher);
+if (!canReinsertStrict(existing, state, data, d, h)) {
+  console.log(
+    "⛔ BLOCK REMOVE (no strict slot):",
+    existing.subject,
+    existing.teacher
+  );
   continue;
 }
 
