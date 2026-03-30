@@ -33,6 +33,72 @@ function tryInsertMissing(state, lessons, data) {
     for (let d of DAYS) {
       for (let h of HOURS) {
 
+        // 🔴 musi być ta sama klasa
+        const c = M.class;
+
+        // 🔍 czy można wstawić bez ruszania niczego
+        if (canPlace(M, d, h, state, data)) {
+
+          console.log("✅ DIRECT INSERT:", M.subject, c, d, h);
+
+          place(M, d, h, state);
+          state.used.add(M.id);
+
+          placed = true;
+          break;
+        }
+
+        // 🔄 próbujemy wyrzucić istniejącą lekcję
+        const existing = state.schedule[c]?.[d]?.[h];
+
+        if (existing) {
+
+          // 🔥 tymczasowo usuń
+          removeLesson(existing, state);
+
+          if (canPlace(M, d, h, state, data)) {
+
+            console.log(
+              "🔁 REPLACE:",
+              M.subject,
+              "→", c, d, h,
+              "| OUT:", existing.subject
+            );
+
+            place(M, d, h, state);
+            state.used.add(M.id);
+
+            // ❗ existing wraca do missing
+            state.used.delete(existing.id);
+
+            placed = true;
+            break;
+          } else {
+            // rollback
+            place(existing, d, h, state);
+          }
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ STILL MISSING:", M.subject, M.teacher, M.class);
+    }
+  }
+}
+function tryInsertMissing2(state, lessons, data) {
+  console.log("🧩 INSERT MISSING START");
+
+  let missing = lessons.filter(l => !state.used.has(l.id));
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
         const c = M.class;
 
         // 🟢 1. bezpośrednie wstawienie
@@ -406,10 +472,11 @@ g3 = sortGroup(g3, data);
   runStep(g1, state, data, order, "G1");
   runStep(g2, state, data, order, "G2");
   runStep(g3, state, data, order, "G3");
-
+    tryFillGaps(state, lessons, data);
   tryInsertMissing(state, lessons, data);
-  
-  tryFillGaps(state, lessons, data);
+    tryFillGaps(state, lessons, data);
+  tryInsertMissing2(state, lessons, data);
+    tryFillGaps(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
   const missingLessons = lessons.filter(l => !state.used.has(l.id));
