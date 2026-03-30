@@ -69,13 +69,6 @@ function splitGroups(lessons, data) {
       g3.push(l);
     }
 
-    console.log(
-      l.teacher,
-      "load:", teacherLoad,
-      "avail:", teacherAvail,
-      "ratio:", ratio.toFixed(2),
-      "→", l._groupLevel
-    );
   });
 
   return { g1, g2, g3 };
