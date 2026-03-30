@@ -21,6 +21,160 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function tryPlaceWholeGroup(state, lessons, data) {
+  console.log("🟢 TRY PLACE WHOLE GROUP");
+
+  // 🔥 zbierz grupy z missing
+  const groups = {};
+
+  lessons.forEach(l => {
+    if (!state.used.has(l.id) && l.group) {
+      const key = l.teacher + "_" + l.group;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(l);
+    }
+  });
+
+  for (let key in groups) {
+    const groupLessons = groups[key];
+
+    // 🔥 klasy tej grupy
+    const classes = groupLessons.map(l => l.class);
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const teacher = groupLessons[0].teacher;
+        const t = data.teachers.find(x => x.id === teacher);
+
+        // 🔒 nauczyciel dostępny
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        // 🔒 nauczyciel wolny
+        const tKey = teacher + "_" + d + "_" + h;
+        const busy = state.teacherBusy[tKey] || [];
+        if (busy.length > 0) continue;
+
+        // 🔒 wszystkie klasy wolne
+        let allFree = true;
+
+        for (let c of classes) {
+          if (state.classBusy[c + "_" + d + "_" + h]) {
+            allFree = false;
+            break;
+          }
+        }
+
+        if (!allFree) continue;
+
+        // 🔥 WSTAWIAMY CAŁĄ GRUPĘ
+        console.log("🟢 GROUP PERFECT PLACE:", key, d, h);
+
+        for (let l of groupLessons) {
+          place(l, d, h, state);
+          state.used.add(l.id);
+        }
+
+        break;
+      }
+    }
+  }
+}
+function forceGroupIntoSingles(state, lessons, data) {
+  console.log("🟣 FORCE GROUP INTO SINGLES (CLEAN)");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) && l.group
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const tKey = M.teacher + "_" + d + "_" + h;
+        const busy = state.teacherBusy[tKey] || [];
+
+        // 🔒 musi być dokładnie 1 lekcja i bez grupy
+        if (busy.length !== 1) continue;
+
+        const existing = busy[0];
+        if (existing.group) continue;
+
+        let toRemove = [];
+
+        // 1️⃣ usuń single nauczyciela
+        toRemove.push(existing);
+
+        // 2️⃣ usuń WSZYSTKO co blokuje slot dla klas tej grupy
+        for (let cls in state.schedule) {
+          for (let dd in state.schedule[cls]) {
+            for (let hh in state.schedule[cls][dd]) {
+
+              const l = state.schedule[cls][dd][hh];
+
+              if (
+                dd === d &&
+                Number(hh) === h &&
+                l.class !== undefined &&
+                l.class !== null
+              ) {
+                // 🔥 jeśli to inna klasa tej samej grupy slotowej
+                // (czyli wszystko co siedzi w tym slocie poza tym co chcemy wstawić)
+                if (l.class !== M.class) {
+                  toRemove.push(l);
+                }
+              }
+            }
+          }
+        }
+
+        // 🔥 deduplikacja
+        toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
+
+        // 🔥 usuwamy
+        for (let r of toRemove) {
+          console.log(
+            "🧹 GROUP CLEAN REMOVE:",
+            r.subject,
+            r.teacher,
+            "| C:", r.class
+          );
+
+          removeLesson(r, state);
+          state.used.delete(r.id);
+        }
+
+        // 🔥 wstawiamy grupę (jedną lekcję — reszta przyjdzie później)
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log(
+          "🟣 GROUP INSERT:",
+          M.subject,
+          "| T:", M.teacher,
+          "| G:", M.group,
+          d, h
+        );
+
+        placed = true;
+        break;
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log(
+        "❌ GROUP FORCE FAIL:",
+        M.subject,
+        M.teacher,
+        "G:", M.group
+      );
+    }
+  }
+}
 function cleanSwapG1(state, lessons, data) {
   console.log("🔵 CLEAN SWAP G1 START (GROUP SAFE)");
 
@@ -785,6 +939,8 @@ g3 = sortGroup(g3, data);
   forcePlaceG1Missing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
   cleanSwapG1(state, lessons, data);
+    tryPlaceWholeGroup(state, lessons, data);
+forceGroupIntoSingles(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
 
 
