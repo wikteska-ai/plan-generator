@@ -21,13 +21,26 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function getRealMissing(lessons, state) {
+  const placedIds = new Set();
+
+  for (let cls in state.schedule) {
+    for (let d in state.schedule[cls]) {
+      for (let h in state.schedule[cls][d]) {
+        placedIds.add(state.schedule[cls][d][h].id);
+      }
+    }
+  }
+
+  return lessons.filter(l => !placedIds.has(l.id));
+}
 function validateFinal(state, lessons, data) {
   console.log("\n🧪 FINAL VALIDATION START");
 
   let ok = true;
 
   // ===== 1. WSZYSTKIE LEKCJE WSTAWIONE =====
-  const missing = lessons.filter(l => !state.used.has(l.id));
+  const missing = getRealMissing(lessons, state);
 
   if (missing.length > 0) {
     console.log("❌ MISSING LESSONS:", missing.length);
@@ -827,7 +840,7 @@ function safePlaceG1Missing(state, lessons, data) {
 function tryInsertMissing(state, lessons, data) {
   console.log("🧩 INSERT MISSING START");
 
-  let missing = lessons.filter(l => !state.used.has(l.id));
+  let missing = getRealMissing(lessons, state);
 
   for (let M of missing) {
 
@@ -905,7 +918,7 @@ function tryInsertMissing(state, lessons, data) {
 function tryInsertMissing2(state, lessons, data) {
   console.log("🧩 INSERT MISSING START");
 
-  let missing = lessons.filter(l => !state.used.has(l.id));
+  let missing = getRealMissing(lessons, state);
 
   for (let M of missing) {
 
@@ -984,7 +997,7 @@ function tryInsertMissing2(state, lessons, data) {
 function tryInsertMissing3(state, lessons, data) {
   console.log("🧩 INSERT MISSING START");
 
-  let missing = lessons.filter(l => !state.used.has(l.id));
+  let missing = getRealMissing(lessons, state);
 
   for (let M of missing) {
 
@@ -1065,7 +1078,7 @@ function tryInsertMissing3(state, lessons, data) {
 function tryFillGaps(state, lessons, data) {
   console.log("🧪 GAP FILL START");
 
-  const missing = lessons.filter(l => !state.used.has(l.id));
+  const missing = getRealMissing(lessons, state);
 
   for (let c = 0; c <= 8; c++) {
     for (let d of DAYS) {
@@ -1394,7 +1407,7 @@ forceGroupIntoSingles(state, lessons, data);
   validateFinal(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
-  const missingLessons = lessons.filter(l => !state.used.has(l.id));
+  const missingLessons = getRealMissing(lessons, state);
   const missing = lessons.length - state.used.size;
 
   console.log("📉 GAPS:", gaps);
