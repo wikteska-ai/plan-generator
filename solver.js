@@ -21,13 +21,38 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function hasAlternativeSlot(lesson, state, data, skipD, skipH) {
+  const t = data.teachers.find(x => x.id === lesson.teacher);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      // pomijamy aktualny slot
+      if (d === skipD && h === skipH) continue;
+
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const tKey = lesson.teacher + "_" + d + "_" + h;
+      const busy = state.teacherBusy[tKey] || [];
+
+      // 🔒 nauczyciel wolny (lub tylko ta sama lekcja)
+      if (busy.length > 0) continue;
+
+      // 🔒 klasa wolna
+      if (state.classBusy[lesson.class + "_" + d + "_" + h]) continue;
+
+      return true;
+    }
+  }
+
+  return false;
+}
 function aggressiveInsertG1Singles(state, lessons, data) {
   console.log("🔴 AGGRESSIVE G1 SINGLES START");
 
   const missing = lessons.filter(l =>
     !state.used.has(l.id) &&
     l._groupLevel === "G1" &&
-     l._groupLevel === "G2" &&
     !l.group
   );
 
@@ -55,6 +80,8 @@ if (existing) {
 
   // ❌ G1 nie ruszamy
   if (existing._groupLevel === "G1") continue;
+}
+          if (existing._groupLevel === "G2") continue;
 }
 
         if (existing) {
