@@ -97,7 +97,6 @@ function sortGroup(group, data) {
     return 0;
   });
 }
-}
 
 // ===== STATE =====
 function createState() {
