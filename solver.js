@@ -69,15 +69,29 @@ function validateFinal(state, lessons, data) {
   for (let key in teacherMap) {
     const lessonsAtSlot = teacherMap[key];
 
-    if (lessonsAtSlot.length > 1) {
-      console.log("❌ TEACHER CONFLICT:", key);
+if (lessonsAtSlot.length > 1) {
 
-      lessonsAtSlot.forEach(l =>
-        console.log("   ", l.subject, l.class)
-      );
+  const hasGroup = lessonsAtSlot.some(l => l.group);
 
-      ok = false;
+  if (hasGroup) {
+    const groupId = lessonsAtSlot[0].group;
+
+    const allSameGroup = lessonsAtSlot.every(l => l.group === groupId);
+
+    if (allSameGroup) {
+      continue; // ✅ to jest legalna grupa
     }
+  }
+
+  // ❌ prawdziwy konflikt
+  console.log("❌ TEACHER CONFLICT:", key);
+
+  lessonsAtSlot.forEach(l =>
+    console.log("   ", l.subject, l.class, l.group || "")
+  );
+
+  ok = false;
+}
   }
 
   if (ok) {
