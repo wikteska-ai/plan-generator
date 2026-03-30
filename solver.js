@@ -676,7 +676,6 @@ function generateSchedule(data) {
 
   // 🔥 FINALNY PLAN
   console.log("\n📅 FINAL SCHEDULE:");
-  printSchedule(best.schedule);
 
   return best.schedule;
 }
