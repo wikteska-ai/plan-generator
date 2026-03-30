@@ -640,24 +640,44 @@ if (missing > 0) {
     );
   });
 }
-  return { gaps, missing };
-}
+return {
+  gaps,
+  missing,
+  schedule: state.schedule
+};}
 
 // ===== MAIN =====
 function generateSchedule(data) {
   const results = [];
 
-  // 🔥 45 startów (pierwszy rząd)
+  let best = null;
+
   for (let i = 0; i < 45; i++) {
     const res = runOnce(data, i);
     results.push(res);
+
+    if (
+      !best ||
+      res.missing < best.missing ||
+      (res.missing === best.missing && res.gaps < best.gaps)
+    ) {
+      best = res;
+    }
   }
 
   console.log("\n✅ DONE");
-  console.log("📊 WYNIKI:");
+  console.log("🏆 BEST RESULT:");
+  console.log("missing:", best.missing, "gaps:", best.gaps);
 
+  console.log("\n📊 ALL RUNS:");
   results.forEach((r, i) => {
     console.log("RUN", i, "→ gaps:", r.gaps, "missing:", r.missing);
   });
+
+  // 🔥 FINALNY PLAN
+  console.log("\n📅 FINAL SCHEDULE:");
+  printSchedule(best.schedule);
+
+  return best;
 }
 export { generateSchedule };
