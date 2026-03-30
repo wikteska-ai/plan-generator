@@ -107,13 +107,15 @@ function fillGapsWithG3(state, lessons, data) {
         }
 
         // 🔒 czy konflikt ma gdzie pójść
-if (!canReinsertStrict(existing, state, data, d, h)) {
+if (!canReinsertStrict(l, state, data, d, h)) {
   console.log(
     "⛔ BLOCK REMOVE (no strict slot):",
-    existing.subject,
-    existing.teacher
+    l.subject,
+    l.teacher
   );
-  continue;
+
+  canUse = false;
+  break;
 }
 
         toRemove.push(l);
