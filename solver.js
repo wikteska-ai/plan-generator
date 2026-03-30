@@ -186,4 +186,4 @@ function generate(data) {
   });
 }
 
-export { generate };
+export { generate as generateSchedule };
