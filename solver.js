@@ -21,6 +21,90 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function cleanSwapG1(state, lessons, data) {
+  console.log("🔵 CLEAN SWAP G1 START (GROUP SAFE)");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id) && l._groupLevel === "G1"
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const c = M.class;
+
+        const t = data.teachers.find(x => x.id === M.teacher);
+
+        // 🔒 1. dostępność nauczyciela
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        // 🔒 2. brak konfliktu nauczyciela
+        const tKey = M.teacher + "_" + d + "_" + h;
+        if (state.teacherBusy[tKey]) continue;
+
+        const existing = state.schedule[c]?.[d]?.[h];
+
+        let toRemove = [];
+
+        if (existing) {
+
+          if (existing.group) {
+            // 🔥 zbierz CAŁĄ grupę w tym slocie
+            for (let cls in state.schedule) {
+              for (let dd in state.schedule[cls]) {
+                for (let hh in state.schedule[cls][dd]) {
+
+                  const l = state.schedule[cls][dd][hh];
+
+                  if (
+                    l.teacher === existing.teacher &&
+                    l.group === existing.group &&
+                    dd === d &&
+                    Number(hh) === h
+                  ) {
+                    toRemove.push(l);
+                  }
+                }
+              }
+            }
+
+          } else {
+            toRemove.push(existing);
+          }
+        }
+
+        // 🔥 deduplikacja (ważne!)
+        toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
+
+        // 🔥 usuwamy wszystko
+        for (let r of toRemove) {
+          console.log("🔁 SWAP OUT:", r.subject, r.teacher, "| G:", r.group);
+
+          removeLesson(r, state);
+          state.used.delete(r.id);
+        }
+
+        // 🔥 wstawiamy M
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🔵 SWAP IN:", M.subject, M.class, d, h);
+
+        placed = true;
+        break;
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ SWAP FAIL:", M.subject, M.teacher);
+    }
+  }
+}
 function forcePlaceG1Missing(state, lessons, data) {
   console.log("🔥 FORCE G1 START (GROUP AWARE)");
 
@@ -692,7 +776,10 @@ g3 = sortGroup(g3, data);
 
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
-forcePlaceG1Missing(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+cleanSwapG1(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+  forcePlaceG1Missing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
   runStep(g2, state, data, order, "G2");
   runStep(g3, state, data, order, "G3");
