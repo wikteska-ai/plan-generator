@@ -21,7 +21,105 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function tryFillGaps(state, lessons, data) {
+  console.log("🧪 GAP FILL START");
 
+  const missing = lessons.filter(l => !state.used.has(l.id));
+
+  for (let c = 0; c <= 8; c++) {
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        // jeśli slot zajęty → pomiń
+        if (state.classBusy[c + "_" + d + "_" + h]) continue;
+
+        // 🔍 kandydaci (ignorujemy used!)
+        const candidates = lessons.filter(l =>
+          l.class === c &&
+          canPlace(l, d, h, state, data)
+        );
+
+        for (let A of candidates) {
+
+          // 🔍 znajdź gdzie A jest użyta
+          let found = null;
+
+          for (let cls in state.schedule) {
+            for (let dd in state.schedule[cls]) {
+              for (let hh in state.schedule[cls][dd]) {
+
+                const placed = state.schedule[cls][dd][hh];
+
+                if (placed.id === A.id) {
+                  found = { cls, d: dd, h: Number(hh), lesson: placed };
+                  break;
+                }
+              }
+              if (found) break;
+            }
+            if (found) break;
+          }
+
+          if (!found) continue;
+
+          // 🔄 próbujemy wstawić missing w miejsce A
+          for (let M of missing) {
+
+            if (
+              M.class == found.cls &&
+              canPlace(M, found.d, found.h, state, data)
+            ) {
+
+              console.log(
+                "🔁 SWAP:",
+                A.subject, "→ GAP",
+                "|", M.subject, "→", found.cls, found.d, found.h
+              );
+
+              // 🔥 usuń A
+              removeLesson(A, state);
+
+              // 🔥 wstaw A do GAP
+              place(A, d, h, state);
+
+              // 🔥 wstaw M w stare miejsce
+              place(M, found.d, found.h, state);
+
+              state.used.add(M.id);
+
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+function removeLesson(l, state) {
+  for (let cls in state.schedule) {
+    for (let d in state.schedule[cls]) {
+      for (let h in state.schedule[cls][d]) {
+
+        if (state.schedule[cls][d][h].id === l.id) {
+
+          delete state.schedule[cls][d][h];
+
+          const key = d + "_" + h;
+          const tKey = l.teacher + "_" + key;
+
+          // usuń z teacherBusy
+          state.teacherBusy[tKey] =
+            (state.teacherBusy[tKey] || []).filter(x => x.id !== l.id);
+
+          // usuń z classBusy
+          delete state.classBusy[cls + "_" + key];
+
+          return;
+        }
+      }
+    }
+  }
+}
 // ===== AVAILABILITY % =====
 function teacherAvailabilityPercent(t) {
   return t.availability.length / 40;
@@ -229,6 +327,7 @@ g3 = sortGroup(g3, data);
   runStep(g1, state, data, order, "G1");
   runStep(g2, state, data, order, "G2");
   runStep(g3, state, data, order, "G3");
+  tryFillGaps(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
   const missingLessons = lessons.filter(l => !state.used.has(l.id));
