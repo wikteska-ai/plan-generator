@@ -526,13 +526,15 @@ function tryPlaceWholeGroup(state, lessons, data) {
   }
 }
 function forceGroupIntoSingles(state, lessons, data) {
-  console.log("🟣 FORCE GROUP INTO SINGLES (CLEAN)");
+  console.log("🟣 FORCE GROUP INTO SINGLES (FULL GROUP MODE)");
 
-const missing = getRealMissing(lessons, state)
-  .filter(l => l.group);
-
+  const missing = getRealMissing(lessons, state)
+    .filter(l => l.group);
 
   for (let M of missing) {
+
+    // 🔥 bierzemy CAŁĄ grupę
+    const groupLessons = lessons.filter(l => l.group === M.group);
 
     let placed = false;
 
@@ -542,33 +544,24 @@ const missing = getRealMissing(lessons, state)
         const tKey = M.teacher + "_" + d + "_" + h;
         const busy = state.teacherBusy[tKey] || [];
 
-        // 🔒 musi być dokładnie 1 lekcja i bez grupy
+        // musi być dokładnie 1 single
         if (busy.length !== 1) continue;
-
-        const existing = busy[0];
-        if (existing.group) continue;
+        if (busy[0].group) continue;
 
         let toRemove = [];
 
-        // 1️⃣ usuń single nauczyciela
-        toRemove.push(existing);
+        // usuń single nauczyciela
+        toRemove.push(busy[0]);
 
-        // 2️⃣ usuń WSZYSTKO co blokuje slot dla klas tej grupy
+        // usuń wszystko z tego slotu (inne klasy)
         for (let cls in state.schedule) {
           for (let dd in state.schedule[cls]) {
             for (let hh in state.schedule[cls][dd]) {
 
               const l = state.schedule[cls][dd][hh];
 
-              if (
-                dd === d &&
-                Number(hh) === h &&
-                l.class !== undefined &&
-                l.class !== null
-              ) {
-                // 🔥 jeśli to inna klasa tej samej grupy slotowej
-                // (czyli wszystko co siedzi w tym slocie poza tym co chcemy wstawić)
-                if (l.class !== M.class) {
+              if (dd === d && Number(hh) === h) {
+                if (l && l.class !== groupLessons[0].class) {
                   toRemove.push(l);
                 }
               }
@@ -576,33 +569,43 @@ const missing = getRealMissing(lessons, state)
           }
         }
 
-        // 🔥 deduplikacja
+        // deduplikacja
         toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
 
-        // 🔥 usuwamy
-        for (let r of toRemove) {
-          console.log(
-            "🧹 GROUP CLEAN REMOVE:",
-            r.subject,
-            r.teacher,
-            "| C:", r.class
-          );
+        // 🔥 SYMULACJA – czy da się wstawić CAŁĄ grupę?
+        let canPlaceAll = true;
 
+        for (let gl of groupLessons) {
+          if (!canPlace(gl, d, h, state, data)) {
+            canPlaceAll = false;
+            break;
+          }
+        }
+
+        // ❌ jeśli nie można całej grupy → pomijamy
+        if (!canPlaceAll) continue;
+
+        // 🧹 usuwamy dopiero jak mamy pewność
+        for (let r of toRemove) {
+          console.log("🧹 REMOVE:", r.subject, r.teacher, "| C:", r.class);
           removeLesson(r, state);
           state.used.delete(r.id);
         }
 
-        // 🔥 wstawiamy grupę (jedną lekcję — reszta przyjdzie później)
-        place(M, d, h, state);
-        state.used.add(M.id);
+        // 🚀 wstawiamy CAŁĄ grupę
+        for (let gl of groupLessons) {
+          place(gl, d, h, state);
+          state.used.add(gl.id);
 
-        console.log(
-          "🟣 GROUP INSERT:",
-          M.subject,
-          "| T:", M.teacher,
-          "| G:", M.group,
-          d, h
-        );
+          console.log(
+            "🟣 GROUP INSERT:",
+            gl.subject,
+            "| T:", gl.teacher,
+            "| G:", gl.group,
+            "| C:", gl.class,
+            d, h
+          );
+        }
 
         placed = true;
         break;
@@ -612,7 +615,7 @@ const missing = getRealMissing(lessons, state)
 
     if (!placed) {
       console.log(
-        "❌ GROUP FORCE FAIL:",
+        "⏭️ SKIP GROUP (NO FULL FIT):",
         M.subject,
         M.teacher,
         "G:", M.group
