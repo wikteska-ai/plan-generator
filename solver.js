@@ -21,6 +21,106 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function swapInsertMissing(state, lessons, data) {
+  console.log("🟠 SWAP INSERT START");
+
+  let missing = getRealMissing(lessons, state);
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const c = M.class;
+        const t = data.teachers.find(x => x.id === M.teacher);
+
+        // 🔒 dostępność nauczyciela
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        // 🔒 klasa musi być wolna
+        if (state.classBusy[c + "_" + d + "_" + h]) continue;
+
+        const tKey = M.teacher + "_" + d + "_" + h;
+        const busy = state.teacherBusy[tKey] || [];
+
+        // 🟢 brak konfliktu → normalne wstawienie
+        if (busy.length === 0) {
+
+          place(M, d, h, state);
+          state.used.add(M.id);
+
+          console.log("🟠 INSERT:", M.subject, c, d, h);
+
+          placed = true;
+          break;
+        }
+
+        // 🔥 KONFLIKT → usuwamy WSZYSTKIE lekcje nauczyciela w tym slocie
+        let toRemove = [];
+
+        for (let l of busy) {
+
+          // ❌ nie usuwamy tej samej lekcji
+          if (l.id === M.id) continue;
+
+          // 🔥 jeśli grupa → usuń całą grupę
+          if (l.group) {
+
+            for (let cls in state.schedule) {
+              for (let dd in state.schedule[cls]) {
+                for (let hh in state.schedule[cls][dd]) {
+
+                  const x = state.schedule[cls][dd][hh];
+
+                  if (
+                    x.teacher === l.teacher &&
+                    x.group === l.group &&
+                    dd === d &&
+                    Number(hh) === h
+                  ) {
+                    toRemove.push(x);
+                  }
+                }
+              }
+            }
+
+          } else {
+            toRemove.push(l);
+          }
+        }
+
+        // 🔥 deduplikacja
+        toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
+
+        // 🧹 usuwamy konflikty
+        for (let r of toRemove) {
+          console.log("💣 SWAP OUT:", r.subject, r.teacher);
+
+          removeLesson(r, state);
+          state.used.delete(r.id);
+        }
+
+        // 🚀 wstawiamy M
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🟠 SWAP IN:", M.subject, c, d, h);
+
+        placed = true;
+        break;
+      }
+
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ SWAP FAIL:", M.subject, M.teacher);
+    }
+  }
+}
+
 function getRealMissing(lessons, state) {
   const placedIds = new Set();
 
@@ -1385,6 +1485,7 @@ g3 = sortGroup(g3, data);
   // 🔥 NOWE ETAPY
   safePlaceG1Missing(state, lessons, data);
   forcePlaceG1Missing(state, lessons, data);
+  swapInsertMissing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
   cleanSwapG1(state, lessons, data);
     tryPlaceWholeGroup(state, lessons, data);
