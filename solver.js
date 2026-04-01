@@ -21,6 +21,62 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function optimizeEarlyClasses(state, lessons, data) {
+  console.log("🧸 OPTIMIZE 0-3 START");
+
+  for (let cls in state.schedule) {
+
+    // 🔥 tylko klasy 0–3
+    if (Number(cls) > 3) continue;
+
+    for (let d of DAYS) {
+
+      for (let h of [8, 7, 6, 5]) { // rozszerzenie
+
+        const l = state.schedule[cls]?.[d]?.[h];
+        if (!l) continue;
+
+        const t = data.teachers.find(x => x.id === l.teacher);
+
+        // 🔍 szukamy wcześniejszego slotu
+        for (let d2 of [d, ...DAYS]) { // najpierw ten sam dzień
+
+          for (let h2 of HOURS) {
+
+            // tylko wcześniejsze godziny
+            if (d2 === d && h2 >= h) continue;
+
+            // 🔒 dostępność nauczyciela
+            if (!t.availability.includes(d2 + "_" + h2)) continue;
+
+            // 🔒 czy można wstawić
+            if (!canPlace(l, d2, h2, state, data)) continue;
+
+            console.log(
+              "🧸 MOVE:",
+              l.subject,
+              "| C:", l.class,
+              "| FROM:", d, h,
+              "| TO:", d2, h2
+            );
+
+            // usuń
+            removeLesson(l, state);
+            state.used.delete(l.id);
+
+            // wstaw
+            place(l, d2, h2, state);
+            state.used.add(l.id);
+
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  console.log("🧸 OPTIMIZE 0-3 END");
+}
 function optimizeLateHours(state, lessons, data) {
   console.log("✨ OPTIMIZE LATE HOURS START");
 
@@ -1562,6 +1618,7 @@ forceGroupIntoSingles(state, lessons, data);
   fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
+ optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
 
 
