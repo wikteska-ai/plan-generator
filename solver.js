@@ -29,7 +29,7 @@ function optimizeLateHours(state, lessons, data) {
 
     for (let d of DAYS) {
 
-      for (let h of [8, 7]) {
+      for (let h of [8, 7, 6]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
@@ -100,7 +100,7 @@ function optimizeEarlyClasses(state, lessons, data) {
 
     for (let d of DAYS) {
 
-      for (let h of [8, 7, 6]) {
+      for (let h of [8, 7, 6, 5]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
@@ -1803,8 +1803,7 @@ forceGroupIntoSingles(state, lessons, data);
 
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
-  optimizeEarlyClasses2(state, lessons, data); // 🔥 najpierw dzieci
-  optimizeLateHours2(state, lessons, data); // 🔥 TU
+
 
   validateFinal(state, lessons, data);
 
