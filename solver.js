@@ -23,12 +23,13 @@ function buildLessons(data) {
 }
 function optimizeLateHours(state, lessons, data) {
   console.log("✨ OPTIMIZE LATE HOURS START");
-    if (Number(cls) < 4) continue;
 
   for (let cls in state.schedule) {
+        if (Number(cls) < 4) continue;
+
     for (let d of DAYS) {
 
-      for (let h of [8, 7, 6]) {
+      for (let h of [8, 7]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
