@@ -178,7 +178,7 @@ function getGroupLessonsAtSlot(state, lesson, d, h) {
   return out;
 }
 function swapInsertMissing(state, lessons, data) {
-  console.log("🟠 SWAP INSERT START");
+  console.log("🟠 SWAP INSERT START (GROUP SAFE)");
 
   let missing = getRealMissing(lessons, state);
 
@@ -203,66 +203,142 @@ function swapInsertMissing(state, lessons, data) {
 
         // 🟢 brak konfliktu → normalne wstawienie
         if (busy.length === 0) {
-
           place(M, d, h, state);
           state.used.add(M.id);
 
           console.log("🟠 INSERT:", M.subject, c, d, h);
-
           placed = true;
           break;
         }
 
-        // 🔥 KONFLIKT → usuwamy WSZYSTKIE lekcje nauczyciela w tym slocie
-        let toRemove = [];
+        // =========================
+        // 🔥 KONFLIKT → budujemy byty (entity)
+        // =========================
+        let entities = [];
 
         for (let l of busy) {
 
-          // ❌ nie usuwamy tej samej lekcji
           if (l.id === M.id) continue;
 
-          // 🔥 jeśli grupa → usuń całą grupę
+          // 🔵 grupa → cały byt
           if (l.group) {
 
+            const groupLessons = [];
+
             for (let cls in state.schedule) {
-              for (let dd in state.schedule[cls]) {
-                for (let hh in state.schedule[cls][dd]) {
+              const x = state.schedule[cls]?.[d]?.[h];
 
-                  const x = state.schedule[cls][dd][hh];
-
-                  if (
-                    x.teacher === l.teacher &&
-                    x.group === l.group &&
-                    dd === d &&
-                    Number(hh) === h
-                  ) {
-                    toRemove.push(x);
-                  }
-                }
+              if (
+                x &&
+                x.teacher === l.teacher &&
+                x.group === l.group
+              ) {
+                groupLessons.push(x);
               }
             }
 
+            entities.push(groupLessons);
+
           } else {
-            toRemove.push(l);
+            entities.push([l]); // single jako byt
           }
         }
 
-        // 🔥 deduplikacja
-        toRemove = [...new Map(toRemove.map(x => [x.id, x])).values()];
+        // deduplikacja bytów (po id pierwszej lekcji)
+        entities = [
+          ...new Map(
+            entities.map(e => [e[0].id, e])
+          ).values()
+        ];
 
-        // 🧹 usuwamy konflikty
-        for (let r of toRemove) {
-          console.log("💣 SWAP OUT:", r.subject, r.teacher);
+        // =========================
+        // 🔒 SYMULACJA (czy da się wszystko przenieść)
+        // =========================
+        let canSwap = true;
+        const reinsertPlan = [];
 
-          removeLesson(r, state);
-          state.used.delete(r.id);
+        for (let entity of entities) {
+
+          let foundSlot = null;
+
+          for (let d2 of DAYS) {
+            for (let h2 of HOURS) {
+
+              if (d2 === d && h2 === h) continue;
+
+              let ok = true;
+
+              for (let l of entity) {
+
+                const tt = data.teachers.find(x => x.id === l.teacher);
+
+                if (!tt.availability.includes(d2 + "_" + h2)) {
+                  ok = false;
+                  break;
+                }
+
+                if (!canPlace(l, d2, h2, state, data)) {
+                  ok = false;
+                  break;
+                }
+              }
+
+              if (ok) {
+                foundSlot = { d: d2, h: h2 };
+                break;
+              }
+            }
+            if (foundSlot) break;
+          }
+
+          if (!foundSlot) {
+            canSwap = false;
+            break;
+          }
+
+          reinsertPlan.push({ entity, slot: foundSlot });
         }
 
-        // 🚀 wstawiamy M
+        if (!canSwap) continue; // ❌ nic nie ruszamy
+
+        // =========================
+        // 🧹 USUWAMY
+        // =========================
+        for (let { entity } of reinsertPlan) {
+          for (let r of entity) {
+            console.log("💣 SWAP OUT:", r.subject, r.teacher, "| G:", r.group);
+
+            removeLesson(r, state);
+            state.used.delete(r.id);
+          }
+        }
+
+        // =========================
+        // 🚀 WSTAWIAMY M
+        // =========================
         place(M, d, h, state);
         state.used.add(M.id);
 
         console.log("🟠 SWAP IN:", M.subject, c, d, h);
+
+        // =========================
+        // 🔁 REINSERT (CAŁE BYTY)
+        // =========================
+        for (let { entity, slot } of reinsertPlan) {
+
+          for (let l of entity) {
+            place(l, slot.d, slot.h, state);
+            state.used.add(l.id);
+
+            console.log(
+              "🔁 REINSERT:",
+              l.subject,
+              "| T:", l.teacher,
+              "| G:", l.group,
+              slot.d, slot.h
+            );
+          }
+        }
 
         placed = true;
         break;
@@ -276,7 +352,6 @@ function swapInsertMissing(state, lessons, data) {
     }
   }
 }
-
 function getRealMissing(lessons, state) {
   const placedIds = new Set();
 
