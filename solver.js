@@ -25,9 +25,11 @@ function optimizeLateHours(state, lessons, data) {
   console.log("✨ OPTIMIZE LATE HOURS START");
 
   for (let cls in state.schedule) {
+        if (Number(cls) < 4) continue;
+
     for (let d of DAYS) {
 
-      for (let h of [8, 7]) {
+      for (let h of [8, 7, 6]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
@@ -91,7 +93,7 @@ function optimizeEarlyClasses(state, lessons, data) {
 
     for (let d of DAYS) {
 
-      for (let h of [6, 5]) {
+      for (let h of [8, 7, 6, 5]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
