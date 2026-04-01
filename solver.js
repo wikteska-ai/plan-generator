@@ -21,54 +21,120 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function optimizeLateHours(state, lessons, data) {
+  console.log("✨ OPTIMIZE LATE HOURS START");
+
+  for (let cls in state.schedule) {
+    for (let d of DAYS) {
+
+      for (let h of [8, 7]) {
+
+        const base = state.schedule[cls]?.[d]?.[h];
+        if (!base) continue;
+
+        const groupLessons = getGroupLessonsAtSlot(state, base, d, h);
+
+        // 🔍 szukamy nowego slotu dla CAŁEJ grupy
+        outer:
+        for (let d2 of DAYS) {
+          for (let h2 of HOURS) {
+
+            if (d2 === d && h2 >= h) continue;
+
+            // 🔒 sprawdzamy czy wszystkie lekcje się zmieszczą
+            let canMoveAll = true;
+
+            for (let l of groupLessons) {
+              const t = data.teachers.find(x => x.id === l.teacher);
+
+              if (!t.availability.includes(d2 + "_" + h2)) {
+                canMoveAll = false;
+                break;
+              }
+
+              if (!canPlace(l, d2, h2, state, data)) {
+                canMoveAll = false;
+                break;
+              }
+            }
+
+            if (!canMoveAll) continue;
+
+            // 🚀 PRZENOSIMY CAŁĄ GRUPĘ
+            console.log("✨ MOVE GROUP:", base.group || "single", d, h, "→", d2, h2);
+
+            for (let l of groupLessons) {
+              removeLesson(l, state);
+              state.used.delete(l.id);
+            }
+
+            for (let l of groupLessons) {
+              place(l, d2, h2, state);
+              state.used.add(l.id);
+            }
+
+            break outer;
+          }
+        }
+      }
+    }
+  }
+
+  console.log("✨ OPTIMIZE LATE HOURS END");
+}
 function optimizeEarlyClasses(state, lessons, data) {
   console.log("🧸 OPTIMIZE 0-3 START");
 
   for (let cls in state.schedule) {
 
-    // 🔥 tylko klasy 0–3
     if (Number(cls) > 3) continue;
 
     for (let d of DAYS) {
 
-      for (let h of [8, 7, 6, 5]) { // rozszerzenie
+      for (let h of [6, 5]) {
 
-        const l = state.schedule[cls]?.[d]?.[h];
-        if (!l) continue;
+        const base = state.schedule[cls]?.[d]?.[h];
+        if (!base) continue;
 
-        const t = data.teachers.find(x => x.id === l.teacher);
+        const groupLessons = getGroupLessonsAtSlot(state, base, d, h);
 
-        // 🔍 szukamy wcześniejszego slotu
-        for (let d2 of [d, ...DAYS]) { // najpierw ten sam dzień
-
+        outer:
+        for (let d2 of [d, ...DAYS]) {
           for (let h2 of HOURS) {
 
-            // tylko wcześniejsze godziny
             if (d2 === d && h2 >= h) continue;
 
-            // 🔒 dostępność nauczyciela
-            if (!t.availability.includes(d2 + "_" + h2)) continue;
+            let canMoveAll = true;
 
-            // 🔒 czy można wstawić
-            if (!canPlace(l, d2, h2, state, data)) continue;
+            for (let l of groupLessons) {
+              const t = data.teachers.find(x => x.id === l.teacher);
 
-            console.log(
-              "🧸 MOVE:",
-              l.subject,
-              "| C:", l.class,
-              "| FROM:", d, h,
-              "| TO:", d2, h2
-            );
+              if (!t.availability.includes(d2 + "_" + h2)) {
+                canMoveAll = false;
+                break;
+              }
 
-            // usuń
-            removeLesson(l, state);
-            state.used.delete(l.id);
+              if (!canPlace(l, d2, h2, state, data)) {
+                canMoveAll = false;
+                break;
+              }
+            }
 
-            // wstaw
-            place(l, d2, h2, state);
-            state.used.add(l.id);
+            if (!canMoveAll) continue;
 
-            break;
+            console.log("🧸 MOVE GROUP:", base.group || "single", d, h, "→", d2, h2);
+
+            for (let l of groupLessons) {
+              removeLesson(l, state);
+              state.used.delete(l.id);
+            }
+
+            for (let l of groupLessons) {
+              place(l, d2, h2, state);
+              state.used.add(l.id);
+            }
+
+            break outer;
           }
         }
       }
@@ -77,59 +143,25 @@ function optimizeEarlyClasses(state, lessons, data) {
 
   console.log("🧸 OPTIMIZE 0-3 END");
 }
-function optimizeLateHours(state, lessons, data) {
-  console.log("✨ OPTIMIZE LATE HOURS START");
+
+function getGroupLessonsAtSlot(state, lesson, d, h) {
+  if (!lesson.group) return [lesson];
+
+  const out = [];
 
   for (let cls in state.schedule) {
-    for (let d of DAYS) {
+    const l = state.schedule[cls]?.[d]?.[h];
 
-      for (let h of [8, 7]) { // najpierw 8 potem 7
-
-        const l = state.schedule[cls]?.[d]?.[h];
-        if (!l) continue;
-
-        const t = data.teachers.find(x => x.id === l.teacher);
-
-        // 🔍 szukamy LEPSZEGO slotu (wcześniejszego)
-        for (let d2 of DAYS) {
-          for (let h2 of HOURS) {
-
-            // tylko wcześniejsze godziny
-            if (d2 === d && h2 >= h) continue;
-
-            // 🔒 dostępność nauczyciela
-            if (!t.availability.includes(d2 + "_" + h2)) continue;
-
-            // 🔒 sprawdzamy czy można tam wstawić
-            if (!canPlace(l, d2, h2, state, data)) continue;
-
-            // 🟢 znaleziono lepsze miejsce
-
-            console.log(
-              "✨ MOVE:",
-              l.subject,
-              "| C:", l.class,
-              "| FROM:", d, h,
-              "| TO:", d2, h2
-            );
-
-            // usuń starą
-            removeLesson(l, state);
-            state.used.delete(l.id);
-
-            // wstaw nową
-            place(l, d2, h2, state);
-            state.used.add(l.id);
-
-            // 🔥 przechodzimy do następnej lekcji
-            break;
-          }
-        }
-      }
+    if (
+      l &&
+      l.teacher === lesson.teacher &&
+      l.group === lesson.group
+    ) {
+      out.push(l);
     }
   }
 
-  console.log("✨ OPTIMIZE LATE HOURS END");
+  return out;
 }
 function swapInsertMissing(state, lessons, data) {
   console.log("🟠 SWAP INSERT START");
@@ -1618,9 +1650,8 @@ forceGroupIntoSingles(state, lessons, data);
   fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
- optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
-  optimizeLateHours(state, lessons, data); // 🔥 TU
-
+   optimizeLateHours(state, lessons, data); // 🔥 TU
+  optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
 
   validateFinal(state, lessons, data);
 
