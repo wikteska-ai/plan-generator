@@ -171,7 +171,7 @@ function getGroupLessonsAtSlot(state, lesson, d, h) {
   return out;
 }
 function swapInsertMissing(state, lessons, data) {
-  console.log("🟠 SWAP INSERT START (GROUP SAFE)");
+  console.log("🟠 SWAP INSERT START (ATOM GROUP SAFE)");
 
   let missing = getRealMissing(lessons, state);
 
@@ -194,7 +194,7 @@ function swapInsertMissing(state, lessons, data) {
         const tKey = M.teacher + "_" + d + "_" + h;
         const busy = state.teacherBusy[tKey] || [];
 
-        // 🟢 brak konfliktu → normalne wstawienie
+        // 🟢 brak konfliktu
         if (busy.length === 0) {
           place(M, d, h, state);
           state.used.add(M.id);
@@ -205,7 +205,7 @@ function swapInsertMissing(state, lessons, data) {
         }
 
         // =========================
-        // 🔥 KONFLIKT → budujemy byty (entity)
+        // 🔥 budujemy byty (group = atom)
         // =========================
         let entities = [];
 
@@ -213,9 +213,7 @@ function swapInsertMissing(state, lessons, data) {
 
           if (l.id === M.id) continue;
 
-          // 🔵 grupa → cały byt
           if (l.group) {
-
             const groupLessons = [];
 
             for (let cls in state.schedule) {
@@ -233,11 +231,11 @@ function swapInsertMissing(state, lessons, data) {
             entities.push(groupLessons);
 
           } else {
-            entities.push([l]); // single jako byt
+            entities.push([l]);
           }
         }
 
-        // deduplikacja bytów (po id pierwszej lekcji)
+        // deduplikacja
         entities = [
           ...new Map(
             entities.map(e => [e[0].id, e])
@@ -245,14 +243,98 @@ function swapInsertMissing(state, lessons, data) {
         ];
 
         // =========================
-        // 🔒 SYMULACJA (czy da się wszystko przenieść)
+        // 🧪 SYMULACJA (REALNA)
         // =========================
-        let canSwap = true;
-        const reinsertPlan = [];
+        const testState = cloneState(state);
+
+        // 1️⃣ usuń konflikty w symulacji
+        for (let entity of entities) {
+          for (let r of entity) {
+            removeLesson(r, testState);
+            testState.used.delete(r.id);
+          }
+        }
+
+        // 2️⃣ spróbuj wstawić M
+        if (!canPlace(M, d, h, testState, data)) continue;
+
+        place(M, d, h, testState);
+        testState.used.add(M.id);
+
+        // 3️⃣ spróbuj reinsert wszystkich bytów
+        let success = true;
 
         for (let entity of entities) {
 
-          let foundSlot = null;
+          let inserted = false;
+
+          for (let d2 of DAYS) {
+            for (let h2 of HOURS) {
+
+              if (d2 === d && h2 === h) continue;
+
+              let ok = true;
+
+              for (let l of entity) {
+
+                const tt = data.teachers.find(x => x.id === l.teacher);
+
+                if (!tt.availability.includes(d2 + "_" + h2)) {
+                  ok = false;
+                  break;
+                }
+
+                if (!canPlace(l, d2, h2, testState, data)) {
+                  ok = false;
+                  break;
+                }
+              }
+
+              if (ok) {
+                for (let l of entity) {
+                  place(l, d2, h2, testState);
+                  testState.used.add(l.id);
+                }
+
+                inserted = true;
+                break;
+              }
+            }
+            if (inserted) break;
+          }
+
+          if (!inserted) {
+            success = false;
+            break;
+          }
+        }
+
+        if (!success) continue; // ❌ NIC NIE RUSZAMY
+
+        // =========================
+        // 🚀 REALNE WYKONANIE
+        // =========================
+
+        // 🧹 usuń konflikty
+        for (let entity of entities) {
+          for (let r of entity) {
+            console.log("💣 SWAP OUT:", r.subject, r.teacher, "| G:", r.group);
+
+            removeLesson(r, state);
+            state.used.delete(r.id);
+          }
+        }
+
+        // ➕ wstaw M
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🟠 SWAP IN:", M.subject, c, d, h);
+
+        // 🔁 reinsert bytów
+        for (let entity of entities) {
+
+          let inserted = false;
 
           for (let d2 of DAYS) {
             for (let h2 of HOURS) {
@@ -277,59 +359,24 @@ function swapInsertMissing(state, lessons, data) {
               }
 
               if (ok) {
-                foundSlot = { d: d2, h: h2 };
+                for (let l of entity) {
+                  place(l, d2, h2, state);
+                  state.used.add(l.id);
+
+                  console.log(
+                    "🔁 REINSERT:",
+                    l.subject,
+                    "| T:", l.teacher,
+                    "| G:", l.group,
+                    d2, h2
+                  );
+                }
+
+                inserted = true;
                 break;
               }
             }
-            if (foundSlot) break;
-          }
-
-          if (!foundSlot) {
-            canSwap = false;
-            break;
-          }
-
-          reinsertPlan.push({ entity, slot: foundSlot });
-        }
-
-        if (!canSwap) continue; // ❌ nic nie ruszamy
-
-        // =========================
-        // 🧹 USUWAMY
-        // =========================
-        for (let { entity } of reinsertPlan) {
-          for (let r of entity) {
-            console.log("💣 SWAP OUT:", r.subject, r.teacher, "| G:", r.group);
-
-            removeLesson(r, state);
-            state.used.delete(r.id);
-          }
-        }
-
-        // =========================
-        // 🚀 WSTAWIAMY M
-        // =========================
-        place(M, d, h, state);
-        state.used.add(M.id);
-
-        console.log("🟠 SWAP IN:", M.subject, c, d, h);
-
-        // =========================
-        // 🔁 REINSERT (CAŁE BYTY)
-        // =========================
-        for (let { entity, slot } of reinsertPlan) {
-
-          for (let l of entity) {
-            place(l, slot.d, slot.h, state);
-            state.used.add(l.id);
-
-            console.log(
-              "🔁 REINSERT:",
-              l.subject,
-              "| T:", l.teacher,
-              "| G:", l.group,
-              slot.d, slot.h
-            );
+            if (inserted) break;
           }
         }
 
