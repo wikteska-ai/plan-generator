@@ -21,6 +21,45 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function validateGroups(state) {
+  for (let cls in state.schedule) {
+    for (let d in state.schedule[cls]) {
+      for (let h in state.schedule[cls][d]) {
+
+        const l = state.schedule[cls][d][h];
+
+        if (!l.group) continue;
+
+        const group = getFullGroupAtSlot(state, l, d, h);
+
+        // sprawdź czy liczba klas w grupie się zgadza
+        // (opcjonalnie jeśli masz definicję grup)
+        if (group.length < 2) {
+          console.log("⚠️ BROKEN GROUP:", l.group, d, h);
+        }
+      }
+    }
+  }
+}
+function getFullGroupAtSlot(state, lesson, d, h) {
+  if (!lesson.group) return [lesson];
+
+  const groupLessons = [];
+
+  for (let cls in state.schedule) {
+    const l = state.schedule[cls]?.[d]?.[h];
+
+    if (
+      l &&
+      l.teacher === lesson.teacher &&
+      l.group === lesson.group
+    ) {
+      groupLessons.push(l);
+    }
+  }
+
+  return groupLessons;
+}
 function cloneState(state) {
   return {
     schedule: JSON.parse(JSON.stringify(state.schedule)),
@@ -774,12 +813,16 @@ if (existing) {
 }
 
         if (existing) {
-          console.log("🔁 REMOVE (slot):", existing.subject, existing.teacher);
 
-          removeLesson(existing, state);
-          state.used.delete(existing.id);
-        }
+  // 🔒 jeśli grupa → tylko jeśli możemy ruszyć całość
+  const entity = getFullGroupAtSlot(state, existing, d, h);
 
+  for (let r of entity) {
+    console.log("🔁 REMOVE (group-safe):", r.subject);
+    removeLesson(r, state);
+    state.used.delete(r.id);
+  }
+}
         // 👉 2️⃣ wstawiamy M
         place(M, d, h, state);
         state.used.add(M.id);
@@ -1513,8 +1556,12 @@ function tryFillGaps(state, lessons, data) {
               );
 
               // 🔥 usuń A
-              removeLesson(A, state);
+const entityA = getFullGroupAtSlot(state, A, found.d, found.h);
 
+for (let r of entityA) {
+  removeLesson(r, state);
+  state.used.delete(r.id);
+}
               // 🔥 wstaw A do GAP
               place(A, d, h, state);
 
@@ -1790,7 +1837,7 @@ forceGroupIntoSingles(state, lessons, data);
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
 
-
+validateGroups(state);
   validateFinal(state, lessons, data);
 
   const gaps = countGaps(state.schedule);
