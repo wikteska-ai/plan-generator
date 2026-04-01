@@ -23,10 +23,9 @@ function buildLessons(data) {
 }
 function optimizeLateHours(state, lessons, data) {
   console.log("✨ OPTIMIZE LATE HOURS START");
+    if (Number(cls) < 4) continue;
 
   for (let cls in state.schedule) {
-        if (Number(cls) < 4) continue;
-
     for (let d of DAYS) {
 
       for (let h of [8, 7, 6]) {
@@ -36,46 +35,53 @@ function optimizeLateHours(state, lessons, data) {
 
         const groupLessons = getGroupLessonsAtSlot(state, base, d, h);
 
-        // 🔍 szukamy nowego slotu dla CAŁEJ grupy
-        outer:
+        const t = data.teachers.find(x => x.id === base.teacher);
+
         for (let d2 of DAYS) {
           for (let h2 of HOURS) {
 
             if (d2 === d && h2 >= h) continue;
 
-            // 🔒 sprawdzamy czy wszystkie lekcje się zmieszczą
-            let canMoveAll = true;
+            // 🔥 SPRAWDZAMY CAŁĄ GRUPĘ (to jedyna zmiana)
+            let canMove = true;
 
             for (let l of groupLessons) {
-              const t = data.teachers.find(x => x.id === l.teacher);
+              const tt = data.teachers.find(x => x.id === l.teacher);
 
-              if (!t.availability.includes(d2 + "_" + h2)) {
-                canMoveAll = false;
+              if (!tt.availability.includes(d2 + "_" + h2)) {
+                canMove = false;
                 break;
               }
 
               if (!canPlace(l, d2, h2, state, data)) {
-                canMoveAll = false;
+                canMove = false;
                 break;
               }
             }
 
-            if (!canMoveAll) continue;
+            if (!canMove) continue;
 
-            // 🚀 PRZENOSIMY CAŁĄ GRUPĘ
-            console.log("✨ MOVE GROUP:", base.group || "single", d, h, "→", d2, h2);
+            console.log(
+              "✨ MOVE:",
+              base.subject,
+              "| FROM:", d, h,
+              "| TO:", d2, h2,
+              "| GROUP:", base.group || "single"
+            );
 
+            // 🔥 USUWAMY CAŁĄ GRUPĘ
             for (let l of groupLessons) {
               removeLesson(l, state);
               state.used.delete(l.id);
             }
 
+            // 🔥 WSTAWIAMY CAŁĄ GRUPĘ
             for (let l of groupLessons) {
               place(l, d2, h2, state);
               state.used.add(l.id);
             }
 
-            break outer;
+            break; // 🔥 jak wcześniej (TYLKO jeden break)
           }
         }
       }
@@ -93,38 +99,43 @@ function optimizeEarlyClasses(state, lessons, data) {
 
     for (let d of DAYS) {
 
-      for (let h of [8, 7, 6, 5]) {
+      for (let h of [8, 7, 6]) {
 
         const base = state.schedule[cls]?.[d]?.[h];
         if (!base) continue;
 
         const groupLessons = getGroupLessonsAtSlot(state, base, d, h);
 
-        outer:
         for (let d2 of [d, ...DAYS]) {
           for (let h2 of HOURS) {
 
             if (d2 === d && h2 >= h) continue;
 
-            let canMoveAll = true;
+            let canMove = true;
 
             for (let l of groupLessons) {
-              const t = data.teachers.find(x => x.id === l.teacher);
+              const tt = data.teachers.find(x => x.id === l.teacher);
 
-              if (!t.availability.includes(d2 + "_" + h2)) {
-                canMoveAll = false;
+              if (!tt.availability.includes(d2 + "_" + h2)) {
+                canMove = false;
                 break;
               }
 
               if (!canPlace(l, d2, h2, state, data)) {
-                canMoveAll = false;
+                canMove = false;
                 break;
               }
             }
 
-            if (!canMoveAll) continue;
+            if (!canMove) continue;
 
-            console.log("🧸 MOVE GROUP:", base.group || "single", d, h, "→", d2, h2);
+            console.log(
+              "🧸 MOVE:",
+              base.subject,
+              "| FROM:", d, h,
+              "| TO:", d2, h2,
+              "| GROUP:", base.group || "single"
+            );
 
             for (let l of groupLessons) {
               removeLesson(l, state);
@@ -136,7 +147,7 @@ function optimizeEarlyClasses(state, lessons, data) {
               state.used.add(l.id);
             }
 
-            break outer;
+            break; // 🔥 identycznie jak wcześniej
           }
         }
       }
