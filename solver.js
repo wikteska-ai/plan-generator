@@ -1652,8 +1652,8 @@ forceGroupIntoSingles(state, lessons, data);
   fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
 
-   optimizeLateHours(state, lessons, data); // 🔥 TU
-  optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
+   optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
+  optimizeLateHours(state, lessons, data); // 🔥 TU
 
   validateFinal(state, lessons, data);
 
