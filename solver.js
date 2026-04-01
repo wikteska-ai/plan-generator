@@ -62,13 +62,6 @@ function optimizeLateHours(state, lessons, data) {
 
             if (!canMove) continue;
 
-            console.log(
-              "✨ MOVE:",
-              base.subject,
-              "| FROM:", d, h,
-              "| TO:", d2, h2,
-              "| GROUP:", base.group || "single"
-            );
 
             // 🔥 USUWAMY CAŁĄ GRUPĘ
             for (let l of groupLessons) {
