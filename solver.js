@@ -21,6 +21,14 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function cloneState(state) {
+  return {
+    schedule: JSON.parse(JSON.stringify(state.schedule)),
+    teacherBusy: JSON.parse(JSON.stringify(state.teacherBusy)),
+    classBusy: { ...state.classBusy },
+    used: new Set([...state.used])
+  };
+}
 function optimizeLateHours(state, lessons, data) {
   console.log("✨ OPTIMIZE LATE HOURS START");
 
