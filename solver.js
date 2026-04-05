@@ -21,6 +21,35 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function findGroupSlot(groupLessons, state, data) {
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      let ok = true;
+
+      for (let l of groupLessons) {
+
+        const t = data.teachers.find(x => x.id === l.teacher);
+
+        // 🔒 dostępność
+        if (!t.availability.includes(d + "_" + h)) {
+          ok = false;
+          break;
+        }
+
+        // 🔒 czy można wstawić
+        if (!canPlace(l, d, h, state, data)) {
+          ok = false;
+          break;
+        }
+      }
+
+      if (ok) return { d, h };
+    }
+  }
+
+  return null;
+}
 function validateGroups(state) {
   for (let cls in state.schedule) {
     for (let d in state.schedule[cls]) {
@@ -938,7 +967,7 @@ function tryPlaceWholeGroup(state, lessons, data) {
         console.log("🟢 GROUP PERFECT PLACE:", key, d, h);
 
         for (let l of groupLessons) {
-          place(l, d, h, state, data);
+          place(l, d, h, state);
           state.used.add(l.id);
         }
 
@@ -1693,23 +1722,30 @@ function canPlace(l, d, h, state, data) {
 
   const busy = state.teacherBusy[tKey] || [];
 
+  // 🔴 jeśli lekcja NIE ma grupy → nauczyciel musi być wolny
   if (!l.group) {
     if (busy.length > 0) return false;
   }
 
+  // 🔵 jeśli lekcja MA grupę
   if (l.group) {
     for (let existing of busy) {
+
+      // jeśli istniejąca lekcja bez grupy → konflikt
       if (!existing.group) return false;
+
+      // jeśli różne grupy → konflikt
       if (existing.group !== l.group) return false;
     }
   }
 
+  // klasy jak wcześniej
   if (state.classBusy[l.class + "_" + d + "_" + h]) return false;
 
   return true;
 }
 // ===== PLACE =====
-function place(l, d, h, state, data) {
+function place(l, d, h, state) {
   const key = d + "_" + h;
   const tKey = l.teacher + "_" + key;
 
@@ -1718,50 +1754,15 @@ function place(l, d, h, state, data) {
     state.teacherBusy[tKey] = [];
   }
 
- // 🔥 jeśli grupa → wstaw całą grupę naraz
-if (l.group) {
-  const groupLessons = data.lessons.filter(x => x.group === l.group);
+  state.teacherBusy[tKey].push(l);
 
-  for (let gl of groupLessons) {
+  state.classBusy[l.class + "_" + key] = true;
 
-    if (state.used.has(gl.id)) continue;
+  if (!state.schedule[l.class]) state.schedule[l.class] = {};
+  if (!state.schedule[l.class][d]) state.schedule[l.class][d] = {};
 
-    const clsKey = gl.class + "_" + key;
-
-    // ❌ jeśli jakakolwiek klasa zajęta → przerywamy
-    if (state.classBusy[clsKey]) return;
-
-    if (!state.schedule[gl.class]) state.schedule[gl.class] = {};
-    if (!state.schedule[gl.class][d]) state.schedule[gl.class][d] = {};
-
-    state.schedule[gl.class][d][h] = gl;
-    state.classBusy[clsKey] = true;
-
-    if (!state.teacherBusy[tKey]) {
-      state.teacherBusy[tKey] = [];
-    }
-
-    state.teacherBusy[tKey].push(gl);
-    state.used.add(gl.id);
-  }
-
-  return;
-}
-
-// 🔵 SINGLE (zostaje jak było)
-if (!state.teacherBusy[tKey]) {
-  state.teacherBusy[tKey] = [];
-}
-
-state.teacherBusy[tKey].push(l);
-
-state.classBusy[l.class + "_" + key] = true;
-
-if (!state.schedule[l.class]) state.schedule[l.class] = {};
-if (!state.schedule[l.class][d]) state.schedule[l.class][d] = {};
-
-state.schedule[l.class][d][h] = l;
-state.used.add(l.id);
+  state.schedule[l.class][d][h] = l;
+  state.used.add(l.id);
 }
 
 // ===== COUNT GAPS =====
@@ -1808,17 +1809,45 @@ function runStep(group, state, data, order, label) {
 
     if (state.classBusy[c + "_" + d + "_" + h]) continue;
 
-    const candidates = group.filter(l =>
-      !state.used.has(l.id) &&
-      l.class === c &&
-      canPlace(l, d, h, state, data)
-    );
+   // 🔥 1. sprawdź czy jest lekcja z grupą
+const groupCandidate = group.find(l =>
+  !state.used.has(l.id) &&
+  l.class === c &&
+  l.group
+);
 
+if (groupCandidate) {
 
-    if (candidates.length > 0) {
-      const l = candidates[0];
-      place(l, d, h, state, data);
+  // 🔥 zbierz CAŁĄ grupę
+  const fullGroup = group.filter(l =>
+    l.group === groupCandidate.group &&
+    !state.used.has(l.id)
+  );
+
+  // 🔥 znajdź slot dla CAŁOŚCI
+  const slot = findGroupSlot(fullGroup, state, data);
+
+  if (slot) {
+    for (let l of fullGroup) {
+      place(l, slot.d, slot.h, state);
     }
+  }
+
+  continue; // ⛔ nie przechodzimy do singli
+}
+
+
+// ===== SINGLE (jak było) =====
+const candidates = group.filter(l =>
+  !state.used.has(l.id) &&
+  l.class === c &&
+  canPlace(l, d, h, state, data)
+);
+
+if (candidates.length > 0) {
+  const l = candidates[0];
+  place(l, d, h, state);
+}
   }
 }
 
