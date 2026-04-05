@@ -21,6 +21,97 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function wouldCreateGapAfterRemoval(lesson, state) {
+  const cls = lesson.class;
+
+  for (let d in state.schedule[cls]) {
+    for (let h in state.schedule[cls][d]) {
+
+      const l = state.schedule[cls][d][h];
+
+      if (l.id === lesson.id) {
+        const day = state.schedule[cls][d];
+
+        const before = day[h - 1];
+        const after = day[Number(h) + 1];
+
+        // jeśli było między → zrobi się gap
+        if (before && after) return true;
+      }
+    }
+  }
+
+  return false;
+}
+function fixGapsSmart(state, lessons, data) {
+  console.log("🧠 SMART GAP FIX START");
+
+  for (let cls in state.schedule) {
+
+    const gaps = findClassGaps(state.schedule, cls);
+
+    for (let gap of gaps) {
+      const { d, h } = gap;
+
+      // 🔍 szukamy kandydatów z tej klasy
+      const candidates = lessons.filter(l =>
+        l.class == cls &&
+        state.used.has(l.id)
+      );
+
+      for (let l of candidates) {
+
+        // 🔒 nie ruszamy grup
+        if (l.group) continue;
+
+        // 🔒 czy można wstawić do gap
+        if (!canPlace(l, d, h, state, data)) continue;
+
+        // 🔒 znajdź gdzie jest teraz
+        let old = null;
+
+        for (let dd in state.schedule[cls]) {
+          for (let hh in state.schedule[cls][dd]) {
+            if (state.schedule[cls][dd][hh].id === l.id) {
+              old = { d: dd, h: Number(hh) };
+            }
+          }
+        }
+
+        if (!old) continue;
+
+        const day = state.schedule[cls]?.[old.d] || {};
+
+        const isLastHour =
+          old.h === Math.max(...Object.keys(day).map(Number));
+
+        // 🔥 KLUCZ:
+        // jeśli nie jest ostatnia → nie może robić gap
+        if (!isLastHour && wouldCreateGapAfterRemoval(l, state)) {
+          continue;
+        }
+
+        // 🚀 WYKONANIE
+        console.log(
+          "🧠 GAP FIX:",
+          l.subject,
+          "| FROM:", old.d, old.h,
+          "| TO:", d, h
+        );
+
+        removeLesson(l, state);
+        state.used.delete(l.id);
+
+        place(l, d, h, state);
+        state.used.add(l.id);
+
+        break; // przechodzimy do następnego gap
+      }
+    }
+  }
+
+  console.log("🧠 SMART GAP FIX END");
+}
 function findGroupSlot(groupLessons, state, data) {
   let best = null;
   let bestScore = -Infinity;
@@ -1915,6 +2006,7 @@ forceGroupIntoSingles(state, lessons, data);
 
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
+  fixGapsSmart(state, lessons, data);
 
 validateGroups(state);
   validateFinal(state, lessons, data);
