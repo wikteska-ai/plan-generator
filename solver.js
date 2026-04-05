@@ -8,9 +8,7 @@ function buildLessons(data) {
 
   data.lessons.forEach(l => {
     for (let i = 0; i < l.hours; i++) {
-   const groupId = l.groupId
-  ? l.teacher + "_" + l.subject + "_" + l.groupId
-  : null;
+const groupId = l.groupId || null;
 
 out.push({
   id: id++,
