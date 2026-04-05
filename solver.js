@@ -8,18 +8,28 @@ function buildLessons(data) {
 
   data.lessons.forEach(l => {
     for (let i = 0; i < l.hours; i++) {
-      out.push({
-        id: id++,
-        class: l.class,
-        subject: l.subject,
-        teacher: l.teacher,
-        group: l.group || null
-      });
+   const groupId = l.groupId
+  ? l.teacher + "_" + l.subject + "_" + l.groupId
+  : null;
+
+out.push({
+  id: id++,
+  class: l.class,
+  subject: l.subject,
+  teacher: l.teacher,
+group: l.group || null,
+  groupId
+});
     }
   });
 
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
+}
+function getAllLessonsOfGroup(lesson, lessons) {
+  if (!lesson.groupId) return [lesson];
+
+  return lessons.filter(l => l.groupId === lesson.groupId);
 }
 function validateGroups(state) {
   for (let cls in state.schedule) {
@@ -28,7 +38,7 @@ function validateGroups(state) {
 
         const l = state.schedule[cls][d][h];
 
-        if (!l.group) continue;
+        if (!l.groupId) continue;
 
         const group = getFullGroupAtSlot(state, l, d, h);
 
@@ -42,7 +52,7 @@ function validateGroups(state) {
   }
 }
 function getFullGroupAtSlot(state, lesson, d, h) {
-  if (!lesson.group) return [lesson];
+  if (!lesson.groupId) return [lesson];
 
   const groupLessons = [];
 
@@ -52,7 +62,7 @@ function getFullGroupAtSlot(state, lesson, d, h) {
     if (
       l &&
       l.teacher === lesson.teacher &&
-      l.group === lesson.group
+l.groupId === lesson.groupId
     ) {
       groupLessons.push(l);
     }
@@ -111,16 +121,18 @@ function optimizeLateHours(state, lessons, data) {
 
 
             // 🔥 USUWAMY CAŁĄ GRUPĘ
-            for (let l of groupLessons) {
-              removeLesson(l, state);
-              state.used.delete(l.id);
-            }
+          const entity = getAllLessonsOfGroup(groupLessons[0], lessons);
+
+for (let x of entity) {
+  removeLesson(x, state);
+  state.used.delete(x.id);
+}
 
             // 🔥 WSTAWIAMY CAŁĄ GRUPĘ
-            for (let l of groupLessons) {
-              place(l, d2, h2, state);
-              state.used.add(l.id);
-            }
+           for (let l of entity) {
+  place(l, d2, h2, state);
+  state.used.add(l.id);
+}
 
             break; // 🔥 jak wcześniej (TYLKO jeden break)
           }
@@ -178,15 +190,17 @@ function optimizeEarlyClasses(state, lessons, data) {
               "| GROUP:", base.group || "single"
             );
 
-            for (let l of groupLessons) {
-              removeLesson(l, state);
-              state.used.delete(l.id);
-            }
+          const entity = getAllLessonsOfGroup(groupLessons[0], lessons);
 
-            for (let l of groupLessons) {
-              place(l, d2, h2, state);
-              state.used.add(l.id);
-            }
+for (let x of entity) {
+  removeLesson(x, state);
+  state.used.delete(x.id);
+}
+
+         for (let l of entity) {
+  place(l, d2, h2, state);
+  state.used.add(l.id);
+}
 
             break; // 🔥 identycznie jak wcześniej
           }
@@ -199,7 +213,7 @@ function optimizeEarlyClasses(state, lessons, data) {
 }
 
 function getGroupLessonsAtSlot(state, lesson, d, h) {
-  if (!lesson.group) return [lesson];
+  if (!lesson.groupId) return [lesson];
 
   const out = [];
 
@@ -209,7 +223,7 @@ function getGroupLessonsAtSlot(state, lesson, d, h) {
     if (
       l &&
       l.teacher === lesson.teacher &&
-      l.group === lesson.group
+l.groupId === lesson.groupId
     ) {
       out.push(l);
     }
@@ -260,7 +274,7 @@ function swapInsertMissing(state, lessons, data) {
 
           if (l.id === M.id) continue;
 
-          if (l.group) {
+         if (l.groupId) {
             const groupLessons = [];
 
             for (let cls in state.schedule) {
@@ -269,7 +283,7 @@ function swapInsertMissing(state, lessons, data) {
               if (
                 x &&
                 x.teacher === l.teacher &&
-                x.group === l.group
+                x.groupId === l.groupId
               ) {
                 groupLessons.push(x);
               }
@@ -502,12 +516,12 @@ function validateFinal(state, lessons, data) {
 
 if (lessonsAtSlot.length > 1) {
 
-  const hasGroup = lessonsAtSlot.some(l => l.group);
+  const hasGroup = lessonsAtSlot.some(l => l.groupId);
 
   if (hasGroup) {
-    const groupId = lessonsAtSlot[0].group;
+    const groupId = lessonsAtSlot[0].groupId;
 
-    const allSameGroup = lessonsAtSlot.every(l => l.group === groupId);
+    const allSameGroup = lessonsAtSlot.every(l => l.groupId === groupId);
 
     if (allSameGroup) {
       continue; // ✅ to jest legalna grupa
@@ -781,7 +795,7 @@ function aggressiveInsertG1Singles(state, lessons, data) {
   const missing = lessons.filter(l =>
     !state.used.has(l.id) &&
     l._groupLevel === "G1" &&
-    !l.group
+    !l.groupId
   );
 
   for (let M of missing) {
@@ -841,7 +855,7 @@ if (existing) {
           if (l.id === M.id) continue;
 
           // 🔥 jeśli grupa → usuń całą grupę w tym slocie
-          if (l.group) {
+         if (l.groupId) {
 
             for (let cls in state.schedule) {
               for (let dd in state.schedule[cls]) {
@@ -851,7 +865,7 @@ if (existing) {
 
                   if (
                     x.teacher === l.teacher &&
-                    x.group === l.group &&
+                    x.groupId === l.groupId &&
                     dd === d &&
                     Number(hh) === h
                   ) {
@@ -895,8 +909,8 @@ function tryPlaceWholeGroup(state, lessons, data) {
   const groups = {};
 
   lessons.forEach(l => {
-    if (!state.used.has(l.id) && l.group) {
-      const key = l.teacher + "_" + l.group;
+    if (!state.used.has(l.id) && l.groupId) {
+      const key = l.teacher + "_" + l.groupId;
       if (!groups[key]) groups[key] = [];
       groups[key].push(l);
     }
@@ -951,12 +965,12 @@ function forceGroupIntoSingles(state, lessons, data) {
   console.log("🟣 FORCE GROUP INTO SINGLES (FULL GROUP MODE)");
 
   const missing = getRealMissing(lessons, state)
-    .filter(l => l.group);
+    .filter(l => l.groupId);
 
   for (let M of missing) {
 
     // 🔥 bierzemy CAŁĄ grupę
-    const groupLessons = lessons.filter(l => l.group === M.group);
+    const groupLessons = lessons.filter(l => l.groupId === M.groupId)
 
     let placed = false;
 
@@ -968,7 +982,7 @@ function forceGroupIntoSingles(state, lessons, data) {
 
         // musi być dokładnie 1 single
         if (busy.length !== 1) continue;
-        if (busy[0].group) continue;
+        if (busy[0].groupId) continue;
 
         let toRemove = [];
 
@@ -1081,7 +1095,7 @@ if (busy.length > 0) {
 
         if (existing) {
 
-          if (existing.group) {
+          if (existing.groupId) {
             // 🔥 zbierz CAŁĄ grupę w tym slocie
             for (let cls in state.schedule) {
               for (let dd in state.schedule[cls]) {
@@ -1091,7 +1105,7 @@ if (busy.length > 0) {
 
                   if (
                     l.teacher === existing.teacher &&
-                    l.group === existing.group &&
+                    l.groupId === existing.groupId &&
                     dd === d &&
                     Number(hh) === h
                   ) {
@@ -1165,7 +1179,7 @@ function forcePlaceG1Missing(state, lessons, data) {
         for (let existing of busy) {
 
           // 🔥 jeśli grupa → zbierz CAŁĄ grupę
-          if (existing.group) {
+          if (existing.groupId) {
 
             const groupLessons = [];
 
@@ -1177,7 +1191,7 @@ function forcePlaceG1Missing(state, lessons, data) {
 
                   if (
                     l.teacher === existing.teacher &&
-                    l.group === existing.group &&
+                    l.groupId === existing.groupId &&
                     dd === d &&
                     Number(hh) === h
                   ) {
@@ -1295,7 +1309,7 @@ function tryInsertMissing(state, lessons, data) {
           // ❌ WARUNKI BLOKUJĄCE
           if (
             existing.teacher === M.teacher ||        // ten sam nauczyciel
-            existing.group                          // ma grupę
+            existing.groupId                          // ma grupę
           ) {
             continue; // 🔥 pomijamy ten slot
           }
@@ -1374,7 +1388,7 @@ function tryInsertMissing2(state, lessons, data) {
           if (
             existing.teacher === M.teacher ||        // ten sam nauczyciel
             existing._groupLevel === "G1" ||         // G1
-            existing.group                          // ma grupę
+           existing.groupId                          // ma grupę
           ) {
             continue; // 🔥 pomijamy ten slot
           }
@@ -1455,7 +1469,7 @@ function tryInsertMissing3(state, lessons, data) {
             existing._groupLevel === "G1" ||         // G1
             existing._groupLevel === "G2" ||         // G2
 
-            existing.group                          // ma grupę
+            existing.groupId                          // ma grupę
           ) {
             continue; // 🔥 pomijamy ten slot
           }
@@ -1637,7 +1651,7 @@ function splitGroups(lessons, data) {
     const ratio = teacherLoad / teacherAvail;
 
     // 🔥 KLUCZOWA LOGIKA
-    if (ratio >= 1 || l.group) {
+    if (ratio >= 1 || l.groupId) {
       l._groupLevel = "G1";
       g1.push(l);
 
@@ -1665,8 +1679,8 @@ function sortGroup(group, data) {
     if (ra !== rb) return rb - ra;
 
     // 🔥 2. grupy wcześniej
-    if (a.group && !b.group) return -1;
-    if (!a.group && b.group) return 1;
+    if (a.groupId && !b.groupId) return -1;
+    if (!a.groupId && b.groupId) return 1;
 
     return 0;
   });
@@ -1694,25 +1708,36 @@ function canPlace(l, d, h, state, data) {
   const busy = state.teacherBusy[tKey] || [];
 
   // 🔴 jeśli lekcja NIE ma grupy → nauczyciel musi być wolny
-  if (!l.group) {
+  if (!l.groupId) {
     if (busy.length > 0) return false;
   }
 
   // 🔵 jeśli lekcja MA grupę
-  if (l.group) {
+ if (l.groupId) {
     for (let existing of busy) {
 
       // jeśli istniejąca lekcja bez grupy → konflikt
-      if (!existing.group) return false;
+      if (!existing.groupId) return false;
 
       // jeśli różne grupy → konflikt
-      if (existing.group !== l.group) return false;
+      if (existing.groupId !== l.groupId) return false;
     }
   }
 
   // klasy jak wcześniej
   if (state.classBusy[l.class + "_" + d + "_" + h]) return false;
-
+// 🔥 NOWE — sprawdź całą grupę
+if (l.groupId) {
+ for (let other of data.lessonsExpanded) {
+  if (
+    other.groupId === l.groupId &&
+    other.id !== l.id &&
+    state.classBusy[other.class + "_" + d + "_" + h]
+  ) {
+    return false;
+  }
+}
+}
   return true;
 }
 // ===== PLACE =====
@@ -1720,7 +1745,17 @@ function place(l, d, h, state) {
   const key = d + "_" + h;
   const tKey = l.teacher + "_" + key;
 
-  // 🔥 teacherBusy jako lista
+  if (l.groupId) {
+    const busy = state.teacherBusy[tKey] || [];
+
+    for (let existing of busy) {
+      if (existing.groupId && existing.groupId !== l.groupId) {
+        console.log("💥 GROUP COLLISION");
+        return;
+      }
+    }
+  }
+
   if (!state.teacherBusy[tKey]) {
     state.teacherBusy[tKey] = [];
   }
@@ -1799,6 +1834,7 @@ function runOnce(data, startIndex) {
   console.log("\n🚀 RUN START:", startIndex);
 
   const lessons = buildLessons(data);
+  data.lessonsExpanded = lessons;
 let { g1, g2, g3 } = splitGroups(lessons, data);
 
 g1 = sortGroup(g1, data);
@@ -1836,6 +1872,9 @@ forceGroupIntoSingles(state, lessons, data);
 
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
+  forcePlaceG1Missing(state, lessons, data);
+swapInsertMissing(state, lessons, data);
+tryInsertMissing3(state, lessons, data);
 
 validateGroups(state);
   validateFinal(state, lessons, data);
