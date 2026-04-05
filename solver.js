@@ -1700,6 +1700,7 @@ function createState() {
 function canPlace(l, d, h, state, data) {
   const t = data.teachers.find(x => x.id === l.teacher);
 
+  // 🔒 dostępność nauczyciela
   if (!t.availability.includes(d + "_" + h)) return false;
 
   const key = d + "_" + h;
@@ -1713,31 +1714,19 @@ function canPlace(l, d, h, state, data) {
   }
 
   // 🔵 jeśli lekcja MA grupę
- if (l.groupId) {
+  if (l.groupId) {
     for (let existing of busy) {
-
-      // jeśli istniejąca lekcja bez grupy → konflikt
+      // ❌ jeśli istnieje single → konflikt
       if (!existing.groupId) return false;
 
-      // jeśli różne grupy → konflikt
+      // ❌ jeśli inna grupa → konflikt
       if (existing.groupId !== l.groupId) return false;
     }
   }
 
-  // klasy jak wcześniej
+  // 🔒 klasa musi być wolna
   if (state.classBusy[l.class + "_" + d + "_" + h]) return false;
-// 🔥 NOWE — sprawdź całą grupę
-if (l.groupId) {
- for (let other of data.lessonsExpanded) {
-  if (
-    other.groupId === l.groupId &&
-    other.id !== l.id &&
-    state.classBusy[other.class + "_" + d + "_" + h]
-  ) {
-    return false;
-  }
-}
-}
+
   return true;
 }
 // ===== PLACE =====
