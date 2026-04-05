@@ -21,6 +21,84 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function forceInsertUltimate(state, lessons, data) {
+  const missing = getRealMissing(lessons, state);
+
+  if (missing.length !== 1) return;
+
+  const M = missing[0];
+
+  console.log("🚨 ULTIMATE INSERT START:", M.subject);
+
+  const MAX_DEPTH = 3;
+
+  function dfs(testState, lesson, depth, visited) {
+    if (depth > MAX_DEPTH) return false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const t = data.teachers.find(x => x.id === lesson.teacher);
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        const c = lesson.class;
+
+        const existing = testState.schedule[c]?.[d]?.[h];
+
+        // 🟢 wolny slot
+        if (!existing && canPlace(lesson, d, h, testState, data)) {
+          place(lesson, d, h, testState);
+          testState.used.add(lesson.id);
+          return true;
+        }
+
+        // 🔥 próbujemy wypchnąć
+        if (existing && !existing.group && !visited.has(existing.id)) {
+
+          visited.add(existing.id);
+
+          const snapshot = cloneState(testState);
+
+          removeLesson(existing, testState);
+          testState.used.delete(existing.id);
+
+          if (canPlace(lesson, d, h, testState, data)) {
+
+            place(lesson, d, h, testState);
+            testState.used.add(lesson.id);
+
+            const success = dfs(testState, existing, depth + 1, visited);
+
+            if (success) return true;
+          }
+
+          // rollback
+          Object.assign(testState, snapshot);
+          visited.delete(existing.id);
+        }
+      }
+    }
+
+    return false;
+  }
+
+  const test = cloneState(state);
+
+  const success = dfs(test, M, 0, new Set());
+
+  if (success) {
+    console.log("🚀 ULTIMATE SUCCESS");
+
+    // 🔥 przepisujemy cały stan
+    state.schedule = test.schedule;
+    state.teacherBusy = test.teacherBusy;
+    state.classBusy = test.classBusy;
+    state.used = test.used;
+
+  } else {
+    console.log("💀 ULTIMATE FAILED");
+  }
+}
 function forceInsertLastOne(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
@@ -2161,6 +2239,9 @@ forceGroupIntoSingles(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
   forceInsertLastOne(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
+  forceInsertUltimate(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
 
 
 
