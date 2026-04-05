@@ -1693,24 +1693,31 @@ function canPlace(l, d, h, state, data) {
 
   const busy = state.teacherBusy[tKey] || [];
 
-  // 🔴 jeśli lekcja NIE ma grupy → nauczyciel musi być wolny
+  // 🔴 SINGLE
   if (!l.group) {
     if (busy.length > 0) return false;
   }
 
-  // 🔵 jeśli lekcja MA grupę
+  // 🔵 GROUP
   if (l.group) {
     for (let existing of busy) {
-
-      // jeśli istniejąca lekcja bez grupy → konflikt
       if (!existing.group) return false;
-
-      // jeśli różne grupy → konflikt
       if (existing.group !== l.group) return false;
+    }
+
+    // 🔥 KLUCZOWA RZECZ
+    // wszystkie lekcje tej grupy muszą mieć wolne klasy
+    for (let other of data.lessons) {
+      if (
+        other.group === l.group &&
+        other.id !== l.id &&
+        state.classBusy[other.class + "_" + d + "_" + h]
+      ) {
+        return false;
+      }
     }
   }
 
-  // klasy jak wcześniej
   if (state.classBusy[l.class + "_" + d + "_" + h]) return false;
 
   return true;
