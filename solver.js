@@ -22,33 +22,55 @@ function buildLessons(data) {
   return out;
 }
 function findGroupSlot(groupLessons, state, data) {
+  let best = null;
+  let bestScore = -Infinity;
+
   for (let d of DAYS) {
     for (let h of HOURS) {
 
       let ok = true;
 
       for (let l of groupLessons) {
-
         const t = data.teachers.find(x => x.id === l.teacher);
 
-        // 🔒 dostępność
         if (!t.availability.includes(d + "_" + h)) {
           ok = false;
           break;
         }
 
-        // 🔒 czy można wstawić
         if (!canPlace(l, d, h, state, data)) {
           ok = false;
           break;
         }
       }
 
-      if (ok) return { d, h };
+      if (!ok) continue;
+
+      // 🎯 SCORE SLOTU
+      let score = 0;
+
+      for (let l of groupLessons) {
+
+        // 🔥 kara za ten sam dzień
+        const dayLoad = Object.keys(state.schedule[l.class]?.[d] || {}).length;
+        score -= dayLoad * 5;
+
+        // 🔥 kara za sąsiadujące godziny (blok)
+        if (state.schedule[l.class]?.[d]?.[h - 1]) score -= 10;
+        if (state.schedule[l.class]?.[d]?.[h + 1]) score -= 10;
+
+        // 🔥 bonus za środek dnia (opcjonalnie)
+        if (h >= 3 && h <= 6) score += 2;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = { d, h };
+      }
     }
   }
 
-  return null;
+  return best;
 }
 function validateGroups(state) {
   for (let cls in state.schedule) {
