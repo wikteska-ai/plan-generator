@@ -21,6 +21,81 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function forceInsertLastOne(state, lessons, data) {
+  const missing = getRealMissing(lessons, state);
+
+  if (missing.length !== 1) return;
+
+  const M = missing[0];
+
+  console.log("🧠 FORCE LAST ONE START:", M.subject);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      const t = data.teachers.find(x => x.id === M.teacher);
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const c = M.class;
+
+      const existing = state.schedule[c]?.[d]?.[h];
+
+      // 🟢 1. wolny slot
+      if (!existing && canPlace(M, d, h, state, data)) {
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        console.log("🔥 LAST DIRECT:", d, h);
+        return;
+      }
+
+      // 🔥 2. próbujemy chain move (max 2 poziomy)
+      if (existing && !existing.group) {
+
+        const first = existing;
+
+        // 🔒 znajdź slot dla first
+        const slot1 = findReinsertSlot(first, state, data, d, h);
+        if (!slot1) continue;
+
+        // 🔥 SYMULACJA
+        const test = cloneState(state);
+
+        removeLesson(first, test);
+
+        if (!canPlace(M, d, h, test, data)) continue;
+
+        place(M, d, h, test);
+
+        place(first, slot1.d, slot1.h, test);
+
+        // 🔥 SPRAWDŹ CZY NIC NIE ZNIKNĘŁO
+        const afterMissing = getRealMissing(lessons, test);
+        if (afterMissing.length > 0) continue;
+
+        // 🚀 REAL EXECUTION
+        console.log(
+          "🔥 FORCE CHAIN:",
+          M.subject, "→", d, h,
+          "| SHIFT:", first.subject, "→", slot1.d, slot1.h
+        );
+
+        removeLesson(first, state);
+        state.used.delete(first.id);
+
+        place(M, d, h, state);
+        state.used.add(M.id);
+
+        place(first, slot1.d, slot1.h, state);
+        state.used.add(first.id);
+
+        return;
+      }
+    }
+  }
+
+  console.log("💀 FORCE FAILED:", M.subject);
+}
 function smartInsertAfterG1(state, lessons, data) {
   console.log("🧠 SMART INSERT G1 START");
 
@@ -2084,6 +2159,9 @@ forceGroupIntoSingles(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
   smartInsertAfterG1(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
+  forceInsertLastOne(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
 
 
 
