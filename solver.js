@@ -21,6 +21,80 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function rebuildTeacherForMissing(state, lessons, data) {
+  const missing = getRealMissing(lessons, state);
+
+  if (missing.length !== 1) return;
+
+  const M = missing[0];
+  const teacher = M.teacher;
+
+  console.log("♻️ REBUILD TEACHER:", teacher, "| M:", M.subject);
+
+  const test = cloneState(state);
+
+  const toReinsert = [];
+
+  // 🔥 1. wyciągamy WSZYSTKIE lekcje tego nauczyciela
+  for (let cls in test.schedule) {
+    for (let d in test.schedule[cls]) {
+      for (let h in test.schedule[cls][d]) {
+
+        const l = test.schedule[cls][d][h];
+
+        if (l.teacher === teacher) {
+          removeLesson(l, test);
+          test.used.delete(l.id);
+          toReinsert.push(l);
+        }
+      }
+    }
+  }
+
+  // 🔥 dodajemy brakującą też
+  toReinsert.push(M);
+
+  // 🔥 2. sortujemy — NAJTRUDNIEJSZE najpierw
+  const { load, availability } = getTeacherStats(data);
+
+  toReinsert.sort((a, b) => {
+    const ra = (load[a.teacher] || 0) / (availability[a.teacher] || 1);
+    const rb = (load[b.teacher] || 0) / (availability[b.teacher] || 1);
+    return rb - ra;
+  });
+
+  // 🔥 3. próbujemy wstawić wszystko od nowa
+  for (let l of toReinsert) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        if (canPlace(l, d, h, test, data)) {
+          place(l, d, h, test);
+          test.used.add(l.id);
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ REBUILD FAIL:", l.subject);
+      return; // ❌ nie ruszamy oryginału
+    }
+  }
+
+  // 🚀 SUCCESS
+  console.log("🚀 REBUILD SUCCESS");
+
+  state.schedule = test.schedule;
+  state.teacherBusy = test.teacherBusy;
+  state.classBusy = test.classBusy;
+  state.used = test.used;
+}
 function forceInsertByLocalReset(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
@@ -2312,6 +2386,9 @@ g3 = sortGroup(g3, data);
   // 🔥 NOWE ETAPY
 
   safePlaceG1Missing(state, lessons, data);
+  rebuildTeacherForMissing(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
   forcePlaceG1Missing(state, lessons, data);
   swapInsertMissing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
