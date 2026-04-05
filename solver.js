@@ -21,6 +21,99 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function smartInsertAfterG1(state, lessons, data) {
+  console.log("🧠 SMART INSERT G1 START");
+
+  const missing = lessons.filter(l =>
+    !state.used.has(l.id)
+  );
+
+  for (let M of missing) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        const t = data.teachers.find(x => x.id === M.teacher);
+
+        if (!t.availability.includes(d + "_" + h)) continue;
+
+        const c = M.class;
+
+        const existing = state.schedule[c]?.[d]?.[h];
+
+        // 🟢 1. czysty slot
+        if (!existing && canPlace(M, d, h, state, data)) {
+          place(M, d, h, state);
+          state.used.add(M.id);
+
+          console.log("🟢 DIRECT:", M.subject, d, h);
+          placed = true;
+          break;
+        }
+
+        // 🔥 2. próbujemy swap (ALE BEZPIECZNIE)
+        if (existing) {
+
+          // ❌ nie ruszamy grup
+          if (existing.group) continue;
+
+          // ❌ nie ruszamy G1 ciężkich
+          if (existing._groupLevel === "G1") continue;
+
+          // 🔒 czy istniejąca ma gdzie wrócić?
+          if (!hasAlternativeSlot(existing, state, data, d, h)) {
+            continue;
+          }
+
+          // 🔒 czy M w ogóle tu pasuje?
+          removeLesson(existing, state);
+
+          if (canPlace(M, d, h, state, data)) {
+
+            console.log(
+              "🔁 SMART SWAP:",
+              M.subject,
+              "IN →", d, h,
+              "| OUT:", existing.subject
+            );
+
+            place(M, d, h, state);
+            state.used.add(M.id);
+
+            // 🔁 wrzucamy wyrzuconą gdzie indziej
+            const slot = findReinsertSlot(existing, state, data, d, h);
+
+            if (slot) {
+              place(existing, slot.d, slot.h, state);
+              state.used.add(existing.id);
+            } else {
+              // rollback safety (rzadkie)
+              removeLesson(M, state);
+              place(existing, d, h, state);
+              continue;
+            }
+
+            placed = true;
+            break;
+          } else {
+            // rollback
+            place(existing, d, h, state);
+          }
+        }
+      }
+
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ STILL MISSING AFTER G1:", M.subject);
+    }
+  }
+
+  console.log("🧠 SMART INSERT G1 END");
+}
 function wouldCreateGapAfterRemoval(lesson, state) {
   const cls = lesson.class;
 
@@ -1979,6 +2072,9 @@ g3 = sortGroup(g3, data);
 
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
+smartInsertAfterG1(state, lessons, data);
+
+  
   safePlaceG1Missing(state, lessons, data);
   forcePlaceG1Missing(state, lessons, data);
   swapInsertMissing(state, lessons, data);
