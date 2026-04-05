@@ -2072,7 +2072,6 @@ g3 = sortGroup(g3, data);
 
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
-smartInsertAfterG1(state, lessons, data);
 
   
   safePlaceG1Missing(state, lessons, data);
@@ -2083,6 +2082,9 @@ safePlaceG1Missing(state, lessons, data);
     tryPlaceWholeGroup(state, lessons, data);
 forceGroupIntoSingles(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
+  smartInsertAfterG1(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
 
 
   
