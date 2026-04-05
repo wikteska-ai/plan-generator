@@ -1,5 +1,19 @@
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
+const STRATEGIES = [
+  "EARLY",
+  "LATE",
+  "CENTER",
+  "ZIGZAG"
+];
+function getHoursByStrategy(strategy) {
+  switch (strategy) {
+    case "LATE": return [8,7,6,5,4,3,2,1];
+    case "CENTER": return [4,5,3,6,2,7,1,8];
+    case "ZIGZAG": return [1,8,2,7,3,6,4,5];
+    default: return [1,2,3,4,5,6,7,8]; // EARLY
+  }
+}
 
 // ===== BUILD LESSONS =====
 function buildLessons(data) {
@@ -2373,10 +2387,11 @@ function countGaps(schedule) {
 }
 
 // ===== BUILD ORDER (godzina → klasa → dzień) =====
-function buildOrder(startIndex) {
+function buildOrder(startIndex, strategy) {
+  const hours = getHoursByStrategy(strategy);
   const slots = [];
 
-  for (let h of HOURS) {
+  for (let h of hours) {
     for (let c = 0; c <= 8; c++) {
       for (let d of DAYS) {
         slots.push({ c, d, h });
@@ -2386,7 +2401,6 @@ function buildOrder(startIndex) {
 
   return [...slots.slice(startIndex), ...slots.slice(0, startIndex)];
 }
-
 // ===== RUN STEP =====
 function runStep(group, state, data, order, label) {
   console.log("➡️ STEP:", label);
@@ -2437,20 +2451,33 @@ if (candidates.length > 0) {
 }
   }
 }
+function sortGroupByStrategy(group, data, strategy) {
+  const base = sortGroup(group, data);
+
+  if (strategy === "LATE") {
+    return [...base].reverse();
+  }
+
+  if (strategy === "CENTER") {
+    return [...base].sort((a,b) => a.class - b.class);
+  }
+
+  return base;
+}
 
 // ===== ONE RUN =====
-function runOnce(data, startIndex) {
+function runOnce(data, startIndex, strategy) {
   console.log("\n🚀 RUN START:", startIndex);
 
   const lessons = buildLessons(data);
 let { g1, g2, g3 } = splitGroups(lessons, data);
 
-g1 = sortGroup(g1, data);
+g1 = sortGroupByStrategy(g1, data, strategy);
 g2 = sortGroup(g2, data);
 g3 = sortGroup(g3, data);
   const state = createState();
-  const order = buildOrder(startIndex);
-
+const order = buildOrder(startIndex, strategy);
+  
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
 
@@ -2535,8 +2562,10 @@ function generateSchedule(data) {
 
   let best = null;
 
-  for (let i = 0; i < 45; i++) {
-    const res = runOnce(data, i);
+ for (let strategy of STRATEGIES) {
+  for (let i = 0; i < 12; i++) {
+
+    const res = runOnce(data, i, strategy);
     results.push(res);
 
     if (
@@ -2547,6 +2576,7 @@ function generateSchedule(data) {
       best = res;
     }
   }
+}
 
   console.log("\n✅ DONE");
   console.log("🏆 BEST RESULT:");
