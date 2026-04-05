@@ -21,6 +21,91 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function forceInsertByLocalReset(state, lessons, data) {
+  const missing = getRealMissing(lessons, state);
+
+  if (missing.length !== 1) return;
+
+  const M = missing[0];
+
+  console.log("💣 LOCAL RESET START:", M.subject);
+
+  const t = data.teachers.find(x => x.id === M.teacher);
+
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+
+      if (!t.availability.includes(d + "_" + h)) continue;
+
+      const test = cloneState(state);
+
+      const toReinsert = [];
+
+      // 🔥 1. usuń wszystko co blokuje ten slot
+      for (let cls in test.schedule) {
+        const l = test.schedule[cls]?.[d]?.[h];
+
+        if (!l) continue;
+
+        // 🔒 nie ruszamy grup
+        if (l.group) continue;
+
+        removeLesson(l, test);
+        test.used.delete(l.id);
+
+        toReinsert.push(l);
+      }
+
+      // 🔥 2. spróbuj wstawić M
+      if (!canPlace(M, d, h, test, data)) continue;
+
+      place(M, d, h, test);
+      test.used.add(M.id);
+
+      // 🔥 3. spróbuj przywrócić usunięte
+      let ok = true;
+
+      for (let l of toReinsert) {
+
+        let placed = false;
+
+        for (let d2 of DAYS) {
+          for (let h2 of HOURS) {
+
+            if (d2 === d && h2 === h) continue;
+
+            if (canPlace(l, d2, h2, test, data)) {
+              place(l, d2, h2, test);
+              test.used.add(l.id);
+              placed = true;
+              break;
+            }
+          }
+          if (placed) break;
+        }
+
+        if (!placed) {
+          ok = false;
+          break;
+        }
+      }
+
+      if (!ok) continue;
+
+      // 🔥 SUCCESS
+      console.log("🚀 LOCAL RESET SUCCESS:", d, h);
+
+      state.schedule = test.schedule;
+      state.teacherBusy = test.teacherBusy;
+      state.classBusy = test.classBusy;
+      state.used = test.used;
+
+      return;
+    }
+  }
+
+  console.log("💀 LOCAL RESET FAILED");
+}
 function forceInsertUltimate(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
@@ -2226,7 +2311,6 @@ g3 = sortGroup(g3, data);
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
 
-  
   safePlaceG1Missing(state, lessons, data);
   forcePlaceG1Missing(state, lessons, data);
   swapInsertMissing(state, lessons, data);
@@ -2234,9 +2318,12 @@ safePlaceG1Missing(state, lessons, data);
   cleanSwapG1(state, lessons, data);
     tryPlaceWholeGroup(state, lessons, data);
 forceGroupIntoSingles(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
+   forceInsertByLocalReset(state, lessons, data);
+safePlaceG1Missing(state, lessons, data);
+  forceInsertByLocalReset(state, lessons, data);
+safePlaceG1Missing(state, lessons, data);
   smartInsertAfterG1(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
+   safePlaceG1Missing(state, lessons, data);
   forceInsertLastOne(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
   forceInsertUltimate(state, lessons, data);
