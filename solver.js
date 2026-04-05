@@ -21,6 +21,75 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function rebuildClassForLastMissing(state, lessons, data) {
+  const missing = getRealMissing(lessons, state);
+
+  if (missing.length !== 1) return;
+
+  const M = missing[0];
+  const cls = M.class;
+
+  console.log("🎯 REBUILD CLASS:", cls, "| M:", M.subject);
+
+  const test = cloneState(state);
+
+  const toReinsert = [];
+
+  // 🔥 1. wyciągamy CAŁĄ klasę
+  for (let d of DAYS) {
+    for (let h of HOURS) {
+      const l = test.schedule[cls]?.[d]?.[h];
+
+      if (l) {
+        removeLesson(l, test);
+        test.used.delete(l.id);
+        toReinsert.push(l);
+      }
+    }
+  }
+
+  // 🔥 dodajemy brakującą
+  toReinsert.push(M);
+
+  // 🔥 2. sort — G1 najpierw
+  toReinsert.sort((a, b) => {
+    if (a._groupLevel === "G1" && b._groupLevel !== "G1") return -1;
+    if (b._groupLevel === "G1" && a._groupLevel !== "G1") return 1;
+    return 0;
+  });
+
+  // 🔥 3. układamy klasę od nowa
+  for (let l of toReinsert) {
+
+    let placed = false;
+
+    for (let d of DAYS) {
+      for (let h of HOURS) {
+
+        if (canPlace(l, d, h, test, data)) {
+          place(l, d, h, test);
+          test.used.add(l.id);
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+
+    if (!placed) {
+      console.log("❌ CLASS REBUILD FAIL:", l.subject);
+      return; // rollback
+    }
+  }
+
+  // 🚀 SUCCESS
+  console.log("🚀 CLASS REBUILD SUCCESS");
+
+  state.schedule = test.schedule;
+  state.teacherBusy = test.teacherBusy;
+  state.classBusy = test.classBusy;
+  state.used = test.used;
+}
 function rebuildTeacherForMissing(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
@@ -2405,6 +2474,9 @@ safePlaceG1Missing(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
   forceInsertUltimate(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
+  rebuildClassForLastMissing(state, lessons, data);
+  safePlaceG1Missing(state, lessons, data);
+
 
 
 
