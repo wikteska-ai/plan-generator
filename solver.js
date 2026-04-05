@@ -938,7 +938,7 @@ function tryPlaceWholeGroup(state, lessons, data) {
         console.log("🟢 GROUP PERFECT PLACE:", key, d, h);
 
         for (let l of groupLessons) {
-          place(l, d, h, state);
+          place(l, d, h, state, data);
           state.used.add(l.id);
         }
 
@@ -1693,28 +1693,14 @@ function canPlace(l, d, h, state, data) {
 
   const busy = state.teacherBusy[tKey] || [];
 
-  // 🔴 SINGLE
   if (!l.group) {
     if (busy.length > 0) return false;
   }
 
-  // 🔵 GROUP
   if (l.group) {
     for (let existing of busy) {
       if (!existing.group) return false;
       if (existing.group !== l.group) return false;
-    }
-
-    // 🔥 KLUCZOWA RZECZ
-    // wszystkie lekcje tej grupy muszą mieć wolne klasy
-    for (let other of data.lessons) {
-      if (
-        other.group === l.group &&
-        other.id !== l.id &&
-        state.classBusy[other.class + "_" + d + "_" + h]
-      ) {
-        return false;
-      }
     }
   }
 
@@ -1723,7 +1709,7 @@ function canPlace(l, d, h, state, data) {
   return true;
 }
 // ===== PLACE =====
-function place(l, d, h, state) {
+function place(l, d, h, state, data) {
   const key = d + "_" + h;
   const tKey = l.teacher + "_" + key;
 
@@ -1732,15 +1718,50 @@ function place(l, d, h, state) {
     state.teacherBusy[tKey] = [];
   }
 
-  state.teacherBusy[tKey].push(l);
+ // 🔥 jeśli grupa → wstaw całą grupę naraz
+if (l.group) {
+  const groupLessons = data.lessons.filter(x => x.group === l.group);
 
-  state.classBusy[l.class + "_" + key] = true;
+  for (let gl of groupLessons) {
 
-  if (!state.schedule[l.class]) state.schedule[l.class] = {};
-  if (!state.schedule[l.class][d]) state.schedule[l.class][d] = {};
+    if (state.used.has(gl.id)) continue;
 
-  state.schedule[l.class][d][h] = l;
-  state.used.add(l.id);
+    const clsKey = gl.class + "_" + key;
+
+    // ❌ jeśli jakakolwiek klasa zajęta → przerywamy
+    if (state.classBusy[clsKey]) return;
+
+    if (!state.schedule[gl.class]) state.schedule[gl.class] = {};
+    if (!state.schedule[gl.class][d]) state.schedule[gl.class][d] = {};
+
+    state.schedule[gl.class][d][h] = gl;
+    state.classBusy[clsKey] = true;
+
+    if (!state.teacherBusy[tKey]) {
+      state.teacherBusy[tKey] = [];
+    }
+
+    state.teacherBusy[tKey].push(gl);
+    state.used.add(gl.id);
+  }
+
+  return;
+}
+
+// 🔵 SINGLE (zostaje jak było)
+if (!state.teacherBusy[tKey]) {
+  state.teacherBusy[tKey] = [];
+}
+
+state.teacherBusy[tKey].push(l);
+
+state.classBusy[l.class + "_" + key] = true;
+
+if (!state.schedule[l.class]) state.schedule[l.class] = {};
+if (!state.schedule[l.class][d]) state.schedule[l.class][d] = {};
+
+state.schedule[l.class][d][h] = l;
+state.used.add(l.id);
 }
 
 // ===== COUNT GAPS =====
@@ -1796,7 +1817,7 @@ function runStep(group, state, data, order, label) {
 
     if (candidates.length > 0) {
       const l = candidates[0];
-      place(l, d, h, state);
+      place(l, d, h, state, data);
     }
   }
 }
