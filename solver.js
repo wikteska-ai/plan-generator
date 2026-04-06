@@ -21,6 +21,7 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+
 function wouldCreateGapAfterRemoval(lesson, state) {
   const cls = lesson.class;
 
@@ -43,27 +44,74 @@ function wouldCreateGapAfterRemoval(lesson, state) {
 
   return false;
 }
-function wouldCreateGapAfterRemoval(lesson, state) {
-  const cls = lesson.class;
+function fixGapsSmart(state, lessons, data) {
+  console.log("🧠 SMART GAP FIX START");
 
-  for (let d in state.schedule[cls]) {
-    for (let h in state.schedule[cls][d]) {
+  for (let cls in state.schedule) {
 
-      const l = state.schedule[cls][d][h];
+    const gaps = findClassGaps(state.schedule, cls);
 
-      if (l.id === lesson.id) {
-        const day = state.schedule[cls][d];
+    for (let gap of gaps) {
+      const { d, h } = gap;
 
-        const before = day[h - 1];
-        const after = day[Number(h) + 1];
+      // 🔍 szukamy kandydatów z tej klasy
+      const candidates = lessons.filter(l =>
+        l.class == cls &&
+        state.used.has(l.id)
+      );
 
-        // jeśli było między → zrobi się gap
-        if (before && after) return true;
+      for (let l of candidates) {
+
+        // 🔒 nie ruszamy grup
+        if (l.group) continue;
+
+        // 🔒 czy można wstawić do gap
+        if (!canPlace(l, d, h, state, data)) continue;
+
+        // 🔒 znajdź gdzie jest teraz
+        let old = null;
+
+        for (let dd in state.schedule[cls]) {
+          for (let hh in state.schedule[cls][dd]) {
+            if (state.schedule[cls][dd][hh].id === l.id) {
+              old = { d: dd, h: Number(hh) };
+            }
+          }
+        }
+
+        if (!old) continue;
+
+        const day = state.schedule[cls]?.[old.d] || {};
+
+        const isLastHour =
+          old.h === Math.max(...Object.keys(day).map(Number));
+
+        // 🔥 KLUCZ:
+        // jeśli nie jest ostatnia → nie może robić gap
+        if (!isLastHour && wouldCreateGapAfterRemoval(l, state)) {
+          continue;
+        }
+
+        // 🚀 WYKONANIE
+        console.log(
+          "🧠 GAP FIX:",
+          l.subject,
+          "| FROM:", old.d, old.h,
+          "| TO:", d, h
+        );
+
+        removeLesson(l, state);
+        state.used.delete(l.id);
+
+        place(l, d, h, state);
+        state.used.add(l.id);
+
+        break; // przechodzimy do następnego gap
       }
     }
   }
 
-  return false;
+  console.log("🧠 SMART GAP FIX END");
 }
 function finalFixOneMissing(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
