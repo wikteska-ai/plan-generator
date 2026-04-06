@@ -2129,7 +2129,25 @@ function generateSchedule(data) {
 
   // 🔥 FINALNY PLAN
   console.log("\n📅 FINAL SCHEDULE:");
-const top3 = results.slice(0, 3);
+const sorted = [...results].sort((a, b) => {
+  // 🔥 najpierw missing
+  if (a.missing !== b.missing) {
+    return a.missing - b.missing;
+  }
+
+  // 🔥 potem gaps
+  return a.gaps - b.gaps;
+});
+
+const top3 = sorted.slice(0, 3);
+ console.log("\n🏆 TOP 3:");
+
+top3.forEach((r, i) => {
+  console.log(
+    `#${i + 1} → missing: ${r.missing}, gaps: ${r.gaps}`
+  );
+});
+  
  return {
   schedule1: top3[0]?.schedule || null,
   missing1: top3[0]?.missing ?? null,
@@ -2143,12 +2161,5 @@ const top3 = results.slice(0, 3);
   missing3: top3[2]?.missing ?? null,
   gaps3: top3[2]?.gaps ?? null
 };
-  console.log("\n🏆 TOP 3:");
-
-top3.forEach((r, i) => {
-  console.log(
-    `#${i + 1} → missing: ${r.missing}, gaps: ${r.gaps}`
-  );
-});
 }
 export { generateSchedule };
