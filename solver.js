@@ -1,19 +1,5 @@
 const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
 const HOURS = [1,2,3,4,5,6,7,8];
-const STRATEGIES = [
-  "EARLY",
-  "LATE",
-  "CENTER",
-  "ZIGZAG"
-];
-function getHoursByStrategy(strategy) {
-  switch (strategy) {
-    case "LATE": return [8,7,6,5,4,3,2,1];
-    case "CENTER": return [4,5,3,6,2,7,1,8];
-    case "ZIGZAG": return [1,8,2,7,3,6,4,5];
-    default: return [1,2,3,4,5,6,7,8]; // EARLY
-  }
-}
 
 // ===== BUILD LESSONS =====
 function buildLessons(data) {
@@ -35,570 +21,60 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
-function rebuildClassForLastMissing(state, lessons, data) {
-  const missing = getRealMissing(lessons, state);
-
-  if (missing.length !== 1) return;
-
-  const M = missing[0];
-  const cls = M.class;
-
-  console.log("🎯 REBUILD CLASS:", cls, "| M:", M.subject);
-
-  const test = cloneState(state);
-
-  const toReinsert = [];
-
-  // 🔥 1. wyciągamy CAŁĄ klasę
-  for (let d of DAYS) {
-    for (let h of HOURS) {
-      const l = test.schedule[cls]?.[d]?.[h];
-
-      if (l) {
-        removeLesson(l, test);
-        test.used.delete(l.id);
-        toReinsert.push(l);
-      }
-    }
-  }
-
-  // 🔥 dodajemy brakującą
-  toReinsert.push(M);
-
-  // 🔥 2. sort — G1 najpierw
-  toReinsert.sort((a, b) => {
-    if (a._groupLevel === "G1" && b._groupLevel !== "G1") return -1;
-    if (b._groupLevel === "G1" && a._groupLevel !== "G1") return 1;
-    return 0;
-  });
-
-  // 🔥 3. układamy klasę od nowa
-  for (let l of toReinsert) {
-
-    let placed = false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-
-        if (canPlace(l, d, h, test, data)) {
-          place(l, d, h, test);
-          test.used.add(l.id);
-          placed = true;
-          break;
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed) {
-      console.log("❌ CLASS REBUILD FAIL:", l.subject);
-      return; // rollback
-    }
-  }
-
-  // 🚀 SUCCESS
-  console.log("🚀 CLASS REBUILD SUCCESS");
-
-  state.schedule = test.schedule;
-  state.teacherBusy = test.teacherBusy;
-  state.classBusy = test.classBusy;
-  state.used = test.used;
-}
-function rebuildTeacherForMissing(state, lessons, data) {
-  const missing = getRealMissing(lessons, state);
-
-  if (missing.length !== 1) return;
-
-  const M = missing[0];
-  const teacher = M.teacher;
-
-  console.log("♻️ REBUILD TEACHER:", teacher, "| M:", M.subject);
-
-  const test = cloneState(state);
-
-  const toReinsert = [];
-
-  // 🔥 1. wyciągamy WSZYSTKIE lekcje tego nauczyciela
-  for (let cls in test.schedule) {
-    for (let d in test.schedule[cls]) {
-      for (let h in test.schedule[cls][d]) {
-
-        const l = test.schedule[cls][d][h];
-
-        if (l.teacher === teacher) {
-          removeLesson(l, test);
-          test.used.delete(l.id);
-          toReinsert.push(l);
-        }
-      }
-    }
-  }
-
-  // 🔥 dodajemy brakującą też
-  toReinsert.push(M);
-
-  // 🔥 2. sortujemy — NAJTRUDNIEJSZE najpierw
-  const { load, availability } = getTeacherStats(data);
-
-  toReinsert.sort((a, b) => {
-    const ra = (load[a.teacher] || 0) / (availability[a.teacher] || 1);
-    const rb = (load[b.teacher] || 0) / (availability[b.teacher] || 1);
-    return rb - ra;
-  });
-
-  // 🔥 3. próbujemy wstawić wszystko od nowa
-  for (let l of toReinsert) {
-
-    let placed = false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-
-        if (canPlace(l, d, h, test, data)) {
-          place(l, d, h, test);
-          test.used.add(l.id);
-          placed = true;
-          break;
-        }
-      }
-      if (placed) break;
-    }
-
-    if (!placed) {
-      console.log("❌ REBUILD FAIL:", l.subject);
-      return; // ❌ nie ruszamy oryginału
-    }
-  }
-
-  // 🚀 SUCCESS
-  console.log("🚀 REBUILD SUCCESS");
-
-  state.schedule = test.schedule;
-  state.teacherBusy = test.teacherBusy;
-  state.classBusy = test.classBusy;
-  state.used = test.used;
-}
-function forceInsertByLocalReset(state, lessons, data) {
+function finalFixOneMissing(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
   if (missing.length !== 1) return;
 
   const M = missing[0];
 
-  console.log("💣 LOCAL RESET START:", M.subject);
-
-  const t = data.teachers.find(x => x.id === M.teacher);
+  console.log("🎯 FINAL FIX FOR:", M.subject, M.teacher);
 
   for (let d of DAYS) {
     for (let h of HOURS) {
+
+      const c = M.class;
+      const t = data.teachers.find(x => x.id === M.teacher);
 
       if (!t.availability.includes(d + "_" + h)) continue;
 
-      const test = cloneState(state);
+      const existing = state.schedule[c]?.[d]?.[h];
 
-      const toReinsert = [];
+      if (!existing) continue;
 
-      // 🔥 1. usuń wszystko co blokuje ten slot
-      for (let cls in test.schedule) {
-        const l = test.schedule[cls]?.[d]?.[h];
+      // ❌ nie ruszamy grup
+      if (existing.group) continue;
 
-        if (!l) continue;
+      // ❌ nie ruszamy G1
+      if (existing._groupLevel === "G1") continue;
 
-        // 🔒 nie ruszamy grup
-        if (l.group) continue;
+      // 🔥 sprawdź czy istniejąca ma gdzie iść
+      const slot = findReinsertSlot(existing, state, data, d, h);
 
-        removeLesson(l, test);
-        test.used.delete(l.id);
+      if (!slot) continue;
 
-        toReinsert.push(l);
-      }
+      // 🚀 swap
+      removeLesson(existing, state);
+      state.used.delete(existing.id);
 
-      // 🔥 2. spróbuj wstawić M
-      if (!canPlace(M, d, h, test, data)) continue;
+      place(M, d, h, state);
+      state.used.add(M.id);
 
-      place(M, d, h, test);
-      test.used.add(M.id);
+      place(existing, slot.d, slot.h, state);
+      state.used.add(existing.id);
 
-      // 🔥 3. spróbuj przywrócić usunięte
-      let ok = true;
-
-      for (let l of toReinsert) {
-
-        let placed = false;
-
-        for (let d2 of DAYS) {
-          for (let h2 of HOURS) {
-
-            if (d2 === d && h2 === h) continue;
-
-            if (canPlace(l, d2, h2, test, data)) {
-              place(l, d2, h2, test);
-              test.used.add(l.id);
-              placed = true;
-              break;
-            }
-          }
-          if (placed) break;
-        }
-
-        if (!placed) {
-          ok = false;
-          break;
-        }
-      }
-
-      if (!ok) continue;
-
-      // 🔥 SUCCESS
-      console.log("🚀 LOCAL RESET SUCCESS:", d, h);
-
-      state.schedule = test.schedule;
-      state.teacherBusy = test.teacherBusy;
-      state.classBusy = test.classBusy;
-      state.used = test.used;
+      console.log(
+        "🎯 FIXED:",
+        M.subject,
+        "→", d, h,
+        "| moved:", existing.subject
+      );
 
       return;
     }
   }
 
-  console.log("💀 LOCAL RESET FAILED");
-}
-function forceInsertUltimate(state, lessons, data) {
-  const missing = getRealMissing(lessons, state);
-
-  if (missing.length !== 1) return;
-
-  const M = missing[0];
-
-  console.log("🚨 ULTIMATE INSERT START:", M.subject);
-
-  const MAX_DEPTH = 3;
-
-  function dfs(testState, lesson, depth, visited) {
-    if (depth > MAX_DEPTH) return false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-
-        const t = data.teachers.find(x => x.id === lesson.teacher);
-        if (!t.availability.includes(d + "_" + h)) continue;
-
-        const c = lesson.class;
-
-        const existing = testState.schedule[c]?.[d]?.[h];
-
-        // 🟢 wolny slot
-        if (!existing && canPlace(lesson, d, h, testState, data)) {
-          place(lesson, d, h, testState);
-          testState.used.add(lesson.id);
-          return true;
-        }
-
-        // 🔥 próbujemy wypchnąć
-        if (existing && !existing.group && !visited.has(existing.id)) {
-
-          visited.add(existing.id);
-
-          const snapshot = cloneState(testState);
-
-          removeLesson(existing, testState);
-          testState.used.delete(existing.id);
-
-          if (canPlace(lesson, d, h, testState, data)) {
-
-            place(lesson, d, h, testState);
-            testState.used.add(lesson.id);
-
-            const success = dfs(testState, existing, depth + 1, visited);
-
-            if (success) return true;
-          }
-
-          // rollback
-          Object.assign(testState, snapshot);
-          visited.delete(existing.id);
-        }
-      }
-    }
-
-    return false;
-  }
-
-  const test = cloneState(state);
-
-  const success = dfs(test, M, 0, new Set());
-
-  if (success) {
-    console.log("🚀 ULTIMATE SUCCESS");
-
-    // 🔥 przepisujemy cały stan
-    state.schedule = test.schedule;
-    state.teacherBusy = test.teacherBusy;
-    state.classBusy = test.classBusy;
-    state.used = test.used;
-
-  } else {
-    console.log("💀 ULTIMATE FAILED");
-  }
-}
-function forceInsertLastOne(state, lessons, data) {
-  const missing = getRealMissing(lessons, state);
-
-  if (missing.length !== 1) return;
-
-  const M = missing[0];
-
-  console.log("🧠 FORCE LAST ONE START:", M.subject);
-
-  for (let d of DAYS) {
-    for (let h of HOURS) {
-
-      const t = data.teachers.find(x => x.id === M.teacher);
-      if (!t.availability.includes(d + "_" + h)) continue;
-
-      const c = M.class;
-
-      const existing = state.schedule[c]?.[d]?.[h];
-
-      // 🟢 1. wolny slot
-      if (!existing && canPlace(M, d, h, state, data)) {
-        place(M, d, h, state);
-        state.used.add(M.id);
-
-        console.log("🔥 LAST DIRECT:", d, h);
-        return;
-      }
-
-      // 🔥 2. próbujemy chain move (max 2 poziomy)
-      if (existing && !existing.group) {
-
-        const first = existing;
-
-        // 🔒 znajdź slot dla first
-        const slot1 = findReinsertSlot(first, state, data, d, h);
-        if (!slot1) continue;
-
-        // 🔥 SYMULACJA
-        const test = cloneState(state);
-
-        removeLesson(first, test);
-
-        if (!canPlace(M, d, h, test, data)) continue;
-
-        place(M, d, h, test);
-
-        place(first, slot1.d, slot1.h, test);
-
-        // 🔥 SPRAWDŹ CZY NIC NIE ZNIKNĘŁO
-        const afterMissing = getRealMissing(lessons, test);
-        if (afterMissing.length > 0) continue;
-
-        // 🚀 REAL EXECUTION
-        console.log(
-          "🔥 FORCE CHAIN:",
-          M.subject, "→", d, h,
-          "| SHIFT:", first.subject, "→", slot1.d, slot1.h
-        );
-
-        removeLesson(first, state);
-        state.used.delete(first.id);
-
-        place(M, d, h, state);
-        state.used.add(M.id);
-
-        place(first, slot1.d, slot1.h, state);
-        state.used.add(first.id);
-
-        return;
-      }
-    }
-  }
-
-  console.log("💀 FORCE FAILED:", M.subject);
-}
-function smartInsertAfterG1(state, lessons, data) {
-  console.log("🧠 SMART INSERT G1 START");
-
-  const missing = lessons.filter(l =>
-    !state.used.has(l.id)
-  );
-
-  for (let M of missing) {
-
-    let placed = false;
-
-    for (let d of DAYS) {
-      for (let h of HOURS) {
-
-        const t = data.teachers.find(x => x.id === M.teacher);
-
-        if (!t.availability.includes(d + "_" + h)) continue;
-
-        const c = M.class;
-
-        const existing = state.schedule[c]?.[d]?.[h];
-
-        // 🟢 1. czysty slot
-        if (!existing && canPlace(M, d, h, state, data)) {
-          place(M, d, h, state);
-          state.used.add(M.id);
-
-          console.log("🟢 DIRECT:", M.subject, d, h);
-          placed = true;
-          break;
-        }
-
-        // 🔥 2. próbujemy swap (ALE BEZPIECZNIE)
-        if (existing) {
-
-          // ❌ nie ruszamy grup
-          if (existing.group) continue;
-
-          // ❌ nie ruszamy G1 ciężkich
-          if (existing._groupLevel === "G1") continue;
-
-          // 🔒 czy istniejąca ma gdzie wrócić?
-          if (!hasAlternativeSlot(existing, state, data, d, h)) {
-            continue;
-          }
-
-          // 🔒 czy M w ogóle tu pasuje?
-          removeLesson(existing, state);
-
-          if (canPlace(M, d, h, state, data)) {
-
-            console.log(
-              "🔁 SMART SWAP:",
-              M.subject,
-              "IN →", d, h,
-              "| OUT:", existing.subject
-            );
-
-            place(M, d, h, state);
-            state.used.add(M.id);
-
-            // 🔁 wrzucamy wyrzuconą gdzie indziej
-            const slot = findReinsertSlot(existing, state, data, d, h);
-
-            if (slot) {
-              place(existing, slot.d, slot.h, state);
-              state.used.add(existing.id);
-            } else {
-              // rollback safety (rzadkie)
-              removeLesson(M, state);
-              place(existing, d, h, state);
-              continue;
-            }
-
-            placed = true;
-            break;
-          } else {
-            // rollback
-            place(existing, d, h, state);
-          }
-        }
-      }
-
-      if (placed) break;
-    }
-
-    if (!placed) {
-      console.log("❌ STILL MISSING AFTER G1:", M.subject);
-    }
-  }
-
-  console.log("🧠 SMART INSERT G1 END");
-}
-function wouldCreateGapAfterRemoval(lesson, state) {
-  const cls = lesson.class;
-
-  for (let d in state.schedule[cls]) {
-    for (let h in state.schedule[cls][d]) {
-
-      const l = state.schedule[cls][d][h];
-
-      if (l.id === lesson.id) {
-        const day = state.schedule[cls][d];
-
-        const before = day[h - 1];
-        const after = day[Number(h) + 1];
-
-        // jeśli było między → zrobi się gap
-        if (before && after) return true;
-      }
-    }
-  }
-
-  return false;
-}
-function fixGapsSmart(state, lessons, data) {
-  console.log("🧠 SMART GAP FIX START");
-
-  for (let cls in state.schedule) {
-
-    const gaps = findClassGaps(state.schedule, cls);
-
-    for (let gap of gaps) {
-      const { d, h } = gap;
-
-      // 🔍 szukamy kandydatów z tej klasy
-      const candidates = lessons.filter(l =>
-        l.class == cls &&
-        state.used.has(l.id)
-      );
-
-      for (let l of candidates) {
-
-        // 🔒 nie ruszamy grup
-        if (l.group) continue;
-
-        // 🔒 czy można wstawić do gap
-        if (!canPlace(l, d, h, state, data)) continue;
-
-        // 🔒 znajdź gdzie jest teraz
-        let old = null;
-
-        for (let dd in state.schedule[cls]) {
-          for (let hh in state.schedule[cls][dd]) {
-            if (state.schedule[cls][dd][hh].id === l.id) {
-              old = { d: dd, h: Number(hh) };
-            }
-          }
-        }
-
-        if (!old) continue;
-
-        const day = state.schedule[cls]?.[old.d] || {};
-
-        const isLastHour =
-          old.h === Math.max(...Object.keys(day).map(Number));
-
-        // 🔥 KLUCZ:
-        // jeśli nie jest ostatnia → nie może robić gap
-        if (!isLastHour && wouldCreateGapAfterRemoval(l, state)) {
-          continue;
-        }
-
-        // 🚀 WYKONANIE
-        console.log(
-          "🧠 GAP FIX:",
-          l.subject,
-          "| FROM:", old.d, old.h,
-          "| TO:", d, h
-        );
-
-        removeLesson(l, state);
-        state.used.delete(l.id);
-
-        place(l, d, h, state);
-        state.used.add(l.id);
-
-        break; // przechodzimy do następnego gap
-      }
-    }
-  }
-
-  console.log("🧠 SMART GAP FIX END");
+  console.log("❌ FINAL FIX FAILED");
 }
 function findGroupSlot(groupLessons, state, data) {
   let best = null;
@@ -2387,12 +1863,14 @@ function countGaps(schedule) {
 }
 
 // ===== BUILD ORDER (godzina → klasa → dzień) =====
-function buildOrder(startIndex, strategy) {
-  const hours = getHoursByStrategy(strategy);
+function buildOrder(startIndex) {
   const slots = [];
 
-  for (let h of hours) {
-    for (let c = 0; c <= 8; c++) {
+  for (let h of HOURS) {
+const classOffset = startIndex % 9;
+const classes = Array.from({ length: 9 }, (_, i) => (i + classOffset) % 9);
+
+for (let c of classes) {
       for (let d of DAYS) {
         slots.push({ c, d, h });
       }
@@ -2401,6 +1879,7 @@ function buildOrder(startIndex, strategy) {
 
   return [...slots.slice(startIndex), ...slots.slice(0, startIndex)];
 }
+
 // ===== RUN STEP =====
 function runStep(group, state, data, order, label) {
   console.log("➡️ STEP:", label);
@@ -2451,62 +1930,33 @@ if (candidates.length > 0) {
 }
   }
 }
-function sortGroupByStrategy(group, data, strategy) {
-  const base = sortGroup(group, data);
-
-  if (strategy === "LATE") {
-    return [...base].reverse();
-  }
-
-  if (strategy === "CENTER") {
-    return [...base].sort((a,b) => a.class - b.class);
-  }
-
-  return base;
-}
 
 // ===== ONE RUN =====
-function runOnce(data, startIndex, strategy) {
+function runOnce(data, startIndex) {
   console.log("\n🚀 RUN START:", startIndex);
 
   const lessons = buildLessons(data);
 let { g1, g2, g3 } = splitGroups(lessons, data);
 
-g1 = sortGroupByStrategy(g1, data, strategy);
+g1 = sortGroup(g1, data);
+  if (startIndex % 2 === 1) {
+  g1 = [...g1].reverse();
+}
 g2 = sortGroup(g2, data);
 g3 = sortGroup(g3, data);
   const state = createState();
-const order = buildOrder(startIndex, strategy);
-  
+  const order = buildOrder(startIndex);
+
   runStep(g1, state, data, order, "G1");
   // 🔥 NOWE ETAPY
-
   safePlaceG1Missing(state, lessons, data);
-  rebuildTeacherForMissing(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
-
   forcePlaceG1Missing(state, lessons, data);
   swapInsertMissing(state, lessons, data);
 safePlaceG1Missing(state, lessons, data);
   cleanSwapG1(state, lessons, data);
     tryPlaceWholeGroup(state, lessons, data);
 forceGroupIntoSingles(state, lessons, data);
-   forceInsertByLocalReset(state, lessons, data);
-safePlaceG1Missing(state, lessons, data);
-  forceInsertByLocalReset(state, lessons, data);
-safePlaceG1Missing(state, lessons, data);
-  smartInsertAfterG1(state, lessons, data);
-   safePlaceG1Missing(state, lessons, data);
-  forceInsertLastOne(state, lessons, data);
   safePlaceG1Missing(state, lessons, data);
-  forceInsertUltimate(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
-  rebuildClassForLastMissing(state, lessons, data);
-  safePlaceG1Missing(state, lessons, data);
-
-
-
-
 
 
   
@@ -2515,7 +1965,7 @@ safePlaceG1Missing(state, lessons, data);
     tryFillGaps(state, lessons, data);
   tryInsertMissing(state, lessons, data);
       tryFillGaps(state, lessons, data);
-  aggressiveInsertG1Singles(state, lessons, data);
+  // aggressiveInsertG1Singles(state, lessons, data);
     tryFillGaps(state, lessons, data);
      tryInsertMissing3(state, lessons, data);
     tryFillGaps(state, lessons, data);   
@@ -2523,10 +1973,9 @@ safePlaceG1Missing(state, lessons, data);
     tryFillGaps(state, lessons, data);
   fillGapsWithG3(state, lessons, data);
     tryFillGaps(state, lessons, data);
-
+finalFixOneMissing(state, lessons, data);
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
-  fixGapsSmart(state, lessons, data);
 
 validateGroups(state);
   validateFinal(state, lessons, data);
@@ -2562,10 +2011,8 @@ function generateSchedule(data) {
 
   let best = null;
 
- for (let strategy of STRATEGIES) {
-  for (let i = 0; i < 12; i++) {
-
-    const res = runOnce(data, i, strategy);
+  for (let i = 0; i < 120; i++) {
+    const res = runOnce(data, i);
     results.push(res);
 
     if (
@@ -2576,7 +2023,6 @@ function generateSchedule(data) {
       best = res;
     }
   }
-}
 
   console.log("\n✅ DONE");
   console.log("🏆 BEST RESULT:");
