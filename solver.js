@@ -2125,13 +2125,30 @@ function generateSchedule(data) {
   results.forEach((r, i) => {
     console.log("RUN", i, "→ gaps:", r.gaps, "missing:", r.missing);
   });
+  
 
   // 🔥 FINALNY PLAN
   console.log("\n📅 FINAL SCHEDULE:");
+const top3 = results.slice(0, 3);
+ return {
+  schedule1: top3[0]?.schedule || null,
+  missing1: top3[0]?.missing ?? null,
+  gaps1: top3[0]?.gaps ?? null,
 
-  return {
-    schedule: best.schedule,
-    score: -best.gaps - best.missing * 1000 // prosta heurystyka
-  };
+  schedule2: top3[1]?.schedule || null,
+  missing2: top3[1]?.missing ?? null,
+  gaps2: top3[1]?.gaps ?? null,
+
+  schedule3: top3[2]?.schedule || null,
+  missing3: top3[2]?.missing ?? null,
+  gaps3: top3[2]?.gaps ?? null
+};
+  console.log("\n🏆 TOP 3:");
+
+top3.forEach((r, i) => {
+  console.log(
+    `#${i + 1} → missing: ${r.missing}, gaps: ${r.gaps}`
+  );
+});
 }
 export { generateSchedule };
