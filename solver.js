@@ -21,6 +21,50 @@ function buildLessons(data) {
   console.log("📊 TOTAL LESSONS:", out.length);
   return out;
 }
+function wouldCreateGapAfterRemoval(lesson, state) {
+  const cls = lesson.class;
+
+  for (let d in state.schedule[cls]) {
+    for (let h in state.schedule[cls][d]) {
+
+      const l = state.schedule[cls][d][h];
+
+      if (l.id === lesson.id) {
+        const day = state.schedule[cls][d];
+
+        const before = day[h - 1];
+        const after = day[Number(h) + 1];
+
+        // jeśli było między → zrobi się gap
+        if (before && after) return true;
+      }
+    }
+  }
+
+  return false;
+}
+function wouldCreateGapAfterRemoval(lesson, state) {
+  const cls = lesson.class;
+
+  for (let d in state.schedule[cls]) {
+    for (let h in state.schedule[cls][d]) {
+
+      const l = state.schedule[cls][d][h];
+
+      if (l.id === lesson.id) {
+        const day = state.schedule[cls][d];
+
+        const before = day[h - 1];
+        const after = day[Number(h) + 1];
+
+        // jeśli było między → zrobi się gap
+        if (before && after) return true;
+      }
+    }
+  }
+
+  return false;
+}
 function finalFixOneMissing(state, lessons, data) {
   const missing = getRealMissing(lessons, state);
 
@@ -1976,6 +2020,7 @@ forceGroupIntoSingles(state, lessons, data);
 finalFixOneMissing(state, lessons, data);
    optimizeEarlyClasses(state, lessons, data); // 🔥 najpierw dzieci
   optimizeLateHours(state, lessons, data); // 🔥 TU
+  fixGapsSmart(state, lessons, data);
 
 validateGroups(state);
   validateFinal(state, lessons, data);
